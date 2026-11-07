@@ -114,23 +114,13 @@ body,
   font: 10px var(--mono);
 }
 
-.part-label,
-.guide-label {
+.part-label {
   pointer-events: none;
   white-space: nowrap;
   font: 11px/1 var(--mono);
-}
-
-.part-label {
   padding: 3px 6px;
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 4px;
   background: rgba(10, 11, 14, 0.82);
   color: #fff;
-}
-
-.guide-label {
-  padding-left: 6px;
-  transform: translateY(-50%);
-  opacity: 0.9;
 }

@@ -16,9 +16,11 @@ export const SCENE = {
   controls: {
     minDistance: 1.5,
     maxDistance: 15,
-    /** Keep the camera just above the ground plane. */
+    /** Keep the camera just above the orbit target (and so above the ground). */
     maxPolarAngle: Math.PI / 2 - 0.04,
     smoothTime: 0.25,
+    /** Where panning may move the orbit target. */
+    targetBounds: { min: [-6, 0.05, -7] as Vec3, max: [6, 4, 7] as Vec3 },
   },
   grid: { cellSize: 0.1, sectionSize: 1, fadeDistance: 28 },
   contactShadows: { scale: 12, far: 2.5, blur: 2.2, opacity: 0.75, resolution: 1024 },

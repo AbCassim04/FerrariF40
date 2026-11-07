@@ -84,13 +84,8 @@ const factories: Record<MaterialKey, () => Material> = {
   ceramic: () => new MeshStandardMaterial({ color: PALETTE.ceramic, metalness: 0.2, roughness: 0.75 }),
   caliper: () => new MeshStandardMaterial({ color: PALETTE.caliper, metalness: 0.3, roughness: 0.35 }),
   radiator: () => new MeshStandardMaterial({ color: PALETTE.radiator, metalness: 0.6, roughness: 0.5 }),
-  reference: () =>
-    new MeshStandardMaterial({
-      color: PALETTE.reference,
-      transparent: true,
-      opacity: 0.12,
-      depthWrite: false,
-    }),
+  /** Thin lines for wireframe reference geometry. */
+  reference: () => new LineBasicMaterial({ color: PALETTE.reference, transparent: true, opacity: 0.6 }),
 };
 
 const cache = new Map<MaterialKey, Material>();
@@ -103,12 +98,4 @@ export function getMaterial(key: MaterialKey): Material {
     cache.set(key, m);
   }
   return m;
-}
-
-let referenceLine: LineBasicMaterial | null = null;
-
-/** Thin-line material for wireframe reference geometry. */
-export function getReferenceLineMaterial() {
-  referenceLine ??= new LineBasicMaterial({ color: PALETTE.reference, transparent: true, opacity: 0.6 });
-  return referenceLine;
 }

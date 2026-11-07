@@ -23,7 +23,7 @@ export type Stage = 1 | 2 | 3 | 4 | 5;
 
 export interface PartBuildProps {
   /** The part's primary material (from `material`). Builds may use others via getMaterial(). */
-  material: Material;
+  material?: Material;
 }
 
 export interface PartDef {
@@ -41,15 +41,18 @@ export interface PartDef {
   position: Vec3;
   /** Assembled rotation of this part's own geometry. Not inherited by child parts. */
   rotation?: Euler3;
+  /** Primary material key, passed to `build`. Required unless `source` is 'model'. */
   material?: MaterialKey;
+  /** 'model' = geometry comes from the licensed body model (with its own materials). */
+  source?: 'model';
   stage: Stage;
   /** Exploded displacement along car axes, added on top of the parent's displacement. */
   explodeOffset: Vec3;
-  /** Parent assembly id. The child rides along with the parent's explode motion. */
+  /** Parent assembly id. The child rides along with the parent's offset and swing. */
   parent?: string;
-  /** Exploded rotation in the part's local frame, applied about `pivot`. */
+  /** Exploded rotation (car axes, XYZ order) about `pivot`. Carries child parts with it. */
   explodeRotation?: Euler3;
-  /** Hinge point for `explodeRotation`, in the part's local frame. Defaults to its origin. */
+  /** Hinge point for `explodeRotation`, in car axes relative to `position`. Defaults to it. */
   pivot?: Vec3;
   /** Seconds after the stage starts before this part moves. */
   delay?: number;

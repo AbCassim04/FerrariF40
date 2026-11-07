@@ -29,7 +29,9 @@ function validate(parts: readonly PartDef[]) {
     if (p.parent && !seen.has(p.parent)) {
       throw new Error(`registry: "${p.id}" has parent "${p.parent}", which must be listed before it`);
     }
-    if (p.build && !p.material) throw new Error(`registry: "${p.id}" has a build but no material`);
+    if (p.build && !p.material && p.source !== 'model') {
+      throw new Error(`registry: procedural part "${p.id}" has a build but no material`);
+    }
     seen.add(p.id);
   }
 }

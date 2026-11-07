@@ -1,6 +1,15 @@
 import { useEffect } from 'react';
 import { useAppStore } from '../state/store';
 
+const NON_TEXT_INPUTS = new Set(['checkbox', 'radio', 'button', 'range', 'color']);
+
+/** True for elements where a typed letter is text, not a shortcut. */
+function isTextEntry(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable || target instanceof HTMLTextAreaElement) return true;
+  return target instanceof HTMLInputElement && !NON_TEXT_INPUTS.has(target.type);
+}
+
 /** Dev-only toggles for review aids. Keyboard: L = part ids, G = guides. */
 export function DevPanel() {
   const showLabels = useAppStore((s) => s.showLabels);
@@ -10,7 +19,7 @@ export function DevPanel() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.repeat || e.metaKey || e.ctrlKey || e.altKey || isTextEntry(e.target)) return;
       if (e.key === 'l' || e.key === 'L') toggleLabels();
       if (e.key === 'g' || e.key === 'G') toggleGuides();
     };

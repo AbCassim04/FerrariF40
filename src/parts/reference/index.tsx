@@ -4,7 +4,7 @@ import { SEGMENTS } from '../../config/detail';
 import { DIMS, EXPLODE, type Vec3, type WheelDims } from '../../config/dims';
 import { REFERENCE_LAYER } from '../../config/scene';
 import { fmtDeg, fmtM, fmtMm } from '../../lib/format';
-import { getMaterial, getReferenceLineMaterial } from '../../materials/materials';
+import { getMaterial } from '../../materials/materials';
 import type { PartBuildProps, PartDef } from '../types';
 
 /**
@@ -17,13 +17,13 @@ const PLACEHOLDER = 'Milestone-1 placeholder.';
 
 // ─── Builds ──────────────────────────────────────────────────────────────────
 
-function Envelope() {
+function Envelope({ material }: PartBuildProps) {
   const box = useMemo(() => {
     const { width, height, length } = DIMS.overall;
     return new BoxGeometry(width, height, length);
   }, []);
   return (
-    <lineSegments material={getReferenceLineMaterial()} layers={REFERENCE_LAYER}>
+    <lineSegments material={material} layers={REFERENCE_LAYER}>
       <edgesGeometry args={[box]} />
     </lineSegments>
   );

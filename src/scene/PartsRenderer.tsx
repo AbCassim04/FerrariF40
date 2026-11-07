@@ -22,10 +22,12 @@ export function PartsRenderer() {
 
 /**
  * Node layout per part:
- *   anchor (base position, animated by explodeOffset; carries child parts)
- *   └─ rotation group (assembled rotation, own geometry only)
- *      └─ pivot group (at pivot, animated by explodeRotation)
- *         └─ content (offset by -pivot) → build
+ *   anchor (base position, animated by explodeOffset)
+ *   └─ swing (at pivot, animated by explodeRotation)
+ *      └─ unswing (offset by -pivot)
+ *         ├─ rotation group (assembled rotation, own geometry only)
+ *         │  └─ content → build
+ *         └─ child parts (ride along with both the offset and the swing)
  */
 function PartNode({ def, parentPosition }: { def: PartDef; parentPosition: Vec3 }) {
   const anchorRef = useRef<Group>(null);
@@ -52,16 +54,18 @@ function PartNode({ def, parentPosition }: { def: PartDef; parentPosition: Vec3 
 
   return (
     <group ref={anchorRef} name={def.id}>
-      <group rotation={def.rotation ? [...def.rotation] : undefined}>
-        <group ref={pivotRef} position={[...pivot]}>
-          <group ref={contentRef} position={[-pivot[0], -pivot[1], -pivot[2]]} userData={{ partId: def.id }}>
-            {Build && <Build material={getMaterial(def.material!)} />}
+      <group ref={pivotRef} position={[...pivot]}>
+        <group position={[-pivot[0], -pivot[1], -pivot[2]]}>
+          <group rotation={def.rotation ? [...def.rotation] : undefined}>
+            <group ref={contentRef} userData={{ partId: def.id }}>
+              {Build && <Build material={def.material ? getMaterial(def.material) : undefined} />}
+            </group>
           </group>
+          {CHILDREN.get(def.id)?.map((child) => (
+            <PartNode key={child.id} def={child} parentPosition={def.position} />
+          ))}
         </group>
       </group>
-      {CHILDREN.get(def.id)?.map((child) => (
-        <PartNode key={child.id} def={child} parentPosition={def.position} />
-      ))}
     </group>
   );
 }
