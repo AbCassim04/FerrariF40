@@ -125,13 +125,16 @@ const reportRows = [];
 const FIREWALL = { centroidAheadOf: -0.35, centroidBehind: 0.1, y: [0.3, 0.9], spanX: 0.4 };
 let firewallZ = Infinity;
 let firewallBy = '';
-// Debug: `--debug-region part:x0,x1,y0,y1,z0,z1` lists that part's pieces inside the box.
-const debugArg = process.argv.find((a) => a.startsWith('--debug-region='))?.split('=')[1];
+// Debug: `--debug-region=part:x0,x1,y0,y1,z0,z1` lists that part's pieces whose centroid is
+// inside the box; `--debug-touch=...` lists every piece whose bounding box overlaps it.
+const debugArg = process.argv.find((a) => /^--debug-(region|touch)=/.test(a));
 const DEBUG_REGION = debugArg
   ? (() => {
-      const [part, nums] = debugArg.split(':');
+      const [part, nums] = debugArg.split('=')[1].split(':');
       const [x0, x1, y0, y1, z0, z1] = nums.split(',').map(Number);
-      return { part, box: new Box3(new Vector3(x0, y0, z0), new Vector3(x1, y1, z1)) };
+      const box = new Box3(new Vector3(x0, y0, z0), new Vector3(x1, y1, z1));
+      const touch = debugArg.startsWith('--debug-touch=');
+      return { part, inRegion: (piece) => (touch ? box.intersectsBox(piece.box) : box.containsPoint(piece.centroid)) };
     })()
   : null;
 const debugPieces = [];
@@ -154,7 +157,7 @@ for (const node of root.listNodes().filter((n) => n.getMesh() && !partNodes.has(
         part = classifyFallback(piece, ctx);
         via = rule ? `${rule.id}→fallback` : 'fallback';
       }
-      if (DEBUG_REGION && part === DEBUG_REGION.part && DEBUG_REGION.box.containsPoint(piece.centroid)) {
+      if (DEBUG_REGION && part === DEBUG_REGION.part && DEBUG_REGION.inRegion(piece)) {
         debugPieces.push({ name: shortName(name), material, part, tris: piece.triCount, box: piece.box });
       }
       // Firewall: rearmost cabin structure spanning both seats (the carbon rear bulkhead).
@@ -503,8 +506,9 @@ function measureBay(mesh, { front, from, to, minHeight = 0, minHalfWidth = 0, la
     S[at(x0, y0, z1)] + S[at(x0, y1, z0)] + S[at(x1, y0, z0)] - S[at(x0, y0, z0)];
   const cx = n.x / 2;
   if (process.env.DEBUG_BAY) {
-    for (const zi of [0, 5, 10, 20]) {
-      const z = front > 0 ? zi : n.z - zi - 1;
+    const want = process.env.DEBUG_BAY.split(',').map(Number).filter((v) => v >= R.z[0] && v < R.z[1]);
+    for (const zv of want) {
+      const z = Math.floor((zv - R.z[0]) / VOXEL);
       const rows = [];
       for (let y = n.y - 1; y >= 0; y--) {
         let row = '';

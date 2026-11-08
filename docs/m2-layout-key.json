@@ -1,0 +1,741 @@
+[
+ {
+  "n": 1,
+  "fig": 1,
+  "id": "engine-block",
+  "group": "engine",
+  "mirror": false,
+  "x": [
+   -0.27,
+   0.27
+  ],
+  "y": [
+   0.2,
+   0.47
+  ],
+  "z": [
+   -1.12,
+   -0.4
+  ],
+  "rx": 0,
+  "hits": []
+ },
+ {
+  "n": 2,
+  "fig": 1,
+  "id": "crankshaft",
+  "group": "engine",
+  "mirror": false,
+  "x": [
+   -0.09,
+   0.09
+  ],
+  "y": [
+   0.18500000000000003,
+   0.365
+  ],
+  "z": [
+   -1.14,
+   -0.38
+  ],
+  "rx": 0,
+  "hits": []
+ },
+ {
+  "n": 3,
+  "fig": 1,
+  "id": "cylinder-head",
+  "group": "engine",
+  "mirror": true,
+  "x": [
+   0.12,
+   0.3
+  ],
+  "y": [
+   0.43,
+   0.6
+  ],
+  "z": [
+   -1.11,
+   -0.41
+  ],
+  "rx": 0,
+  "hits": []
+ },
+ {
+  "n": 4,
+  "fig": 1,
+  "id": "cam-cover",
+  "group": "engine",
+  "mirror": true,
+  "x": [
+   0.13,
+   0.29
+  ],
+  "y": [
+   0.56,
+   0.64
+  ],
+  "z": [
+   -1.1,
+   -0.42
+  ],
+  "rx": 0,
+  "hits": []
+ },
+ {
+  "n": 5,
+  "fig": 1,
+  "id": "timing-cover",
+  "group": "engine",
+  "mirror": false,
+  "x": [
+   -0.26,
+   0.26
+  ],
+  "y": [
+   0.2,
+   0.62
+  ],
+  "z": [
+   -0.4,
+   -0.36
+  ],
+  "rx": 0,
+  "hits": []
+ },
+ {
+  "n": 6,
+  "fig": 1,
+  "id": "dry-sump-pan",
+  "group": "engine",
+  "mirror": false,
+  "x": [
+   -0.22,
+   0.22
+  ],
+  "y": [
+   0.145,
+   0.2
+  ],
+  "z": [
+   -1.08,
+   -0.42
+  ],
+  "rx": 0,
+  "hits": []
+ },
+ {
+  "n": 7,
+  "fig": 1,
+  "id": "water-pump",
+  "group": "engine",
+  "mirror": true,
+  "x": [
+   0.12,
+   0.24
+  ],
+  "y": [
+   0.24,
+   0.34
+  ],
+  "z": [
+   -0.42,
+   -0.36
+  ],
+  "rx": 0,
+  "hits": []
+ },
+ {
+  "n": 8,
+  "fig": 1,
+  "id": "aux-emotor",
+  "group": "hybrid",
+  "mirror": false,
+  "x": [
+   0.14,
+   0.3
+  ],
+  "y": [
+   0.16,
+   0.28
+  ],
+  "z": [
+   -0.52,
+   -0.36
+  ],
+  "rx": 0,
+  "hits": []
+ },
+ {
+  "n": 9,
+  "fig": 1,
+  "id": "intake-plenum-cover",
+  "group": "engine",
+  "mirror": false,
+  "x": [
+   -0.24,
+   0.24
+  ],
+  "y": [
+   0.6,
+   0.82
+  ],
+  "z": [
+   -1.05,
+   -0.38
+  ],
+  "rx": 0,
+  "hits": []
+ },
+ {
+  "n": 10,
+  "fig": 1,
+  "id": "throttle-body",
+  "group": "engine",
+  "mirror": true,
+  "x": [
+   0.11,
+   0.21
+  ],
+  "y": [
+   0.7,
+   0.79
+  ],
+  "z": [
+   -1.1,
+   -1.03
+  ],
+  "rx": 0,
+  "hits": []
+ },
+ {
+  "n": 11,
+  "fig": 1,
+  "id": "intake-tube",
+  "group": "engine",
+  "mirror": true,
+  "x": [
+   0.13,
+   0.31
+  ],
+  "y": [
+   0.62,
+   0.79
+  ],
+  "z": [
+   -1.42,
+   -1.08
+  ],
+  "rx": 0,
+  "hits": []
+ },
+ {
+  "n": 12,
+  "fig": 1,
+  "id": "airbox",
+  "group": "engine",
+  "mirror": true,
+  "x": [
+   0.15,
+   0.37
+  ],
+  "y": [
+   0.5,
+   0.7
+  ],
+  "z": [
+   -1.78,
+   -1.42
+  ],
+  "rx": 0,
+  "hits": []
+ },
+ {
+  "n": 13,
+  "fig": 1,
+  "id": "flywheel+clutch",
+  "group": "transmission",
+  "mirror": false,
+  "x": [
+   -0.13,
+   0.13
+  ],
+  "y": [
+   0.145,
+   0.405
+  ],
+  "z": [
+   -1.2,
+   -1.12
+  ],
+  "rx": 0,
+  "hits": []
+ },
+ {
+  "n": 14,
+  "fig": 1,
+  "id": "bellhousing",
+  "group": "transmission",
+  "mirror": false,
+  "x": [
+   -0.2,
+   0.2
+  ],
+  "y": [
+   0.15,
+   0.46
+  ],
+  "z": [
+   -1.26,
+   -1.2
+  ],
+  "rx": 0,
+  "hits": []
+ },
+ {
+  "n": 15,
+  "fig": 1,
+  "id": "dct-casing",
+  "group": "transmission",
+  "mirror": false,
+  "x": [
+   -0.2,
+   0.2
+  ],
+  "y": [
+   0.18,
+   0.58
+  ],
+  "z": [
+   -1.8,
+   -1.26
+  ],
+  "rx": 0,
+  "hits": []
+ },
+ {
+  "n": 16,
+  "fig": 1,
+  "id": "driveshaft",
+  "group": "transmission",
+  "mirror": true,
+  "x": [
+   0.2,
+   0.7
+  ],
+  "y": [
+   0.29,
+   0.4
+  ],
+  "z": [
+   -1.38,
+   -1.28
+  ],
+  "rx": 0,
+  "hits": [
+   "carbon-tub"
+  ]
+ },
+ {
+  "n": 17,
+  "fig": 1,
+  "id": "main-emotor",
+  "group": "hybrid",
+  "mirror": false,
+  "x": [
+   -0.12,
+   0.12
+  ],
+  "y": [
+   0.32,
+   0.56
+  ],
+  "z": [
+   -1.96,
+   -1.8
+  ],
+  "rx": 0,
+  "hits": []
+ },
+ {
+  "n": 18,
+  "fig": 1,
+  "id": "inverter",
+  "group": "hybrid",
+  "mirror": true,
+  "x": [
+   0.03,
+   0.19
+  ],
+  "y": [
+   0.58,
+   0.65
+  ],
+  "z": [
+   -1.4,
+   -1.16
+  ],
+  "rx": 0,
+  "hits": []
+ },
+ {
+  "n": 19,
+  "fig": 1,
+  "id": "oil-tank",
+  "group": "engine",
+  "mirror": false,
+  "x": [
+   -0.1,
+   0.1
+  ],
+  "y": [
+   0.58,
+   0.74
+  ],
+  "z": [
+   -1.78,
+   -1.46
+  ],
+  "rx": 0,
+  "hits": []
+ },
+ {
+  "n": 20,
+  "fig": 2,
+  "id": "headers",
+  "group": "exhaust",
+  "mirror": true,
+  "x": [
+   0.27,
+   0.42
+  ],
+  "y": [
+   0.22,
+   0.46
+  ],
+  "z": [
+   -1.05,
+   -0.45
+  ],
+  "rx": 0,
+  "hits": []
+ },
+ {
+  "n": 21,
+  "fig": 2,
+  "id": "catalyst",
+  "group": "exhaust",
+  "mirror": true,
+  "x": [
+   0.29,
+   0.42
+  ],
+  "y": [
+   0.17,
+   0.3
+  ],
+  "z": [
+   -1.28,
+   -1.05
+  ],
+  "rx": 0,
+  "hits": []
+ },
+ {
+  "n": 22,
+  "fig": 2,
+  "id": "exhaust-pipe",
+  "group": "exhaust",
+  "mirror": true,
+  "x": [
+   0.32,
+   0.5
+  ],
+  "y": [
+   0.2,
+   0.28
+  ],
+  "z": [
+   -1.7,
+   -1.28
+  ],
+  "rx": 0,
+  "hits": []
+ },
+ {
+  "n": 23,
+  "fig": 2,
+  "id": "silencer",
+  "group": "exhaust",
+  "mirror": true,
+  "x": [
+   0.585,
+   0.8
+  ],
+  "y": [
+   0.27,
+   0.41
+  ],
+  "z": [
+   -1.92,
+   -1.74
+  ],
+  "rx": 0,
+  "hits": []
+ },
+ {
+  "n": 24,
+  "fig": 2,
+  "id": "exhaust-tips",
+  "group": "exhaust",
+  "mirror": true,
+  "x": [
+   0.583,
+   0.812
+  ],
+  "y": [
+   0.264,
+   0.384
+  ],
+  "z": [
+   -2.07,
+   -1.98
+  ],
+  "rx": 0,
+  "hits": [
+   "rear-clam",
+   "undertray-diffuser"
+  ]
+ },
+ {
+  "n": 25,
+  "fig": 2,
+  "id": "radiator",
+  "group": "cooling",
+  "mirror": true,
+  "x": [
+   0.56,
+   0.63
+  ],
+  "y": [
+   0.3,
+   0.6
+  ],
+  "z": [
+   -0.9,
+   -0.55
+  ],
+  "rx": -30,
+  "hits": [
+   "carbon-tub"
+  ]
+ },
+ {
+  "n": 26,
+  "fig": 2,
+  "id": "fuel-tank",
+  "group": "chassis",
+  "mirror": false,
+  "x": [
+   -0.46,
+   0.46
+  ],
+  "y": [
+   0.12,
+   0.47
+  ],
+  "z": [
+   -0.33,
+   -0.14
+  ],
+  "rx": 0,
+  "hits": []
+ },
+ {
+  "n": 27,
+  "fig": 2,
+  "id": "rear-subframe",
+  "group": "chassis",
+  "mirror": true,
+  "x": [
+   0.4,
+   0.48
+  ],
+  "y": [
+   0.26,
+   0.34
+  ],
+  "z": [
+   -2,
+   -1.1
+  ],
+  "rx": 0,
+  "hits": [
+   "undertray-diffuser"
+  ]
+ },
+ {
+  "n": 28,
+  "fig": 2,
+  "id": "rear-bumper-beam",
+  "group": "chassis",
+  "mirror": false,
+  "x": [
+   -0.62,
+   0.62
+  ],
+  "y": [
+   0.42,
+   0.52
+  ],
+  "z": [
+   -2.1,
+   -2.02
+  ],
+  "rx": 0,
+  "hits": [
+   "rear-clam"
+  ]
+ },
+ {
+  "n": 29,
+  "fig": 2,
+  "id": "rear-wishbones",
+  "group": "suspension",
+  "mirror": true,
+  "x": [
+   0.2,
+   0.68
+  ],
+  "y": [
+   0.16,
+   0.56
+  ],
+  "z": [
+   -1.5,
+   -1.15
+  ],
+  "rx": 0,
+  "hits": [
+   "wheel-rl",
+   "carbon-tub",
+   "wheel-rr"
+  ]
+ },
+ {
+  "n": 30,
+  "fig": 2,
+  "id": "rear-coilover",
+  "group": "suspension",
+  "mirror": true,
+  "x": [
+   0.38,
+   0.56
+  ],
+  "y": [
+   0.2,
+   0.62
+  ],
+  "z": [
+   -1.42,
+   -1.3
+  ],
+  "rx": 0,
+  "hits": [
+   "carbon-tub"
+  ]
+ },
+ {
+  "n": 31,
+  "fig": 2,
+  "id": "rear-upright",
+  "group": "suspension",
+  "mirror": true,
+  "x": [
+   0.66,
+   0.77
+  ],
+  "y": [
+   0.16,
+   0.56
+  ],
+  "z": [
+   -1.45,
+   -1.2
+  ],
+  "rx": 0,
+  "hits": [
+   "caliper-rl",
+   "caliper-rr"
+  ]
+ },
+ {
+  "n": 32,
+  "fig": 2,
+  "id": "rear-brake-disc",
+  "group": "suspension",
+  "mirror": true,
+  "x": [
+   0.77,
+   0.81
+  ],
+  "y": [
+   0.17,
+   0.55
+  ],
+  "z": [
+   -1.52,
+   -1.14
+  ],
+  "rx": 0,
+  "hits": [
+   "wheel-rl",
+   "caliper-rl",
+   "wheel-rr",
+   "caliper-rr"
+  ]
+ },
+ {
+  "n": 33,
+  "fig": 2,
+  "id": "battery-pack",
+  "group": "hybrid",
+  "mirror": false,
+  "x": [
+   -0.45,
+   0.45
+  ],
+  "y": [
+   0.11,
+   0.13
+  ],
+  "z": [
+   -0.1,
+   0.55
+  ],
+  "rx": 0,
+  "hits": []
+ },
+ {
+  "n": 34,
+  "fig": 2,
+  "id": "battery-pack-front",
+  "group": "hybrid",
+  "mirror": false,
+  "x": [
+   -0.45,
+   0.45
+  ],
+  "y": [
+   0.13,
+   0.152
+  ],
+  "z": [
+   0.36,
+   0.55
+  ],
+  "rx": 0,
+  "hits": []
+ }
+]
