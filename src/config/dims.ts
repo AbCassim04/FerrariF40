@@ -460,13 +460,68 @@ const engineParts = {
 };
 
 /**
- * (est) Rough packaging volumes for the reference parts still standing in for the
- * gearbox, e-motor and battery until milestones 2c–2d replace them.
+ * 2c: transaxle, clutch and hybrid parts that ride the powertrain, in engine coordinates
+ * (x, z car axes; y from the crank axis, which is also the gearbox input axis).
+ * (est) proportions from the layout figures and reference photos; the DCT is a
+ * 7-speed with the differential on the rear axle line and the main e-motor at the back.
  */
-const packaging = {
-  gearbox: { rearZ: -1.55, width: 0.42, bottomY: 0.22, topY: 0.58 }, // front = block rear face
-  eMotor: { length: 0.2, diameter: 0.24, centreY: 0.4 }, // bolted to the gearbox rear face
-  battery: { frontZ: 0.45, rearZ: -0.15, width: 0.9, height: 0.1, floorGap: 0.01 },
+const transaxleInput = {
+  flywheel: { radius: mm(115), thickness: mm(24), gap: mm(5), bolts: 8, boltCircle: mm(42), teeth: 110, toothDepth: mm(4) },
+  clutch: { radius: mm(106), length: mm(84), gap: mm(6), ribs: 9, hubRadius: mm(38), plateRadius: mm(112) },
+  /** Bellhousing: from the block's rear face back to the casing, round the flywheel and clutch. */
+  bellhousing: { rearZ: -1.22, halfWidth: mm(200), topHalfWidth: mm(170), bottom: -mm(125), top: mm(185), radius: mm(55), flange: mm(10), bolts: 16 },
+  /** DCT casing section at its front (rear section scaled in `casingRear`), with the lattice. */
+  casing: {
+    rearZ: -1.78, // the tub's rear structure is at z −1.97, behind the e-motor
+    halfWidth: mm(190),
+    topHalfWidth: mm(150),
+    bottom: -mm(95),
+    top: mm(305),
+    radius: mm(60),
+    /** Rear section: narrower and centred on the e-motor axis. */
+    rear: { halfWidth: mm(160), topHalfWidth: mm(140), bottom: -mm(60), top: mm(290) },
+    /** Rib rings (z) with seam bolts round them; X ribs on the sides and top between rings. */
+    rings: [-1.24, -1.44, -1.61, -1.765] as readonly number[],
+    seamRings: [0, 2, 3] as readonly number[],
+    ringWidth: mm(12),
+    ringHeight: mm(7),
+    xRib: mm(4.5),
+    seamBolts: 20,
+  },
+  /** Differential bosses on each side, on the rear axle line; driveshaft output flanges. */
+  diff: { radius: mm(95), y: mm(75), outX: mm(225), coverBolts: 10, coverBoltCircle: mm(78), flangeRadius: mm(48), flangeLength: mm(16) },
+  gears: { shaftRadius: mm(20), layshaftX: mm(85), layshaftY: -mm(10), thickness: mm(18) },
+  eMotor: { radius: mm(120), length: mm(155), boss: mm(10), y: mm(165), flange: mm(12), capInset: mm(8), bolts: 12, boltCircle: mm(98), ribs: 5, terminal: [mm(80), mm(40), mm(60)] as Vec3 },
+  /** Inverters on the casing top (left-side box; mirrored), X-braced lids. */
+  inverter: { x: [mm(20), mm(160)] as const, bottom: mm(318), height: mm(62), z: [-1.46, -1.24] as const, lid: mm(6), brace: mm(10), bolts: 8 },
+};
+
+/**
+ * 2c in car coordinates: battery tray, driveshafts and HV cables. Battery per the
+ * approved plan: on the underbody under the cabin floor, 20 mm deep at the back stepping
+ * to 42 mm at the front where the floor rises.
+ */
+const hybridInput = {
+  battery: {
+    halfWidth: 0.45,
+    z: [-0.1, 0.55] as const,
+    bottomY: 0.11,
+    /** 18 mm at the back (the plan's 20 mm left no room under the floor at y 0.131), 42 mm at the front. */
+    depth: mm(18),
+    step: { z: 0.36, depth: mm(42) },
+    flange: mm(12),
+    bolts: 28,
+    /** Modules: 2 rows × 4, barely raised on the lid (the cabin floor is only a few mm above). */
+    modules: { cols: 4, rows: 2, height: mm(1.2), margin: mm(30), gap: mm(14) },
+    boltHeight: mm(1.2),
+    connector: [mm(90), mm(30), mm(50)] as Vec3,
+  },
+  driveshaft: { shaftRadius: mm(15), cvRadius: mm(46), cvLength: mm(60), bootRadius: mm(40), bootLength: mm(95), bootRibs: 6, stubRadius: mm(24), outerX: 0.7, innerCvGap: mm(4) },
+  /**
+   * HV bundles. `slackGrowth`: how much end separation (m) brings in the full explode slack;
+   * each cable's own slack (how far its middle bows out) is set with its route.
+   */
+  hvCable: { strandRadius: mm(7), bundleOffset: mm(8.5), twist: 0.6, clip: [mm(28), mm(10), mm(22)] as Vec3, clipSpacing: 0.25, slackGrowth: 0.6 },
 };
 
 // ─── Derived ─────// ─── Derived ─────────────────────────────────────────────────────────────────
@@ -563,8 +618,6 @@ function engineLayout() {
 }
 const engineGeom = engineLayout();
 
-const batteryBottomY = groundClearance + packaging.battery.floorGap;
-
 export const DIMS = {
   overall,
   wheelbase,
@@ -600,23 +653,8 @@ export const DIMS = {
     /** Swept volume in cc, from bore and stroke (checks against the 6262 cc reference). */
     displacementCc: (Math.PI / 4) * engine.bore ** 2 * engine.stroke * engine.cylinders * 1e6,
   },
-  packaging: {
-    gearbox: box(
-      [-packaging.gearbox.width / 2, packaging.gearbox.width / 2],
-      [packaging.gearbox.bottomY, packaging.gearbox.topY],
-      [packaging.gearbox.rearZ, engineGeom.blockRearZ],
-    ),
-    eMotor: {
-      centre: [0, packaging.eMotor.centreY, packaging.gearbox.rearZ - packaging.eMotor.length / 2] as Vec3,
-      radius: packaging.eMotor.diameter / 2,
-      length: packaging.eMotor.length,
-    },
-    battery: box(
-      [-packaging.battery.width / 2, packaging.battery.width / 2],
-      [batteryBottomY, batteryBottomY + packaging.battery.height],
-      [packaging.battery.rearZ, packaging.battery.frontZ],
-    ),
-  },
+  transaxle: transaxleInput,
+  ...hybridInput,
 } as const;
 
 const batteryClearOfBody = 0.25; // gap between exploded battery and the body side
@@ -679,10 +717,19 @@ export const EXPLODE = {
     ecu: 0.2, // outboard
     fuseBox: 0.2, // outboard
   },
-  eMotorBack: 0.5,
+  /** Stage 5, the hybrid system apart. */
+  transaxle: {
+    back: 0.4, // the casing (bellhousing, gears, diff ride) slides off the engine
+    flywheel: 0.12, // back, off the crank flange
+    clutch: 0.24, // back, between the flywheel and the bellhousing
+    eMotor: 0.35, // further back than the casing
+    inverter: 0.3, // straight up off the powertrain, under the lifted intake and clear of the oil tank
+  },
+  /** Stage 2: out of the gearbox before the powertrain lifts. */
+  driveshaft: 0.35,
   battery: {
     /** Sits down onto the ground while sliding out past the car's left side. */
-    drop: batteryBottomY,
-    slideX: body.halfWidth + packaging.battery.width / 2 + batteryClearOfBody,
+    drop: hybridInput.battery.bottomY,
+    slideX: body.halfWidth + hybridInput.battery.halfWidth + batteryClearOfBody,
   },
 } as const;

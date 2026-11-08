@@ -14,8 +14,9 @@ docs/BRIEF.md; read that first.
 - **Phase 1 (2b) done**: intake, fuel, exhaust, electronics (26 parts in
   `parts/engine/intakeExhaust.ts`), timing-cover and block detail, glass/lighting fixes
   for the through-the-glass view, shadow scheduling and perf probe.
-- Next: phase 2 = 2c (transaxle, clutch, hybrid, HV cables); replaces the `ref-*`
-  placeholders in `parts/reference/index.tsx`.
+- **Phase 2 (2c) done**: transaxle, clutch, hybrid system and re-curving HV cables in
+  `parts/drivetrain/` (the `ref-*` placeholders are gone).
+- Next: phase 3 = 2f realism (N8AO, studio HDRI, tone mapping, bevels, detail, materials).
 
 ## Run
 ```
@@ -30,8 +31,9 @@ npm run prep:body    # regenerate public/models/body.opt.glb + docs/body-report.
 - `src/config/dims.ts` — every dimension (reference, model-measured, derived, explode).
 - `src/config/scene.ts` — camera, controls, view presets, grid, shadows.
 - `src/parts/registry.ts` — all parts; `parts/body` (model parts), `parts/engine` (the
-  V12: `layout.ts` bank frames and kinematics, `geometry/*` builders), `parts/reference`
-  (powertrain assembly + placeholders). Types in `parts/types.ts`.
+  V12: `layout.ts` bank frames and kinematics, `geometry/*` builders, `intakeExhaust.ts`
+  for 2b), `parts/drivetrain` (2c: transaxle, battery, driveshafts, `HvCable.tsx`),
+  `parts/powertrain.ts` (the assembly that lifts out). Types in `parts/types.ts`.
 - `src/geometry/build.ts` — geometry toolkit (extrude with exact bevels, lathe, merge,
   hulls, gears). `src/scene/MeshSet.tsx` — part builds from mesh specs (plain or
   instanced).
@@ -61,7 +63,7 @@ npm run prep:body    # regenerate public/models/body.opt.glb + docs/body-report.
 ## Dev aids
 Keys: L ids, G guides, K segments, C clashes, S solo group, B engine-bay ghost.
 Panel: solo part or group, camera presets, clash report.
-URL: `?view=front34|top|engine|side|rear34&explode=1&fit=1&segments=1&labels=1&solo=<id>&soloGroup=<group>&ghost=1&clashes=1&guides=0&cam=x,y,z&look=x,y,z&perfPeak=1`
+URL: `?view=front34|top|engine|side|rear34&explode=1&t=<s>&fit=1&segments=1&labels=1&solo=<id>[,<id>…]&soloGroup=<group>&ghost=1&clashes=1|all&clashFocus=<a,b>&clashAt=<s>&guides=0&cam=x,y,z&look=x,y,z&perfPeak=1`
 (`explode=1` jumps straight to the final pose; `fit=1` frames the scene after load;
 `cam`/`look` set the starting camera for review screenshots).
 
@@ -84,7 +86,6 @@ Playwright's Chromium, driven by a small script (`page.goto` the dev URL, wait, 
   `?t=<seconds>` rather than waiting for the timeline. `window.__perf` has the frame cost.
 
 ## Known issues
-- Placeholder battery intersects the model's floor/seats (clash check reports it; replaced in 2c).
 - three ignores `material.envMapIntensity` when lighting comes from `scene.environment`;
   set levels through `EnvironmentLevels` (or `modelEnvLevels` for model materials).
 - `THREE.Clock` deprecation warning comes from inside R3F.

@@ -4,7 +4,7 @@ import type { Stage } from '../parts/types';
 export const STAGE_START: Record<Stage, number> = { 1: 0, 2: 0.75, 3: 1.45, 4: 2.25, 5: 4.2 };
 
 /** Duration (s) of each part's move per stage; the teardown's moves are quicker. The last ends at ~5.2 s. */
-export const STAGE_DURATION: Record<Stage, number> = { 1: 1, 2: 1, 3: 1, 4: 0.8, 5: 1 };
+export const STAGE_DURATION: Record<Stage, number> = { 1: 1, 2: 1, 3: 1, 4: 0.8, 5: 0.8 };
 
 export const EASE = 'power2.inOut';
 
@@ -41,4 +41,18 @@ export const TEARDOWN = {
   ancillaries: 1.05,
   pistons: 1.2,
   crank: 1.35,
+} as const;
+
+/**
+ * Stage-5 order (s after the stage starts): the transaxle slides off the engine and the
+ * battery slides out together, then the clutch and flywheel follow out of the
+ * bellhousing, and the e-motor and inverters come off the casing.
+ */
+export const HYBRID_DELAY = {
+  transaxle: 0,
+  battery: 0,
+  clutch: 0.1,
+  flywheel: 0.15,
+  eMotor: 0.2,
+  inverters: 0.2,
 } as const;

@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import {
   Box3,
+  Line3,
+  Vector3,
   BufferAttribute,
   BufferGeometry,
   Matrix4,
@@ -65,20 +67,23 @@ export function ClashCheck() {
       tl?.progress(0);
       syncDynamicParts();
       const assembled = collect(MeshBVH);
-      const clashes = new Map<string, Map<string, Box3>>();
+      const clashes = new Map<string, Map<string, Vector3>>();
       const model = assembled.filter((i) => isModel(i.partId));
       for (const a of assembled) {
         if (isModel(a.partId)) continue;
         for (const b of model) {
-          if (allowed(a.partId, b.partId) || !a.box.intersectsBox(b.box) || !touches(a, b)) continue;
-          add(clashes, a.partId, b.partId, a.box.clone().intersect(b.box));
+          if (allowed(a.partId, b.partId) || clashes.get(a.partId)?.has(b.partId) || !a.box.intersectsBox(b.box)) continue;
+          const at = contact(a, b);
+          if (!at) continue;
+          add(clashes, a.partId, b.partId, at);
           paint(a.mesh, CLASH_MATERIAL);
         }
       }
 
-      const overlaps = new Map<string, Map<string, Box3>>();
+      const overlaps = new Map<string, Map<string, Vector3>>();
       if (tl) {
-        tl.progress(1);
+        if (CLASH_AT === null) tl.progress(1);
+        else tl.time(CLASH_AT);
         syncDynamicParts();
         const exploded = collect(MeshBVH);
         for (let i = 0; i < exploded.length; i++) {
@@ -87,9 +92,13 @@ export function ClashCheck() {
             const b = exploded[j];
             if (a.partId === b.partId || (isModel(a.partId) && isModel(b.partId))) continue;
             if (movesWith(a.partId, b.partId) || allowed(a.partId, b.partId)) continue;
+            // Mid-explode (clashAt) many parts still touch by design: only check the focus parts.
+            if (CLASH_AT !== null && FOCUS.length && !FOCUS.some((f) => a.partId.includes(f) || b.partId.includes(f))) continue;
             const [x, y] = a.partId < b.partId ? [a, b] : [b, a];
-            if (overlaps.get(x.partId)?.has(y.partId) || !a.box.intersectsBox(b.box) || !touches(a, b)) continue;
-            add(overlaps, x.partId, y.partId, a.box.clone().intersect(b.box));
+            if (overlaps.get(x.partId)?.has(y.partId) || !a.box.intersectsBox(b.box)) continue;
+            const at = contact(a, b);
+            if (!at) continue;
+            add(overlaps, x.partId, y.partId, at);
             for (const it of [a, b]) if (!isModel(it.partId)) paint(it.mesh, OVERLAP_MATERIAL);
           }
         }
@@ -100,7 +109,7 @@ export function ClashCheck() {
       // Dev, info only (?clashes=all): our parts against each other when assembled, except
       // a part and its ancestors and listed contacts. `clashFocus=a,b` limits it to parts
       // whose id contains one of the strings. Many neighbours touch by design.
-      const between = new Map<string, Map<string, Box3>>();
+      const between = new Map<string, Map<string, Vector3>>();
       if (ALL_PAIRS) {
         tl?.progress(0);
         syncDynamicParts();
@@ -113,19 +122,20 @@ export function ClashCheck() {
             if (a.partId === b.partId || !(focus(a.partId) || focus(b.partId))) continue;
             if (related(a.partId, b.partId) || allowed(a.partId, b.partId)) continue;
             const [x, y] = a.partId < b.partId ? [a, b] : [b, a];
-            if (between.get(x.partId)?.has(y.partId) || !a.box.intersectsBox(b.box) || !touches(a, b)) continue;
-            add(between, x.partId, y.partId, a.box.clone().intersect(b.box));
+            if (between.get(x.partId)?.has(y.partId) || !a.box.intersectsBox(b.box)) continue;
+            const at = contact(a, b);
+            if (at) add(between, x.partId, y.partId, at);
           }
         }
         tl?.progress(progress);
         syncDynamicParts();
       }
 
-      const lines = (m: Map<string, Map<string, Box3>>) =>
-        [...m].flatMap(([id, others]) => [...others].map(([other, box]) => `  ${id} × ${other} near ${where(box)}`));
+      const lines = (m: Map<string, Map<string, Vector3>>) =>
+        [...m].flatMap(([id, others]) => [...others].map(([other, box]) => `  ${id} × ${other} at ${where(box)}`));
       const report = [
         `assembled vs body: ${clashes.size ? '\n' + lines(clashes).join('\n') : 'none'}`,
-        `exploded overlaps: ${tl ? (overlaps.size ? '\n' + lines(overlaps).join('\n') : 'none') : 'timeline not ready'}`,
+        `${CLASH_AT === null ? 'exploded' : `at t=${CLASH_AT} s`} overlaps: ${tl ? (overlaps.size ? '\n' + lines(overlaps).join('\n') : 'none') : 'timeline not ready'}`,
         ...(ALL_PAIRS ? [`assembled, ours (info): ${between.size ? '\n' + lines(between).join('\n') : 'none'}`] : []),
       ].join('\n');
       console.info(`[clash] (${Math.round(performance.now() - t0)} ms)\n${report}`);
@@ -144,6 +154,8 @@ export function ClashCheck() {
 const params = new URLSearchParams(location.search);
 const ALL_PAIRS = params.get('clashes') === 'all';
 const FOCUS = (params.get('clashFocus') ?? '').split(',').filter(Boolean);
+/** Dev: run the overlap pass at this timeline time (s) instead of full explode. */
+const CLASH_AT = params.has('clashAt') ? Number(params.get('clashAt')) : null;
 
 const isModel = (id: string) => PARTS_BY_ID.get(id)?.source === 'model';
 
@@ -171,17 +183,15 @@ function movingRoot(id: string) {
 
 const movesWith = (a: string, b: string) => movingRoot(a) === movingRoot(b);
 
-function add(m: Map<string, Map<string, Box3>>, a: string, b: string, box: Box3) {
-  const others = m.get(a) ?? new Map<string, Box3>();
-  others.set(b, others.get(b)?.union(box) ?? box);
+/** Records the first contact found for each pair. */
+function add(m: Map<string, Map<string, Vector3>>, a: string, b: string, at: Vector3) {
+  const others = m.get(a) ?? new Map<string, Vector3>();
+  if (!others.has(b)) others.set(b, at);
   m.set(a, others);
 }
 
-/** Overlap of the two items' bounds, as car-coordinate ranges. */
-function where(b: Box3) {
-  const r = (lo: number, hi: number) => `${lo.toFixed(2)}…${hi.toFixed(2)}`;
-  return `x ${r(b.min.x, b.max.x)} y ${r(b.min.y, b.max.y)} z ${r(b.min.z, b.max.z)}`;
-}
+/** A contact point in car coordinates. */
+const where = (p: Vector3) => `(${p.toArray().map((v) => v.toFixed(3)).join(', ')})`;
 
 const bvhCache = new WeakMap<BufferGeometry, MeshBVH>();
 
@@ -234,7 +244,17 @@ function collect(Bvh: Bvh) {
 }
 
 const scratch = new Matrix4();
-function touches(a: Item, b: Item) {
+const seg = new Line3();
+/** A point where the two items' triangles intersect (world), or null if they don't. */
+function contact(a: Item, b: Item): Vector3 | null {
   scratch.copy(a.world).invert().multiply(b.world);
-  return a.bvh.intersectsGeometry(b.bvh.geometry, scratch);
+  let hit: Vector3 | null = null;
+  a.bvh.bvhcast(b.bvh, scratch, {
+    intersectsTriangles(t1, t2) {
+      if (!t1.intersectsTriangle(t2, seg)) return false;
+      hit = seg.getCenter(new Vector3()).applyMatrix4(a.world);
+      return true;
+    },
+  });
+  return hit;
 }

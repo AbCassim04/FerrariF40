@@ -47,7 +47,8 @@ function PartNode({ def, parentPosition }: { def: PartDef; parentPosition: Vec3 
   const Build = def.build;
   const solo = useAppStore((s) => (import.meta.env.DEV ? s.solo : null));
   const soloGroup = useAppStore((s) => (import.meta.env.DEV ? s.soloGroup : null));
-  const visible = (!solo || isSelfOrDescendant(def, solo)) && (!soloGroup || def.group === soloGroup);
+  // Dev URLs may solo several parts: ?solo=transaxle,inverter-l
+  const visible = (!solo || solo.split(',').some((id) => isSelfOrDescendant(def, id))) && (!soloGroup || def.group === soloGroup);
 
   useLayoutEffect(() => {
     const anchor = anchorRef.current!;

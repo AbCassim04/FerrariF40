@@ -292,3 +292,30 @@ Each was the most reasonable option at the time; all are easy to revisit.
   and bosses tied in by webs around the water pumps and aux motor. Block skirts gained a
   horizontal rib and two cast bosses per side.
 
+*Phase 2 (2c)*
+- Transaxle layout: bellhousing from the block's rear face to z −1.22, round the flywheel
+  and dual clutch; DCT casing z −1.22…−1.78 (2 cm shorter than the layout figure: the
+  tub's rear structure sits at z −1.97, behind the e-motor); diff bosses on both sides on
+  the rear axle line with bolted covers and output flanges; e-motor drum behind the casing.
+- Flywheel and clutch ride the powertrain (they stay with the engine and slide back 0.12
+  and 0.24 out of the bellhousing); everything else rides the transaxle.
+- Inverters ride the powertrain rather than the transaxle: they lift 0.30 straight up in
+  stage 5 and the casing slides back beneath them. Riding the transaxle dragged their
+  cables through the lifted airbox.
+- Battery tray 18 mm deep at the back, not 20: the cabin floor sits at y 0.131 over part
+  of it. Modules and bolt heads stand 1.2 mm proud.
+- HV routes: the battery and aux-motor cables both run up the left of the engine (the
+  battery slides out to the left, so a right-hand route was stretched across the engine),
+  the e-motor cable down the right of the oil tank. The battery cable passes through the
+  tub's bulkhead behind the seats (listed contact).
+- Cable motion: the assembled route is exact; while exploding, each waypoint follows a
+  blend of the two ends' displacements plus a per-cable "slack" bow (outward, up, a
+  little back) that grows with how far the ends have separated. Checked with the overlap
+  pass at t = 1.0…5.2 s: no cable passes through a part at any sampled time.
+- Inverter ports: two on the front face at different heights (the two left cables cross
+  one above the other), one on the rear face. E-motor HV terminal on its right side.
+- Stage 5 is 0.8 s with delays up to 0.2 s (transaxle and battery, then clutch, flywheel,
+  e-motor and inverters), so the explode still ends at 5.2 s.
+- Removed the `ref-*` placeholders; the powertrain assembly moved to
+  `src/parts/powertrain.ts`.
+

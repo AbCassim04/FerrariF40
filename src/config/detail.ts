@@ -20,4 +20,9 @@ export const SEGMENTS = {
   bellows: 220,
   /** Along each exhaust primary. */
   primary: 160,
+  /** Per rounded corner of a lofted casing section. */
+  corner: 8,
+  /** Along an HV cable strand, and round it. */
+  cable: 96,
+  cableRadial: 8,
 } as const;

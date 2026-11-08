@@ -3,6 +3,14 @@ import { useEffect } from 'react';
 import type { InstancedMesh, Mesh, MeshPhysicalMaterial, Object3D } from 'three';
 import { PARTS_BY_ID } from '../parts/registry';
 import { shadowState } from './ShadowScheduler';
+import { useAppStore } from '../state/store';
+
+/** Dev: app-store changes so far, and the keys that changed last (finds anything waking the shadow passes). */
+const storeLog = { changes: 0, last: [] as string[] };
+useAppStore.subscribe((now, prev) => {
+  storeLog.changes++;
+  storeLog.last = Object.keys(now).filter((k) => now[k as keyof typeof now] !== prev[k as keyof typeof prev]);
+});
 
 /**
  * Dev only: per-frame draw calls and triangles (all passes: shadows, post-processing),
@@ -50,6 +58,8 @@ export function PerfProbe() {
       sceneTriangles: Math.round(sceneTriangles),
       meshes,
       shadowsLive: shadowState.live,
+      storeChanges: storeLog.changes,
+      storeLast: storeLog.last.join(','),
     };
     gl.info.reset();
   });

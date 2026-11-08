@@ -166,6 +166,75 @@ export function sweep(curve: Curve<Vector3>, radius: (t: number) => number, tubu
   });
 }
 
+/** Flat cap over a closed, convex, planar ring of points, facing along `normal`. */
+export function capRing(ring: readonly Vector3[], normal: Vector3) {
+  const c = ring.reduce((sum, q) => sum.add(q), new Vector3()).divideScalar(ring.length);
+  const pos: number[] = [];
+  const e1 = new Vector3();
+  const e2 = new Vector3();
+  for (let i = 0; i < ring.length; i++) {
+    let a = ring[i];
+    let b = ring[(i + 1) % ring.length];
+    if (e1.subVectors(a, c).cross(e2.subVectors(b, c)).dot(normal) < 0) [a, b] = [b, a];
+    pos.push(c.x, c.y, c.z, a.x, a.y, a.z, b.x, b.y, b.z);
+  }
+  const g = new BufferGeometry();
+  g.setAttribute('position', new BufferAttribute(new Float32Array(pos), 3));
+  return normalise(g);
+}
+
+/**
+ * Outline (x, y) of a trapezoid with rounded corners, counter-clockwise seen from +z:
+ * bottom half-width `halfWidth` at `bottom`, `topHalfWidth` at `top`. Casings and
+ * housings are lofted through these.
+ */
+export interface Section {
+  halfWidth: number;
+  topHalfWidth: number;
+  bottom: number;
+  top: number;
+  radius: number;
+}
+
+export function sectionOutline(s: Section, perCorner: number = SEGMENTS.corner): P2[] {
+  const corners: P2[] = [
+    [s.halfWidth, s.bottom],
+    [s.topHalfWidth, s.top],
+    [-s.topHalfWidth, s.top],
+    [-s.halfWidth, s.bottom],
+  ];
+  const out: P2[] = [];
+  corners.forEach((p, i) => {
+    const prev = corners[(i + 3) % 4];
+    const next = corners[(i + 1) % 4];
+    const u = new Vector2(prev[0] - p[0], prev[1] - p[1]).normalize();
+    const v = new Vector2(next[0] - p[0], next[1] - p[1]).normalize();
+    const half = Math.acos(Math.min(1, Math.max(-1, u.dot(v)))) / 2;
+    const bis = u.clone().add(v).normalize();
+    const c = new Vector2(p[0], p[1]).addScaledVector(bis, s.radius / Math.sin(half));
+    const t0 = new Vector2(p[0], p[1]).addScaledVector(u, s.radius / Math.tan(half)).sub(c);
+    const t1 = new Vector2(p[0], p[1]).addScaledVector(v, s.radius / Math.tan(half)).sub(c);
+    const a0 = Math.atan2(t0.y, t0.x);
+    let da = Math.atan2(t1.y, t1.x) - a0;
+    while (da <= -Math.PI) da += Math.PI * 2;
+    while (da > Math.PI) da -= Math.PI * 2;
+    for (let k = 0; k <= perCorner; k++) {
+      const a = a0 + (da * k) / perCorner;
+      out.push([c.x + s.radius * Math.cos(a), c.y + s.radius * Math.sin(a)]);
+    }
+  });
+  return out;
+}
+
+/** The same section grown outward by `d` (close to a true offset for gentle tapers). */
+export const growSection = (s: Section, d: number): Section => ({
+  halfWidth: s.halfWidth + d,
+  topHalfWidth: s.topHalfWidth + d,
+  bottom: s.bottom - d,
+  top: s.top + d,
+  radius: s.radius + d,
+});
+
 // ─── 2D outlines ─────────────────────────────────────────────────────────────
 
 export function circlePoints(cx: number, cy: number, r: number, n: number = SEGMENTS.cylinder): P2[] {
