@@ -65,12 +65,23 @@ URL: `?view=front34|top|engine|side|rear34&explode=1&fit=1&segments=1&labels=1&s
 (`explode=1` jumps straight to the final pose; `fit=1` frames the scene after load;
 `cam`/`look` set the starting camera for review screenshots).
 
-## Verifying without a GPU
-Headless Chromium works with borrowed libraries (Firefox's bundled NSS from the
-Playwright cache, libasound extracted from the Ubuntu .deb), SwiftShader WebGL. It
-renders at 1–5 fps and GSAP lag smoothing stretches animations, so screenshot final
-poses via `?explode=1` rather than waiting for the timeline. Frame-rate numbers there
-are meaningless.
+## Screenshots and visual checks (WSL2)
+Playwright's Chromium, driven by a small script (`page.goto` the dev URL, wait, screenshot):
+- **GPU (default, ~3–5× faster)**: the full Chromium build (`ms-playwright/chromium-*/
+  chrome-linux64/chrome`), *headed* on the WSLg display (`DISPLAY=:0`) with the window
+  off-screen (`--window-position=-4000,-4000`), flags `--use-angle=gl
+  --ignore-gpu-blocklist`, env `LD_LIBRARY_PATH=/usr/lib/wsl/lib GALLIUM_DRIVER=d3d12`.
+  WebGL renderer: "ANGLE (Microsoft Corporation, D3D12 (Intel(R) Iris(R) Xe Graphics),
+  OpenGL 4.1)". Headless modes never reach the GPU here (they fall back to SwiftShader;
+  `--use-angle=vulkan` only finds llvmpipe, no D3D12 Vulkan driver is installed).
+- **Fallback**: `chrome-headless-shell` with `--use-angle=swiftshader
+  --enable-unsafe-swiftshader` (CPU). The system Playwright dependencies are installed,
+  so the borrowed NSS/libasound libraries are no longer needed.
+- Benchmark (2026-11-08, same two shots): GPU 14 s and 23 s per shot; SwiftShader 41 s
+  and 111 s. One GPU run crashed once ("page closed"), so scripts retry with SwiftShader.
+- Use small viewports (800×500) while iterating, 1440×900 for review shots. GSAP lag
+  smoothing still stretches animations at low frame rates: pose with `?explode=1` or
+  `?t=<seconds>` rather than waiting for the timeline. `window.__perf` has the frame cost.
 
 ## Known issues
 - Placeholder battery intersects the model's floor/seats (clash check reports it; replaced in 2c).
