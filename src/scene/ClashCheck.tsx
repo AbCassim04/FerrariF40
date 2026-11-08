@@ -14,7 +14,7 @@ import { explodeTimeline } from '../explode/buildTimeline';
 import { PARTS, PARTS_BY_ID } from '../parts/registry';
 import type { PartDef } from '../parts/types';
 import { useAppStore } from '../state/store';
-import { partObjects } from './partObjects';
+import { partObjects, syncDynamicParts } from './partObjects';
 
 /** Assembled-pose intersections with the body model. */
 const CLASH_MATERIAL = new MeshBasicMaterial({ color: '#ff2020' });
@@ -63,6 +63,7 @@ export function ClashCheck() {
       const progress = tl?.progress() ?? 0;
 
       tl?.progress(0);
+      syncDynamicParts();
       const assembled = collect(MeshBVH);
       const clashes = new Map<string, Map<string, Box3>>();
       const model = assembled.filter((i) => isModel(i.partId));
@@ -78,6 +79,7 @@ export function ClashCheck() {
       const overlaps = new Map<string, Map<string, Box3>>();
       if (tl) {
         tl.progress(1);
+        syncDynamicParts();
         const exploded = collect(MeshBVH);
         for (let i = 0; i < exploded.length; i++) {
           const a = exploded[i];
@@ -92,6 +94,31 @@ export function ClashCheck() {
           }
         }
         tl.progress(progress);
+        syncDynamicParts();
+      }
+
+      // Dev, info only (?clashes=all): our parts against each other when assembled, except
+      // a part and its ancestors and listed contacts. `clashFocus=a,b` limits it to parts
+      // whose id contains one of the strings. Many neighbours touch by design.
+      const between = new Map<string, Map<string, Box3>>();
+      if (ALL_PAIRS) {
+        tl?.progress(0);
+        syncDynamicParts();
+        const ours = collect(MeshBVH).filter((i) => !isModel(i.partId));
+        const focus = (id: string) => !FOCUS.length || FOCUS.some((f) => id.includes(f));
+        for (let i = 0; i < ours.length; i++) {
+          const a = ours[i];
+          for (let j = i + 1; j < ours.length; j++) {
+            const b = ours[j];
+            if (a.partId === b.partId || !(focus(a.partId) || focus(b.partId))) continue;
+            if (related(a.partId, b.partId) || allowed(a.partId, b.partId)) continue;
+            const [x, y] = a.partId < b.partId ? [a, b] : [b, a];
+            if (between.get(x.partId)?.has(y.partId) || !a.box.intersectsBox(b.box) || !touches(a, b)) continue;
+            add(between, x.partId, y.partId, a.box.clone().intersect(b.box));
+          }
+        }
+        tl?.progress(progress);
+        syncDynamicParts();
       }
 
       const lines = (m: Map<string, Map<string, Box3>>) =>
@@ -99,6 +126,7 @@ export function ClashCheck() {
       const report = [
         `assembled vs body: ${clashes.size ? '\n' + lines(clashes).join('\n') : 'none'}`,
         `exploded overlaps: ${tl ? (overlaps.size ? '\n' + lines(overlaps).join('\n') : 'none') : 'timeline not ready'}`,
+        ...(ALL_PAIRS ? [`assembled, ours (info): ${between.size ? '\n' + lines(between).join('\n') : 'none'}`] : []),
       ].join('\n');
       console.info(`[clash] (${Math.round(performance.now() - t0)} ms)\n${report}`);
       setReport(report);
@@ -113,7 +141,20 @@ export function ClashCheck() {
   return null;
 }
 
+const params = new URLSearchParams(location.search);
+const ALL_PAIRS = params.get('clashes') === 'all';
+const FOCUS = (params.get('clashFocus') ?? '').split(',').filter(Boolean);
+
 const isModel = (id: string) => PARTS_BY_ID.get(id)?.source === 'model';
+
+/** True if one part is the other's ancestor. */
+function related(a: string, b: string) {
+  const up = (id: string, target: string) => {
+    for (let d = PARTS_BY_ID.get(id); d?.parent; d = PARTS_BY_ID.get(d.parent)) if (d.parent === target) return true;
+    return false;
+  };
+  return up(a, b) || up(b, a);
+}
 
 function allowed(a: string, b: string) {
   return !!(PARTS_BY_ID.get(a)?.contacts?.includes(b) || PARTS_BY_ID.get(b)?.contacts?.includes(a));
@@ -146,7 +187,8 @@ const bvhCache = new WeakMap<BufferGeometry, MeshBVH>();
 
 /** BVH over a float copy (model meshes are quantised; procedural geometry stays untouched). */
 function bvhOf(geometry: BufferGeometry, Bvh: Bvh) {
-  let bvh = bvhCache.get(geometry);
+  // Geometry rebuilt every frame (HV cables) is never cached.
+  let bvh = geometry.userData.dynamic ? undefined : bvhCache.get(geometry);
   if (!bvh) {
     const src = geometry.getAttribute('position');
     const pos = new Float32Array(src.count * 3);

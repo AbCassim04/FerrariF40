@@ -8,7 +8,7 @@ const { bayLight } = SCENE;
 
 /**
  * Dark studio: a procedural softbox environment (no HDR download) for reflections,
- * one shadow-casting key light, and a soft display light in the engine bay.
+ * one shadow-casting key light, and soft display strips in the engine bay.
  */
 export function Lighting() {
   return (
@@ -39,12 +39,15 @@ export function Lighting() {
         <orthographicCamera attach="shadow-camera" args={[-4, 4, 4, -4, 0.5, 20]} />
       </directionalLight>
 
-      {/* Faces down (its −z) onto the engine from just under the cover glass. */}
-      <rectAreaLight
-        args={[bayLight.colour, bayLight.intensity, ...bayLight.size]}
-        position={[...bayLight.position]}
-        rotation={[-Math.PI / 2, 0, 0]}
-      />
+      {/* Each faces down (its −z) onto the engine from just under the cover glass. */}
+      {[1, -1].map((side) => (
+        <rectAreaLight
+          key={side}
+          args={[bayLight.colour, bayLight.intensity, ...bayLight.size]}
+          position={[side * bayLight.x, bayLight.y, bayLight.z]}
+          rotation={[-Math.PI / 2, 0, 0]}
+        />
+      ))}
     </>
   );
 }

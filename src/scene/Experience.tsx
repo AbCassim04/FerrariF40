@@ -6,11 +6,14 @@ import { ExplodeController } from '../explode/ExplodeController';
 import { useAppStore } from '../state/store';
 import { CameraRig } from './CameraRig';
 import { ClashCheck } from './ClashCheck';
+import { EnvironmentLevels } from './EnvironmentLevels';
 import { Ground } from './Ground';
 import { Guides } from './Guides';
 import { Lighting } from './Lighting';
 import { PartLabels } from './PartLabels';
 import { PartsRenderer } from './PartsRenderer';
+import { PerfProbe } from './PerfProbe';
+import { ShadowScheduler } from './ShadowScheduler';
 
 const DEV = import.meta.env.DEV;
 
@@ -32,6 +35,8 @@ export function Experience() {
         <BodyModelSetup />
         <PartsRenderer />
         <ExplodeController />
+        <ShadowScheduler />
+        <EnvironmentLevels />
         {DEV && showLabels && <PartLabels />}
         {DEV && <ClashCheck />}
         {DEV && showGhost && <EngineBayGhost />}
@@ -39,6 +44,7 @@ export function Experience() {
       <CameraRig />
       {DEV && showGuides && <Guides />}
       {DEV && <Stats className="stats" />}
+      {DEV && <PerfProbe />}
     </>
   );
 }

@@ -255,3 +255,40 @@ One milestone at a time; run the dev server, commit with a clear message, stop f
 - Engine-bay display light: a soft downward area light over the engine's footprint,
   below the deck around the cover opening (no spill on the paint), intensity 5.
 - Camera minDistance 1.5 → 0.6 so the exploded engine's detail can be inspected.
+
+**Decisions made unattended (review)** — overnight run on `wip/m2-overnight`, 2026-11-08/09.
+Each was the most reasonable option at the time; all are easy to revisit.
+
+*Phase 1 (2b)*
+- Exhaust primaries: per bank, the front two pairs drop into outboard lanes and run back
+  twisting around each other (a rigid twist, 360° and 180°), the rear two drop down the
+  inboard side; all six meet a 46 mm-radius ring at the collector. Closest tube centres
+  39 mm for 34 mm tubes (`scripts/dev/check-headers.mjs` checks tube gaps and clearances).
+- Exhaust pipe route: the carbon tub has a wall at x ±0.62 from the axle back to
+  z −1.72, so the pipes stay inboard of it and enter each silencer through its inboard
+  face, not its front face. Pipes explode out 0.30 and back 0.05 (off the catalyst flange).
+- Airboxes take air through a snout on the outboard face; a duct up to the deck scoop
+  would run into the tub/clam ducting there.
+- ECUs sit against the bay side walls (yawed 15.6° to follow them), the fuse box ahead of
+  the right ECU; they ride the powertrain like the rest of 2b.
+- Ignition loom runs along the top of each cam cover (inboard of the coil packs), with a
+  lead to each coil; not along the V side, where the fuel rails and runners are.
+- Oil cooler now explodes down and out (0.10 out, 0.12 down) to clear the swung headers.
+- "Grey mush" root cause: environment lighting has no occlusion, and three ignores
+  `envMapIntensity` for materials lit by `scene.environment`. Our materials now get the
+  environment bound explicitly and keep 25% of it while the body encloses the bay,
+  ramping to 100% as the body comes off (`EnvironmentLevels`; full in solo views).
+- Body glass: every glass (canopy, doors, tail lamps too, not only the engine cover) is a
+  plain-alpha, reflection-only pane (`src + dst × (1 − opacity)`): no transmission pass
+  (done early for the draw-call budget) and no grey film over what is behind it.
+- Bay display light: two narrow strips along the sides instead of one panel, so the
+  plenum's clear coat shows highlight lines rather than one white sheet.
+- Shadows only re-render while something moves (explode timeline or a state change),
+  alternating the shadow map and contact shadows frame by frame; meshes under 4 cm
+  (bolts, clips, springs) cast no shadows.
+- `engine` view preset now looks down through the glass from above (the phase is judged
+  by this view).
+- Timing cover rebuilt: flat plate, raised housings over each bank's chain run, cast rim,
+  and bosses tied in by webs around the water pumps and aux motor. Block skirts gained a
+  horizontal rib and two cast bosses per side.
+

@@ -13,4 +13,11 @@ export const SEGMENTS = {
   tubeRadial: 10,
   /** Per coil of a valve spring. */
   springCoil: 20,
+  /** Plenum loft: stations along its length, points across each section. */
+  loftStations: 64,
+  loftSection: 56,
+  /** Along a ribbed intake bellows (at least ~8 per rib). */
+  bellows: 220,
+  /** Along each exhaust primary. */
+  primary: 160,
 } as const;

@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef } from 'react';
 import { Vector3, type Group, type Mesh } from 'three';
 import type { Vec3 } from '../config/dims';
+import { DETAIL_LAYER, SCENE } from '../config/scene';
 import { getMaterial } from '../materials/materials';
 import { CHILDREN, PARTS_BY_ID, ROOT_PARTS } from '../parts/registry';
 import type { PartDef } from '../parts/types';
@@ -60,7 +61,11 @@ function PartNode({ def, parentPosition }: { def: PartDef; parentPosition: Vec3 
       if (!mesh.isMesh) return;
       mesh.receiveShadow = true;
       // Glass and lenses let the key light through (the engine is lit under its cover).
-      mesh.castShadow = ![mesh.material].flat().some((m) => m.transparent);
+      // Small detail casts nothing, and its layer keeps it out of the contact shadows.
+      const g = mesh.geometry;
+      const small = (g.boundingSphere ?? (g.computeBoundingSphere(), g.boundingSphere!)).radius < SCENE.shadowCasterMinRadius;
+      mesh.castShadow = !small && ![mesh.material].flat().some((m) => m.transparent);
+      if (small) mesh.layers.set(DETAIL_LAYER);
     });
     partObjects.set(def.id, { anchor, pivot: pivotRef.current!, content, base });
     return () => {

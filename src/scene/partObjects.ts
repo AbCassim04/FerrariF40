@@ -16,3 +16,14 @@ export interface PartObjects {
 }
 
 export const partObjects = new Map<string, PartObjects>();
+
+/**
+ * Parts whose geometry follows other parts (HV cables re-curve between their ends). They
+ * update every frame on their own; tools that jump the timeline (clash check, bounds)
+ * call `syncDynamicParts()` so the geometry matches the new pose immediately.
+ */
+export const dynamicParts = new Map<string, () => void>();
+
+export function syncDynamicParts() {
+  for (const update of dynamicParts.values()) update();
+}

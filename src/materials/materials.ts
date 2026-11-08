@@ -32,6 +32,11 @@ export type MaterialKey =
   | 'gasket'
   | 'insulator'
   | 'satinBlack'
+  | 'carbonGloss'
+  | 'redAccent'
+  | 'headerSteel'
+  | 'tipSteel'
+  | 'loom'
   | 'reference';
 
 export const PALETTE = {
@@ -57,6 +62,10 @@ export const PALETTE = {
   gasket: '#6a6d73',
   insulator: '#ebe8e0',
   satinBlack: '#17181b',
+  redAccent: '#c4121c',
+  headerSteel: '#a9a39a',
+  tipSteel: '#d4d6da',
+  loom: '#121314',
   reference: '#5fd0ff',
 } as const;
 
@@ -64,7 +73,15 @@ export const PALETTE = {
  * The engine-cover glass comes from the body model (a near-black, mirror-like tint). It is
  * retuned to a clear, faintly tinted pane so the engine reads through it.
  */
-export const ENGINE_COVER_GLASS = { color: '#c9d0d6', opacity: 0.15, roughness: 0.05, envMapIntensity: 0.5 } as const;
+/**
+ * Body glass as reflection-only panes: `opacity` is how much of the view behind the pane
+ * is absorbed; reflections are added on top at full strength (see tuneMaterials).
+ */
+export const ENGINE_COVER_GLASS = { opacity: 0.12, roughness: 0.05, envMapIntensity: 0.25 } as const;
+/** Canopy and door glass: dark tint with reflections (no transmission pass). */
+export const CABIN_GLASS = { opacity: 0.62, roughness: 0.04, envMapIntensity: 1 } as const;
+/** Tail-light lenses: keep the model's red, plain alpha. */
+export const LAMP_GLASS = { opacity: 0.55 } as const;
 
 const factories: Record<MaterialKey, () => Material> = {
   carbon: () => {
@@ -132,6 +149,24 @@ const factories: Record<MaterialKey, () => Material> = {
   gasket: () => new MeshStandardMaterial({ color: PALETTE.gasket, metalness: 0.85, roughness: 0.5 }),
   insulator: () => new MeshStandardMaterial({ color: PALETTE.insulator, metalness: 0, roughness: 0.35 }),
   satinBlack: () => new MeshStandardMaterial({ color: PALETTE.satinBlack, metalness: 0.3, roughness: 0.5 }),
+  /** Show carbon (plenum cover, airboxes): visible twill under a deep clearcoat. */
+  carbonGloss: () => {
+    const { map, roughness } = carbonWeaveTextures(6);
+    return new MeshPhysicalMaterial({
+      color: '#ffffff',
+      map,
+      roughnessMap: roughness,
+      roughness: 0.6,
+      metalness: 0.2,
+      clearcoat: 1,
+      clearcoatRoughness: 0.08,
+    });
+  },
+  redAccent: () => new MeshPhysicalMaterial({ color: PALETTE.redAccent, metalness: 0, roughness: 0.3, clearcoat: 1, clearcoatRoughness: 0.1 }),
+  headerSteel: () => new MeshStandardMaterial({ color: PALETTE.headerSteel, metalness: 1, roughness: 0.42 }),
+  tipSteel: () => new MeshStandardMaterial({ color: PALETTE.tipSteel, metalness: 1, roughness: 0.18 }),
+  /** Braided loom sleeve: matte black. */
+  loom: () => new MeshStandardMaterial({ color: PALETTE.loom, metalness: 0, roughness: 0.85 }),
   /** Thin lines for wireframe reference geometry. */
   reference: () => new LineBasicMaterial({ color: PALETTE.reference, transparent: true, opacity: 0.6 }),
 };
@@ -147,3 +182,14 @@ export function getMaterial(key: MaterialKey): Material {
   }
   return m;
 }
+
+/** Every shared material created so far (for scene-wide adjustments such as bay occlusion). */
+export function sharedMaterials(): Iterable<Material> {
+  return cache.values();
+}
+
+/**
+ * Model materials that need their own environment level (see EnvironmentLevels), keyed to
+ * the level they keep.
+ */
+export const modelEnvLevels = new Map<Material, number>();

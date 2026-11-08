@@ -45,6 +45,8 @@ interface AppState {
   clashReport: string | null;
   /** Fit the camera to the scene once it has loaded (URL ?fit=1). */
   fitOnLoad: boolean;
+  /** Dev: start with the explode timeline paused at this time (s), for mid-explode shots. */
+  timeAt: number | null;
   /** Initial camera from the URL (?cam=x,y,z&look=x,y,z), for review screenshots. */
   devCamera: { position: Vec3; target: Vec3 } | null;
 
@@ -77,13 +79,14 @@ export const useAppStore = create<AppState>()((set) => ({
   showLabels: flag('labels'),
   showGuides: params.get('guides') !== '0',
   showSegments: flag('segments'),
-  showClashes: flag('clashes'),
+  showClashes: flag('clashes') || params.get('clashes') === 'all',
   solo: params.get('solo'),
   soloGroup: (params.get('soloGroup') as PartGroup | null) ?? null,
   soloGroupPick: (params.get('soloGroup') as PartGroup | null) ?? 'engine',
   showGhost: flag('ghost'),
   clashReport: null,
   fitOnLoad: flag('fit'),
+  timeAt: params.has('t') ? Number(params.get('t')) : null,
   devCamera: vec('cam') && vec('look') ? { position: vec('cam')!, target: vec('look')! } : null,
 
   toggleExploded: () => set((s) => ({ exploded: !s.exploded })),

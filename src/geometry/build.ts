@@ -106,6 +106,66 @@ export function tubeAlong(curve: Curve<Vector3>, radius: number, closed = false,
   return normalise(new TubeGeometry(curve, tubular, radius, SEGMENTS.tubeRadial, closed));
 }
 
+/**
+ * Surface through a stack of rings (each ring the same point count), smooth-shaded.
+ * `closed` joins each ring's last point back to its first. `uv` maps a vertex to texture
+ * coordinates (metres keep tiling textures at a consistent scale).
+ */
+export function loft(rings: readonly Vector3[][], closed: boolean, uv: (p: Vector3) => [number, number]) {
+  const n = rings[0].length;
+  const cols = closed ? n + 1 : n;
+  const pos: number[] = [];
+  const uvs: number[] = [];
+  for (const ring of rings) {
+    for (let j = 0; j < cols; j++) {
+      const p = ring[j % n];
+      pos.push(p.x, p.y, p.z);
+      uvs.push(...uv(p));
+    }
+  }
+  const idx: number[] = [];
+  for (let i = 0; i < rings.length - 1; i++) {
+    for (let j = 0; j < cols - 1; j++) {
+      const a = i * cols + j;
+      const b = a + cols;
+      idx.push(a, b, a + 1, b, b + 1, a + 1);
+    }
+  }
+  const g = new BufferGeometry();
+  g.setAttribute('position', new BufferAttribute(new Float32Array(pos), 3));
+  g.setAttribute('uv', new BufferAttribute(new Float32Array(uvs), 2));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return normalise(g);
+}
+
+/**
+ * Tube along a curve whose radius varies with the curve parameter t ∈ [0, 1] (ribbed
+ * hoses, bellows, tapers). Normals come from the actual surface, so ribs shade properly.
+ */
+export function sweep(curve: Curve<Vector3>, radius: (t: number) => number, tubular: number, radial: number = SEGMENTS.tubeRadial) {
+  const frames = curve.computeFrenetFrames(tubular, false);
+  const rings: Vector3[][] = [];
+  for (let i = 0; i <= tubular; i++) {
+    const t = i / tubular;
+    const c = curve.getPointAt(t);
+    const r = radius(t);
+    const ring: Vector3[] = [];
+    for (let j = 0; j < radial; j++) {
+      const a = (j / radial) * Math.PI * 2;
+      ring.push(c.clone().addScaledVector(frames.normals[i], -r * Math.cos(a)).addScaledVector(frames.binormals[i], r * Math.sin(a)));
+    }
+    rings.push(ring);
+  }
+  const length = curve.getLength();
+  let i = 0;
+  return loft(rings, true, () => {
+    const k = i++;
+    const ring = Math.floor(k / (radial + 1));
+    return [(ring / tubular) * length, (k % (radial + 1)) / radial];
+  });
+}
+
 // ─── 2D outlines ─────────────────────────────────────────────────────────────
 
 export function circlePoints(cx: number, cy: number, r: number, n: number = SEGMENTS.cylinder): P2[] {

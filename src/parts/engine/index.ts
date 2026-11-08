@@ -279,7 +279,7 @@ export const engineParts: PartDef[] = [
     specs: {},
     build: specBuild('OilCooler', oilCoolerMeshes),
     material: 'castAluminium',
-    explodeOffset: [-X.oilCooler, 0, 0],
+    explodeOffset: X.oilCooler,
     delay: TEARDOWN.ancillaries,
   }),
   enginePart({

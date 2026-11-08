@@ -46,14 +46,46 @@ export function timingCoverMeshes(): MeshSpec[] {
   const circles = SIDES.flatMap(chainCircles);
   const outline = hullOf(circles, T.coverMargin);
   const depth = E.frontZ - E.blockFrontZ;
-  const cover = extrude(polygonShape(outline), depth, T.coverBevel);
-  cover.translate(0, 0, E.blockFrontZ);
+  const plateDepth = depth - T.bulge;
+  const plate = extrude(polygonShape(outline), plateDepth, T.coverBevel);
+  plate.translate(0, 0, E.blockFrontZ);
+  // Raised housings over each bank's chain run, and a cast rim around the edge.
+  const bulges = SIDES.map((s) => {
+    const g = extrude(polygonShape(hullOf(chainCircles(s), T.bulgeMargin)), depth - T.rimHeight, T.coverBevel);
+    g.translate(0, 0, E.blockFrontZ);
+    return g;
+  });
+  const rimShape = polygonShape(outline);
+  const inner = hullOf(circles, T.coverMargin - T.rimWidth);
+  rimShape.holes.push(polygonShape([...inner].reverse()));
+  const rim = extrude(rimShape, plateDepth + T.rimHeight, T.coverBevel / 2);
+  rim.translate(0, 0, E.blockFrontZ);
+  // Bosses where the water pumps and the aux motor bolt through, breaking the outline.
+  const W = E.waterPump;
+  const A = E.auxMotor;
+  const bosses = [
+    ...SIDES.map((s) => ({ c: [sideSign(s) * W.centre[0], W.centre[1]] as P2, r: W.radius + T.bossMargin })),
+    { c: [A.centre[0], A.centre[1]] as P2, r: A.radius + T.bossMargin },
+  ].map(({ c, r }) => {
+    const g = extrude(polygonShape(circlePoints(c[0], c[1], r, SEGMENTS.cylinder)), T.bossDepth, T.coverBevel / 2);
+    g.translate(0, 0, E.blockFrontZ);
+    return g;
+  });
+  // Webs tying each boss back into the cover.
+  const webs = bosses.length ? [...SIDES.map((s) => ({ c: [sideSign(s) * W.centre[0], W.centre[1]] as P2 })), { c: [A.centre[0], A.centre[1]] as P2 }] : [];
+  const webGeoms = webs.map(({ c }) => {
+    const len = Math.hypot(c[0], c[1]) * 0.55;
+    const g = roundedBox(len, T.webWidth, T.bossDepth, E.bevel);
+    g.rotateZ(Math.atan2(c[1], c[0]));
+    g.translate(c[0] * 0.62, c[1] * 0.62, E.blockFrontZ + T.bossDepth / 2);
+    return g;
+  });
   const boltLine = hullOf(circles, T.coverMargin - T.boltInset);
   const ring = samplePolyline(boltLine, polylineLength(boltLine) / T.coverBolts);
   const toFront = new Matrix4().makeRotationX(Math.PI / 2);
-  const poses = ring.map(({ p }) => new Matrix4().makeTranslation(p[0], p[1], E.frontZ).multiply(toFront));
+  const poses = ring.map(({ p }) => new Matrix4().makeTranslation(p[0], p[1], E.blockFrontZ + plateDepth + T.rimHeight).multiply(toFront));
   return [
-    { geometry: cover, material: 'castAluminium' },
+    { geometry: merge([plate, ...bulges, rim, ...bosses, ...webGeoms]), material: 'castAluminium' },
     { geometry: boltHead(E.block.bolt.radius * 0.8, E.block.bolt.height), material: 'darkSteel', instances: poses },
   ];
 }

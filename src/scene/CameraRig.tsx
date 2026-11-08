@@ -2,7 +2,7 @@ import { CameraControls } from '@react-three/drei';
 import { useThree } from '@react-three/fiber';
 import { useEffect, useRef } from 'react';
 import { Box3, Vector3, type PerspectiveCamera } from 'three';
-import { REFERENCE_LAYER, SCENE } from '../config/scene';
+import { DETAIL_LAYER, REFERENCE_LAYER, SCENE } from '../config/scene';
 import { useAppStore } from '../state/store';
 import { fitView } from './fitView';
 
@@ -22,6 +22,7 @@ export function CameraRig() {
 
   useEffect(() => {
     camera.layers.enable(REFERENCE_LAYER);
+    camera.layers.enable(DETAIL_LAYER);
     const c = ref.current;
     if (!c) return;
     c.setBoundary(new Box3(new Vector3(...controls.targetBounds.min), new Vector3(...controls.targetBounds.max)));

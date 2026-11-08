@@ -1,8 +1,8 @@
 import { useGLTF } from '@react-three/drei';
 import { useEffect, useMemo } from 'react';
-import { Box3, Color, DoubleSide, MeshBasicMaterial, MeshStandardMaterial, Vector3, type Mesh, type MeshPhysicalMaterial, type Object3D } from 'three';
+import { Box3, Color, CustomBlending, DoubleSide, MeshBasicMaterial, MeshStandardMaterial, OneFactor, OneMinusSrcAlphaFactor, Vector3, type Mesh, type MeshPhysicalMaterial, type Object3D } from 'three';
 import { DIMS } from '../config/dims';
-import { ENGINE_COVER_GLASS } from '../materials/materials';
+import { CABIN_GLASS, ENGINE_COVER_GLASS, LAMP_GLASS, modelEnvLevels } from '../materials/materials';
 import { useAppStore } from '../state/store';
 
 /**
@@ -37,25 +37,43 @@ export function modelPartBuild(partId: string) {
   return ModelPart;
 }
 
-/** Tweaks to the model's own materials, applied once after load. */
+/**
+ * Tweaks to the model's own materials, applied once after load. Every glass becomes a
+ * plain alpha pane (transmission would render the whole scene a second time per frame).
+ * Panes have no diffuse colour and blend as `src + dst × (1 − opacity)`: what is behind
+ * is only attenuated, and the reflections add at full strength, like real glass. Plain
+ * alpha blending would instead lay a grey film over everything seen through the glass.
+ */
 function tuneMaterials(nodes: Record<string, Object3D>) {
-  nodes['engine-cover']?.traverse((o) => {
-    const m = (o as Mesh).material as MeshPhysicalMaterial;
-    if (!m || m.name !== 'EngineCoverGlass') return;
-    // A clear pane with plain alpha (cheaper than transmission): no dark tint texture,
-    // no metallic mirror, so the engine reads through it.
-    const g = ENGINE_COVER_GLASS;
-    m.transmission = 0;
+  const done = new Set<MeshPhysicalMaterial>();
+  const pane = (m: MeshPhysicalMaterial, g: { opacity: number; roughness: number; envMapIntensity: number }) => {
     m.map = null;
-    m.color.set(g.color);
+    m.color.set('#000000');
     m.metalness = 0;
     m.roughness = g.roughness;
-    m.envMapIntensity = g.envMapIntensity; // less milky sheen at grazing angles
-    m.transparent = true;
+    modelEnvLevels.set(m, g.envMapIntensity);
     m.opacity = g.opacity;
-    m.depthWrite = false;
-    m.needsUpdate = true;
-  });
+    m.blending = CustomBlending;
+    m.blendSrc = OneFactor;
+    m.blendDst = OneMinusSrcAlphaFactor;
+  };
+  for (const node of Object.values(nodes)) {
+    node.traverse((o) => {
+      for (const m of [(o as Mesh).material ?? []].flat() as MeshPhysicalMaterial[]) {
+        if (done.has(m)) continue;
+        // Engine cover: clear, so the engine reads through it; cabin: dark tinted.
+        if (m.name === 'EngineCoverGlass') pane(m, ENGINE_COVER_GLASS);
+        else if (m.name === 'uv1MAT_Glass1') pane(m, CABIN_GLASS);
+        else if (m.name === 'red_glass') m.opacity = LAMP_GLASS.opacity;
+        else continue;
+        done.add(m);
+        m.transmission = 0;
+        m.transparent = true;
+        m.depthWrite = false;
+        m.needsUpdate = true;
+      }
+    });
+  }
 }
 
 /** Mount once inside the Canvas: material tweaks plus dev diagnostics of the loaded model. */

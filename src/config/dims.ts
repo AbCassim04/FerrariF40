@@ -76,6 +76,8 @@ const model = {
   engineBayWide: { halfWidth: 0.48, y: [0.13, 0.59], z: [-1.328, -0.588] } as BayInput,
   /** Behind the rear-axle plane, under the rear deck and above the diffuser. */
   transaxleBay: { halfWidth: 0.5, y: [0.21, 0.65], z: [-1.768, -1.328] } as BayInput,
+  /** Exhaust openings in the rear bodywork: tip centres (x, both sides), height, exit face, diameter. */
+  exhaustOpenings: { x: [0.643, 0.752], y: 0.324, exitZ: -2.07, diameter: 0.122 },
 };
 const { wheelbase, track } = model;
 
@@ -169,6 +171,9 @@ const engineParts = {
     bottomY: -mm(70),
     panRail: { y: -mm(85), halfWidth: mm(165), width: mm(14) },
     rib: { width: mm(12), depth: mm(7) },
+    /** Horizontal rib along each skirt (height above the crank) and cast bosses on the skirt. */
+    skirtRibY: mm(20),
+    boss: { radius: mm(16), depth: mm(9), y: -mm(28), z: [-0.58, -0.84] as const },
     liner: { thickness: mm(3.5), proud: mm(0.6) },
     mainCap: { width: mm(30), halfWidth: mm(112), depth: mm(10) }, // bolt heads finish flush with the pan rail
     /** Main-cap bolts: x offsets of the four per cap. */
@@ -259,6 +264,15 @@ const engineParts = {
     coverMargin: mm(20),
     coverBolts: 16,
     coverBevel: mm(5),
+    /** The flat plate stops this far short of the cover face; the chain housings bulge forward to it. */
+    bulge: mm(12),
+    bulgeMargin: mm(10),
+    rimWidth: mm(9),
+    rimHeight: mm(4),
+    /** Bosses around the water pumps and aux motor, tied back to the cover by webs. */
+    bossMargin: mm(10),
+    bossDepth: mm(20),
+    webWidth: mm(16),
     /** Cover bolts sit this far in from the cover's edge. */
     boltInset: mm(9),
     /** Chain planes, measured forward from the block's front face. */
@@ -351,6 +365,98 @@ const engineParts = {
   },
   /** Bevel on cast and machined edges. */
   bevel: mm(2.5),
+
+  // ─── 2b: intake, fuel, exhaust, electronics (engine coordinates) ──────────
+  /** Carbon plenum cover: a long lofted "pillow" over the V, overhanging the coil packs. */
+  plenum: {
+    rearZ: -1.05,
+    frontGap: mm(20), // behind the timing-cover face
+    halfWidth: mm(235),
+    baseY: mm(400), // underside, clear of the coil packs
+    topY: mm(545),
+    /** Superellipse exponents: plan-view ends (higher = squarer) and cross-section shoulders. */
+    endPower: 3.2,
+    sectionPower: 2.4,
+    /** Height of the side wall below the curved crown, as a fraction of the height. */
+    skirt: 0.28,
+    flutes: { perSide: 3, depth: mm(4), width: mm(26), pitch: mm(44) },
+    centreGroove: { depth: mm(7), width: mm(30) },
+    seamRadius: mm(2.6),
+    lipHeight: mm(6),
+  },
+  /** Intake runners: one vertical trumpet per cylinder, rising from the port into the plenum. */
+  runner: { x: mm(36), bottomY: mm(300), topY: mm(440), radius: mm(19), bellRadius: mm(27), bellHeight: mm(22), flangeRadius: mm(27), flangeThickness: mm(6) },
+  throttleBody: {
+    x: mm(155),
+    y: mm(470),
+    /** Front face (against the plenum's rear end) and body length along −z. */
+    frontZ: -1.04,
+    length: mm(75),
+    radius: mm(42),
+    flange: { radius: mm(52), thickness: mm(8) },
+    actuator: [mm(48), mm(44), mm(56)] as Vec3,
+  },
+  /** Ribbed intake tubes from each throttle body back and out to its airbox. */
+  intakeTube: {
+    radius: mm(45),
+    ribDepth: mm(5),
+    ribPitch: mm(17),
+    /** Path (x, y, z) from the throttle body's rear face to the airbox mouth. */
+    path: [
+      [mm(155), mm(470), -1.115],
+      [mm(185), mm(462), -1.2],
+      [mm(240), mm(420), -1.31],
+      [mm(262), mm(385), -1.4],
+    ] as readonly Vec3[],
+    clamp: { width: mm(14), thickness: mm(4) },
+  },
+  /** Carbon airboxes beside the gearbox, each fed from its rear-deck scoop. */
+  airbox: {
+    x: [mm(170), mm(370)] as const,
+    y: [mm(225), mm(420)] as const,
+    z: [-1.78, -1.42] as const,
+    cornerRadius: mm(35),
+    /** Intake snout out of the outboard face, toward the side scoop (clear of the tub's ducting). */
+    snout: { z: -1.55, y: mm(325), length: mm(85), radius: mm(48), bell: mm(8) },
+    lid: { inset: mm(10), height: mm(8) },
+  },
+  /** Direct-injection fuel rails along the V side of each head, injectors into the head. */
+  fuelRail: { b: -mm(132), a: mm(30), radius: mm(8), injectorRadius: mm(6), injectorLength: mm(28) },
+  exhaust: {
+    primaryRadius: mm(17),
+    /** Straight run out of each port before the primary bends. */
+    portLead: mm(35),
+    /** Rearward lanes for the front two pairs of primaries (x, y), and each pair's twist. */
+    laneA: [mm(405), -mm(35)] as const,
+    laneB: [mm(405), mm(80)] as const,
+    pairSpacing: mm(43),
+    twistA: deg(360),
+    twistB: deg(180),
+    /** Inboard path the two rear primaries drop down, before swinging into the collector. */
+    dropX: mm(290),
+    /** Collector mouth: centre (x, y), how far behind the bank's last port, ring of the six tubes. */
+    collector: { centre: [mm(360), -mm(70)] as const, behindLastPort: mm(95), ringRadius: mm(46), length: mm(70), outletRadius: mm(40) },
+    /** Convergence from the lanes onto the collector ring starts this far ahead of the mouth. */
+    converge: mm(150),
+    flange: [mm(44), mm(36), mm(8)] as Vec3,
+    catalyst: { radius: mm(58), length: mm(190), gap: mm(25) },
+    pipeRadius: mm(36),
+    /** Pipe route (left side) from the catalyst: kept inboard of the tub's rear wall, then out into the silencer's inboard face. */
+    pipeVia: [[mm(420), -mm(35), -1.55], [mm(500), mm(25), -1.72]] as readonly Vec3[],
+    pipeFlange: { radius: mm(50), thickness: mm(8) },
+    silencer: { x: [mm(585), mm(800)] as const, y: [-mm(5), mm(135)] as const, z: [-1.92, -1.74] as const, corner: mm(30) },
+    tip: { radius: mm(54), lip: mm(4), length: mm(150) },
+    o2Sensor: { radius: mm(9), length: mm(40) },
+  },
+  /**
+   * Engine ECUs against the bay side walls (left-side centre; mirrored), and the fuse/relay
+   * box ahead of the right ECU. `yaw` follows the walls, which close in toward the rear.
+   */
+  ecu: { size: [mm(36), mm(150), mm(180)] as Vec3, centre: [mm(563), mm(195), -0.7] as Vec3, fins: 8 },
+  fuseBox: { size: [mm(36), mm(110), mm(100)] as Vec3, centre: [-mm(612), mm(190), -0.53] as Vec3 },
+  bayWallYaw: deg(15.6),
+  /** Ignition loom along each cam cover's top, inboard of the coil packs (`b` across the bank). */
+  loom: { b: -mm(55), radius: mm(7), clips: 12, clip: [mm(16), mm(8), mm(10)] as Vec3 },
 };
 
 /**
@@ -363,7 +469,7 @@ const packaging = {
   battery: { frontZ: 0.45, rearZ: -0.15, width: 0.9, height: 0.1, floorGap: 0.01 },
 };
 
-// ─── Derived ─────────────────────────────────────────────────────────────────
+// ─── Derived ─────// ─── Derived ─────────────────────────────────────────────────────────────────
 
 const axle = { frontZ: wheelbase / 2, rearZ: -wheelbase / 2 };
 
@@ -456,6 +562,7 @@ function engineLayout() {
   };
 }
 const engineGeom = engineLayout();
+
 const batteryBottomY = groundClearance + packaging.battery.floorGap;
 
 export const DIMS = {
@@ -464,6 +571,7 @@ export const DIMS = {
   track,
   groundClearance,
   overhang: { front: body.frontZ - axle.frontZ, rear: axle.rearZ - body.rearZ },
+  exhaustOpenings: model.exhaustOpenings,
   bays: {
     firewallZ: model.firewallZ,
     engine: bayBox(model.engineBay),
@@ -555,8 +663,21 @@ export const EXPLODE = {
     auxMotor: [0.12, 0, 0.15] as Vec3, // out and forward (left side)
     mount: 0.15, // outboard
     oilFilter: 0.12, // outboard
-    oilCooler: 0.12, // outboard
+    oilCooler: [-0.1, -0.12, 0] as Vec3, // down and out, under the swung headers
     oilTank: 0.3, // up off the gearbox
+    // 2b
+    plenum: 0.55, // first and highest: the lid of the engine
+    runners: 0.3, // up out of the V, below the lifted plenum
+    throttleBody: [0, 0.35, -0.1] as Vec3,
+    intakeTube: { out: 0.15, lift: 0.4 },
+    airbox: { out: 0.2, lift: 0.45 },
+    fuelRail: 0.22, // straight up, under the lifted runners
+    headerSwing: deg(25), // about the line of exhaust ports
+    catalyst: 0.25, // outboard
+    exhaustPipe: { out: 0.3, back: 0.05 }, // back a little, off the catalyst's outlet flange
+    silencer: { out: 0.35, back: 0.1 },
+    ecu: 0.2, // outboard
+    fuseBox: 0.2, // outboard
   },
   eMotorBack: 0.5,
   battery: {

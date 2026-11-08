@@ -2,6 +2,8 @@ import { DIMS, type Vec3 } from './dims';
 
 /** Objects on this layer are seen by the main camera but skipped by contact shadows and picking. */
 export const REFERENCE_LAYER = 1;
+/** Small detail (bolts, clips, springs): seen and picked, but left out of both shadow passes. */
+export const DETAIL_LAYER = 2;
 
 export const SCENE = {
   background: '#0b0c0f',
@@ -31,7 +33,8 @@ export const SCENE = {
     front34: { position: [5.6, 2.1, 6.2] as Vec3, target: [0, DIMS.overall.height * 0.4, DIMS.body.centreZ] as Vec3 },
     // A hair of z offset keeps the orbit basis defined when looking straight down.
     top: { position: [0, 9.5, 0.01] as Vec3, target: [0, 0, DIMS.body.centreZ] as Vec3 },
-    engine: { position: [1.9, 2.9, 0.6] as Vec3, target: [0, 0.65, -1.2] as Vec3 },
+    /** Looking down through the engine-cover glass. */
+    engine: { position: [0.75, 3.1, -0.45] as Vec3, target: [0, 0.6, -0.95] as Vec3 },
     side: { position: [7.5, 0.9, 0] as Vec3, target: [0, 0.5, DIMS.body.centreZ] as Vec3 },
     rear34: { position: [-4.8, 2.4, -6.2] as Vec3, target: [0, 0.5, -0.4] as Vec3 },
   },
@@ -41,11 +44,25 @@ export const SCENE = {
    * engine's footprint. It sits below the deck around the cover opening (so no light
    * spills onto the paint) and above the intake plenum. No visible source, no shadows.
    */
+  /**
+   * Specular occlusion for our parts while the body encloses them: the fraction of their
+   * environment reflections they keep (1 once the body is off, or hidden by solo).
+   */
+  bayOcclusion: { enclosed: 0.25 },
+  /** Meshes smaller than this (bounding-sphere radius, m) cast no shadows: unseen, but each costs a draw in both shadow passes. */
+  shadowCasterMinRadius: 0.04,
+  /**
+   * Display lights in the engine bay: two narrow strips just under the deck along each side
+   * of the engine (no visible source). On the plenum's clear coat they read as highlight
+   * lines along the shoulders instead of one white sheet.
+   */
   bayLight: {
     colour: '#fff3e3',
-    intensity: 5,
-    position: [0, DIMS.body.engineCoverHinge[1] - 0.17, (DIMS.engine.frontZ + DIMS.engine.blockRearZ) / 2] as Vec3,
-    size: [DIMS.engine.widthAcrossCovers, DIMS.engine.length] as const,
+    intensity: 14,
+    y: DIMS.body.engineCoverHinge[1] - 0.17,
+    z: (DIMS.engine.frontZ + DIMS.engine.blockRearZ) / 2,
+    x: DIMS.engine.widthAcrossCovers / 2,
+    size: [0.07, DIMS.engine.length] as const,
   },
 } as const;
 

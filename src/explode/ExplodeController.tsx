@@ -19,8 +19,9 @@ export function ExplodeController() {
 
   useEffect(() => {
     const tl = buildExplodeTimeline();
-    const { exploded: initial, fitOnLoad, requestCameraFit } = useAppStore.getState();
+    const { exploded: initial, fitOnLoad, timeAt, requestCameraFit } = useAppStore.getState();
     tl.progress(initial ? 1 : 0);
+    if (timeAt !== null) tl.time(timeAt);
     tlRef.current = tl;
     explodeTimeline.current = tl;
     if (fitOnLoad) requestCameraFit(tuple(partsBounds()), false);
