@@ -15,13 +15,26 @@ export const SCENE = {
   },
   controls: {
     minDistance: 1.5,
-    maxDistance: 15,
+    maxDistance: 20,
     /** Keep the camera just above the orbit target (and so above the ground). */
     maxPolarAngle: Math.PI / 2 - 0.04,
     smoothTime: 0.25,
+    /** Fraction of the view kept clear around a fitted box (explode framing). */
+    fitPadding: 0.12,
     /** Where panning may move the orbit target. */
     targetBounds: { min: [-6, 0.05, -7] as Vec3, max: [6, 4, 7] as Vec3 },
   },
   grid: { cellSize: 0.1, sectionSize: 1, fadeDistance: 28 },
+  /** Camera presets: [position, target]. */
+  views: {
+    front34: { position: [5.6, 2.1, 6.2] as Vec3, target: [0, DIMS.overall.height * 0.4, DIMS.body.centreZ] as Vec3 },
+    // A hair of z offset keeps the orbit basis defined when looking straight down.
+    top: { position: [0, 9.5, 0.01] as Vec3, target: [0, 0, DIMS.body.centreZ] as Vec3 },
+    engine: { position: [1.9, 2.9, 0.6] as Vec3, target: [0, 0.65, -1.2] as Vec3 },
+    side: { position: [7.5, 0.9, 0] as Vec3, target: [0, 0.5, DIMS.body.centreZ] as Vec3 },
+    rear34: { position: [-4.8, 2.4, -6.2] as Vec3, target: [0, 0.5, -0.4] as Vec3 },
+  },
   contactShadows: { scale: 12, far: 2.5, blur: 2.2, opacity: 0.75, resolution: 1024 },
 } as const;
+
+export type ViewName = keyof typeof SCENE.views;

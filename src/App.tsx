@@ -1,6 +1,7 @@
 import { Canvas } from '@react-three/fiber';
 import { SCENE } from './config/scene';
 import { Experience } from './scene/Experience';
+import { Credits } from './ui/Credits';
 import { DevPanel } from './ui/DevPanel';
 import { ExplodeButton } from './ui/ExplodeButton';
 
@@ -18,6 +19,7 @@ export function App() {
         <Experience />
       </Canvas>
       <ExplodeButton />
+      <Credits />
       {import.meta.env.DEV && <DevPanel />}
     </div>
   );

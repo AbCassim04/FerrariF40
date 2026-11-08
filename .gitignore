@@ -3,3 +3,6 @@ dist
 *.local
 *.tsbuildinfo
 .DS_Store
+
+# Third-party reference images (portfolio work; not ours to redistribute)
+docs/reference/

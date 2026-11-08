@@ -17,6 +17,12 @@ export interface TyreSize {
   rimIn: number;
 }
 
+interface BayInput {
+  halfWidth: number;
+  y: [number, number];
+  z: [number, number];
+}
+
 export interface Box {
   centre: Vec3;
   size: Vec3;
@@ -36,11 +42,42 @@ function box(x: [number, number], y: [number, number], z: [number, number]): Box
 
 // ─── Inputs ──────────────────────────────────────────────────────────────────
 
-const overall = { length: 4.702, width: 1.992, height: 1.116 }; // (ref)
-const wheelbase = 2.65; // (ref)
-const frontOverhang = 0.975; // (est) rear overhang is derived from overall length
-const track = { front: 1.68, rear: 1.61 }; // (ref) measured at tyre centreline
+/** (ref) Real-car figures; the body model measures slightly differently (see `model`). */
+const overall = { length: 4.702, width: 1.992, height: 1.116 };
 const groundClearance = 0.104; // (ref)
+
+/**
+ * (model) Measured from the licensed body model by `npm run prep:body`; see
+ * docs/body-report.md. Re-run and update these if the model changes (BodyModel also
+ * warns in dev when the wheels drift from DIMS). Where the model differed from the
+ * reference by < 3 cm, the model's value is adopted so our parts meet its wheels.
+ */
+const model = {
+  /** Adopted; reference 2.650 (Δ +5 mm). */
+  wheelbase: 2.655,
+  /** Adopted, at tyre centreline; reference 1.680 / 1.610 (Δ +13 / +12 mm). */
+  track: { front: 1.6931, rear: 1.6224 },
+  /** Wheel-centre heights with the tyre contact patch on y = 0. */
+  wheelCentreY: { front: 0.3241, rear: 0.3602 },
+  /** Body extents (half width includes the mirrors). */
+  extents: { frontZ: 2.5276, rearZ: -2.1962, halfWidth: 1.0573, height: 1.1053 },
+  /** Left door hinge: door bbox centre x, top y, front z. The right door mirrors it. */
+  doorHinge: [0.5872, 1.105, 1.1797] as Vec3,
+  /** Engine-cover hinge: centre of its front (top) edge, from its bbox. */
+  engineCoverHinge: [0, 1.0391, -0.5615] as Vec3,
+  /**
+   * Free space for the powertrain, as boxes with no model geometry inside (2 cm voxels).
+   * Bounded by the firewall (rearmost cabin structure spanning both seats, z −0.338),
+   * the engine-cover glass above, the floor pan below and the bay side walls. The bay
+   * narrows at the top front (roof-intake ducts), hence a tall core plus a wide lower box.
+   */
+  firewallZ: -0.338,
+  engineBay: { halfWidth: 0.34, y: [0.13, 0.75], z: [-1.328, -0.348] } as BayInput,
+  engineBayWide: { halfWidth: 0.48, y: [0.13, 0.59], z: [-1.328, -0.588] } as BayInput,
+  /** Behind the rear-axle plane, under the rear deck and above the diffuser. */
+  transaxleBay: { halfWidth: 0.5, y: [0.21, 0.65], z: [-1.768, -1.328] } as BayInput,
+};
+const { wheelbase, track } = model;
 
 const tyreSize = {
   front: { widthMm: 265, aspectPct: 30, rimIn: 19 }, // (ref)
@@ -59,8 +96,8 @@ const engine = {
   stroke: mm(75.2), // (ref)
   cylinderSpacing: mm(104), // (est) bore centre to bore centre within a bank
   crankHeight: 0.28, // (est) crank centreline above ground
-  frontZ: -0.2, // (est) accessory end, faces the cabin
-  rearZ: -0.95, // (est) flywheel face, bolts to the DCT
+  frontZ: -0.36, // (est) accessory end, faces the cabin; just behind the firewall (−0.338)
+  rearZ: -1.12, // (est) flywheel face, bolts to the DCT
 };
 
 /**
@@ -68,17 +105,15 @@ const engine = {
  * replace them with real assemblies sized from the inputs above.
  */
 const packaging = {
-  engine: { width: 0.78, topY: 0.8 }, // bottom sits on the sump
+  engine: { width: 0.66, topY: 0.74 }, // bottom sits on the sump; inside model.engineBay
   sump: { width: 0.5, depth: 0.08, bottomY: 0.14 },
-  gearbox: { rearZ: -1.7, width: 0.42, bottomY: 0.18, topY: 0.52 }, // front = engine.rearZ
-  eMotor: { length: 0.22, diameter: 0.26, centreY: 0.36 }, // bolted to the gearbox rear face
+  gearbox: { rearZ: -1.55, width: 0.42, bottomY: 0.22, topY: 0.58 }, // front = engine.rearZ
+  eMotor: { length: 0.2, diameter: 0.24, centreY: 0.4 }, // bolted to the gearbox rear face
   battery: { frontZ: 0.45, rearZ: -0.15, width: 0.9, height: 0.1, floorGap: 0.01 },
-  door: { frontZ: 0.95, rearZ: -0.05, bottomY: 0.3, topY: 0.98, outboardX: 0.93, thickness: 0.04 },
 };
 
 // ─── Derived ─────────────────────────────────────────────────────────────────
 
-const rearOverhang = overall.length - wheelbase - frontOverhang;
 const axle = { frontZ: wheelbase / 2, rearZ: -wheelbase / 2 };
 
 export interface WheelDims {
@@ -88,7 +123,7 @@ export interface WheelDims {
   rimRadius: number;
   rimWidth: number;
   shoulderRadius: number;
-  /** Tyre outer radius = wheel-centre height (unladen). */
+  /** Tyre outer radius from the tyre size. */
   radius: number;
   diameter: number;
   centreY: number;
@@ -98,7 +133,7 @@ export interface WheelDims {
   discDiameter: number;
 }
 
-function wheel(t: TyreSize, trackWidth: number, rimIn: number, axleZ: number, disc: number): WheelDims {
+function wheel(t: TyreSize, trackWidth: number, centreY: number, rimIn: number, axleZ: number, disc: number): WheelDims {
   const sidewall = mm((t.widthMm * t.aspectPct) / 100);
   const rimRadius = inch(t.rimIn) / 2;
   const radius = rimRadius + sidewall;
@@ -111,7 +146,7 @@ function wheel(t: TyreSize, trackWidth: number, rimIn: number, axleZ: number, di
     shoulderRadius: tyreShoulderRadius,
     radius,
     diameter: radius * 2,
-    centreY: radius,
+    centreY,
     centreX: trackWidth / 2,
     axleZ,
     discDiameter: disc,
@@ -119,26 +154,41 @@ function wheel(t: TyreSize, trackWidth: number, rimIn: number, axleZ: number, di
 }
 
 const body = {
-  frontZ: axle.frontZ + frontOverhang,
-  rearZ: axle.rearZ - rearOverhang,
+  frontZ: model.extents.frontZ,
+  rearZ: model.extents.rearZ,
   halfWidth: overall.width / 2,
+  height: model.extents.height,
 };
+
+function bayBox(b: BayInput): Box {
+  return box([-b.halfWidth, b.halfWidth], b.y, b.z);
+}
 
 const sumpTopY = packaging.sump.bottomY + packaging.sump.depth;
 const batteryBottomY = groundClearance + packaging.battery.floorGap;
-const { door } = packaging;
 
 export const DIMS = {
   overall,
   wheelbase,
   track,
   groundClearance,
-  overhang: { front: frontOverhang, rear: rearOverhang },
+  overhang: { front: body.frontZ - axle.frontZ, rear: axle.rearZ - body.rearZ },
+  bays: {
+    firewallZ: model.firewallZ,
+    engine: bayBox(model.engineBay),
+    engineWide: bayBox(model.engineBayWide),
+    transaxle: bayBox(model.transaxleBay),
+  },
   axle,
-  body: { ...body, centreZ: (body.frontZ + body.rearZ) / 2 },
+  body: {
+    ...body,
+    centreZ: (body.frontZ + body.rearZ) / 2,
+    doorHinge: { l: model.doorHinge, r: [-model.doorHinge[0], model.doorHinge[1], model.doorHinge[2]] as Vec3 },
+    engineCoverHinge: model.engineCoverHinge,
+  },
   wheel: {
-    front: wheel(tyreSize.front, track.front, rimWidthIn.front, axle.frontZ, brakeDiscDiameter.front),
-    rear: wheel(tyreSize.rear, track.rear, rimWidthIn.rear, axle.rearZ, brakeDiscDiameter.rear),
+    front: wheel(tyreSize.front, track.front, model.wheelCentreY.front, rimWidthIn.front, axle.frontZ, brakeDiscDiameter.front),
+    rear: wheel(tyreSize.rear, track.rear, model.wheelCentreY.rear, rimWidthIn.rear, axle.rearZ, brakeDiscDiameter.rear),
   },
   engine: {
     ...engine,
@@ -172,16 +222,6 @@ export const DIMS = {
       [batteryBottomY, batteryBottomY + packaging.battery.height],
       [packaging.battery.rearZ, packaging.battery.frontZ],
     ),
-    /** Left door; the right door mirrors it in X. */
-    door: {
-      ...box(
-        [door.outboardX - door.thickness, door.outboardX],
-        [door.bottomY, door.topY],
-        [door.rearZ, door.frontZ],
-      ),
-      /** Hinge at the top-front corner, relative to the door centre. */
-      hinge: [0, (door.topY - door.bottomY) / 2, (door.frontZ - door.rearZ) / 2] as Vec3,
-    },
   },
 } as const;
 
@@ -190,7 +230,22 @@ const batteryClearOfBody = 0.25; // gap between exploded battery and the body si
 /** How far parts travel when exploded (metres / radians, car axes). */
 export const EXPLODE = {
   door: { pitch: deg(70), roll: deg(18) },
+  /** The reveal: lifts first and highest, opening about its front hinge like the real lid. */
+  engineCoverLift: 2.4,
+  engineCoverTilt: deg(35),
+  /** Clears the swung-up doors (their tips reach ~2.5 m). */
+  canopy: [0, 1.8, 0.15] as Vec3,
+  frontClam: [0, 0.8, 0.5] as Vec3,
+  nose: [0, 0, 1.1] as Vec3,
+  /** Up and back, clear of the space the powertrain rises through. */
+  rearClam: [0, 0.9, -2.0] as Vec3,
+  /** Above the moved rear clam. */
+  rearWing: [0, 1.9, -2.0] as Vec3,
+  sideIntakeOut: 0.5,
+  diffuserBack: 0.6,
   wheelOut: 0.75,
+  /** Calipers follow the wheels part of the way (they live on the uprights). */
+  caliperOut: 0.45,
   powertrainLift: 1.2,
   sumpDrop: 0.3,
   eMotorBack: 0.5,

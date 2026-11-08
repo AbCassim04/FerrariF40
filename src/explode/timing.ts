@@ -7,3 +7,17 @@ export const STAGE_START: Record<Stage, number> = { 1: 0, 2: 0.75, 3: 1.45, 4: 2
 export const STAGE_DURATION = 1.0;
 
 export const EASE = 'power2.inOut';
+
+/**
+ * Stage-1 order (s after the stage starts): the engine cover is the reveal and goes
+ * first with the doors, then the roof, the other panels, and finally the rear clam
+ * and wing, which must be clear before the powertrain rises in stage 3.
+ */
+export const BODY_DELAY = {
+  engineCover: 0,
+  doors: 0,
+  canopy: 0.2,
+  panels: 0.3,
+  rearClam: 0.4,
+  rearWing: 0.45,
+} as const;

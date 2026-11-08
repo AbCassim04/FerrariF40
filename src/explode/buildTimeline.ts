@@ -1,4 +1,5 @@
 import gsap from 'gsap';
+import { Box3 } from 'three';
 import { PARTS } from '../parts/registry';
 import { partObjects } from '../scene/partObjects';
 import { EASE, STAGE_DURATION, STAGE_START } from './timing';
@@ -34,4 +35,26 @@ export function buildExplodeTimeline() {
     }
   }
   return tl;
+}
+
+/** World bounds of every mounted part's geometry in its current pose. */
+export function partsBounds() {
+  const box = new Box3();
+  for (const { content } of partObjects.values()) {
+    content.updateWorldMatrix(true, true);
+    box.expandByObject(content);
+  }
+  return box;
+}
+
+/**
+ * Bounds of the whole car at full explode. The playhead jumps to the end and back
+ * within one call, so no frame is ever rendered in the exploded pose.
+ */
+export function explodedBounds(tl: gsap.core.Timeline) {
+  const progress = tl.progress();
+  tl.progress(1);
+  const box = partsBounds();
+  tl.progress(progress);
+  return box;
 }

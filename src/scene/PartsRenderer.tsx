@@ -2,11 +2,20 @@ import { useLayoutEffect, useRef } from 'react';
 import { Vector3, type Group, type Mesh } from 'three';
 import type { Vec3 } from '../config/dims';
 import { getMaterial } from '../materials/materials';
-import { CHILDREN, ROOT_PARTS } from '../parts/registry';
+import { CHILDREN, PARTS_BY_ID, ROOT_PARTS } from '../parts/registry';
 import type { PartDef } from '../parts/types';
+import { useAppStore } from '../state/store';
 import { partObjects } from './partObjects';
 
 const ORIGIN: Vec3 = [0, 0, 0];
+
+/** Dev solo: true for the soloed part and anything parented under it. */
+function isSelfOrDescendant(def: PartDef, id: string) {
+  for (let p: PartDef | undefined = def; p; p = p.parent ? PARTS_BY_ID.get(p.parent) : undefined) {
+    if (p.id === id) return true;
+  }
+  return false;
+}
 const ZERO: Vec3 = [0, 0, 0];
 
 /** Mounts every registry part as its own movable node, nesting children under parents. */
@@ -35,6 +44,7 @@ function PartNode({ def, parentPosition }: { def: PartDef; parentPosition: Vec3 
   const contentRef = useRef<Group>(null);
   const pivot = def.pivot ?? ZERO;
   const Build = def.build;
+  const solo = useAppStore((s) => (import.meta.env.DEV ? s.solo : null));
 
   useLayoutEffect(() => {
     const anchor = anchorRef.current!;
@@ -57,7 +67,7 @@ function PartNode({ def, parentPosition }: { def: PartDef; parentPosition: Vec3 
       <group ref={pivotRef} position={[...pivot]}>
         <group position={[-pivot[0], -pivot[1], -pivot[2]]}>
           <group rotation={def.rotation ? [...def.rotation] : undefined}>
-            <group ref={contentRef} userData={{ partId: def.id }}>
+            <group ref={contentRef} userData={{ partId: def.id }} visible={!solo || isSelfOrDescendant(def, solo)}>
               {Build && <Build material={def.material ? getMaterial(def.material) : undefined} />}
             </group>
           </group>
