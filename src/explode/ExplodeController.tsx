@@ -24,7 +24,7 @@ export function ExplodeController() {
     if (timeAt !== null) tl.time(timeAt);
     tlRef.current = tl;
     explodeTimeline.current = tl;
-    if (fitOnLoad) requestCameraFit(tuple(partsBounds()), false);
+    if (fitOnLoad) requestCameraFit(tuple(partsBounds()), null);
     return () => {
       tl.kill();
       tlRef.current = null;
@@ -40,7 +40,7 @@ export function ExplodeController() {
     if (exploded) tl.play();
     else tl.reverse();
     const { requestCameraFit } = useAppStore.getState();
-    requestCameraFit(exploded ? tuple(explodedBounds(tl)) : null, true);
+    requestCameraFit(exploded ? tuple(explodedBounds(tl)) : null, 'explode');
   }, [exploded]);
 
   return null;

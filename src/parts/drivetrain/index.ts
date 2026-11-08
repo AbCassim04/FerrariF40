@@ -221,7 +221,7 @@ const ROUTES: (CableRoute & { name: string; description: string; contacts: strin
   {
     id: 'hv-cable-aux',
     name: 'HV cable: inverter to aux e-motor',
-    description: 'High-voltage bundle from the left inverter, along the left of the engine inside the battery cable, to the auxiliary e-motor at the front of the block.',
+    description: 'High-voltage bundle from the left inverter, along the left of the engine beside the battery cable, to the auxiliary e-motor at the front of the block.',
     from: end('aux-emotor', ORIGIN, auxConnector(), true),
     to: end('inverter-l', ORIGIN, inverterConnector('l', 'frontOuter'), true),
     via: [v(0.25, 0.36, -0.43), v(0.31, 0.44, -0.42), v(0.355, 0.5, -0.54), v(0.355, 0.51, -0.85), v(0.335, 0.54, -1.02), v(0.26, 0.6, -1.1)],

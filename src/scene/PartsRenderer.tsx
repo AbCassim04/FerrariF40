@@ -1,3 +1,6 @@
+import { Bvh } from '@react-three/drei';
+import { CENTER } from 'three-mesh-bvh';
+import type { ThreeEvent } from '@react-three/fiber';
 import { useLayoutEffect, useRef } from 'react';
 import { Vector3, type Group, type Mesh } from 'three';
 import type { Vec3 } from '../config/dims';
@@ -6,7 +9,9 @@ import { getMaterial } from '../materials/materials';
 import { CHILDREN, PARTS_BY_ID, ROOT_PARTS } from '../parts/registry';
 import type { PartDef } from '../parts/types';
 import { useAppStore } from '../state/store';
-import { partObjects } from './partObjects';
+import { claimedClicks, partObjects } from './partObjects';
+import { blocksView } from './picking';
+import { isXrayPart } from './xray';
 
 const ORIGIN: Vec3 = [0, 0, 0];
 
@@ -19,14 +24,31 @@ function isSelfOrDescendant(def: PartDef, id: string) {
 }
 const ZERO: Vec3 = [0, 0, 0];
 
+/** Pointer travel (px) between down and up that still counts as a click, not a drag. */
+const CLICK_SLOP = 4;
+
+/**
+ * Claims a pointer event for this part (the frontmost one hit), unless what was hit is
+ * see-through (glass, X-rayed panels) or hidden: then the event passes on to whatever is
+ * behind it.
+ */
+function pick(e: ThreeEvent<PointerEvent | MouseEvent>, def: PartDef) {
+  if ((useAppStore.getState().xray && isXrayPart(def)) || !blocksView(e.object)) return false;
+  e.stopPropagation();
+  return true;
+}
+
 /** Mounts every registry part as its own movable node, nesting children under parents. */
 export function PartsRenderer() {
   return (
-    <group name="car">
-      {ROOT_PARTS.map((def) => (
-        <PartNode key={def.id} def={def} parentPosition={ORIGIN} />
-      ))}
-    </group>
+    // BVH-accelerated raycasting: hover picking runs on every pointer move.
+    <Bvh firstHitOnly strategy={CENTER}>
+      <group name="car">
+        {ROOT_PARTS.map((def) => (
+          <PartNode key={def.id} def={def} parentPosition={ORIGIN} />
+        ))}
+      </group>
+    </Bvh>
   );
 }
 
@@ -79,7 +101,18 @@ function PartNode({ def, parentPosition }: { def: PartDef; parentPosition: Vec3 
       <group ref={pivotRef} position={[...pivot]}>
         <group position={[-pivot[0], -pivot[1], -pivot[2]]}>
           <group rotation={def.rotation ? [...def.rotation] : undefined}>
-            <group ref={contentRef} userData={{ partId: def.id }} visible={visible}>
+            <group
+              ref={contentRef}
+              userData={{ partId: def.id }}
+              visible={visible}
+              onPointerOver={(e) => pick(e, def) && e.pointerType === 'mouse' && useAppStore.getState().hover(def.id)}
+              onPointerOut={() => useAppStore.getState().hoveredId === def.id && useAppStore.getState().hover(null)}
+              onClick={(e) => {
+                if (!pick(e, def)) return;
+                claimedClicks.add(e.nativeEvent);
+                if (e.delta < CLICK_SLOP) useAppStore.getState().select(def.id);
+              }}
+            >
               {Build && <Build material={def.material ? getMaterial(def.material) : undefined} />}
             </group>
           </group>

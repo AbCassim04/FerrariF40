@@ -1,6 +1,6 @@
 import { DIMS, EXPLODE, type Vec3 } from '../../config/dims';
 import { TEARDOWN } from '../../explode/timing';
-import { fmtDeg, fmtMm } from '../../lib/format';
+import { fmtMm } from '../../lib/format';
 import { specBuild } from '../../scene/MeshSet';
 import type { PartDef } from '../types';
 import { exhaustPort } from './exhaustLayout';
@@ -95,7 +95,7 @@ export const intakeExhaustParts: PartDef[] = [
       id: `airbox-${s}`,
       name: named(s, 'Airbox'),
       group: 'engine',
-      description: 'Carbon airbox beside the gearbox, holding the air filter. It breathes through the scoop in the rear deck.',
+      description: 'Carbon airbox beside the gearbox, holding the air filter. It draws air through a snout on its outer side from the scoops in the bodywork.',
       specs: { Material: 'Carbon fibre' },
       build: specBuild(`Airbox_${s}`, () => airboxMeshes(s)),
       material: 'carbonGloss',
@@ -125,7 +125,7 @@ export const intakeExhaustParts: PartDef[] = [
       group: 'exhaust',
       description:
         'Six primary pipes, one per cylinder, weaving around each other before they merge in a 6-into-1 collector. Equalising and separating the exhaust pulses helps the engine breathe out.',
-      specs: { Layout: '6-into-1', Primaries: `Ø${fmtMm(E.exhaust.primaryRadius * 2, 0)}`, 'Explode swing': fmtDeg(X.headerSwing) },
+      specs: { Layout: '6-into-1', Primaries: `Ø${fmtMm(E.exhaust.primaryRadius * 2, 0)}`, Material: 'Stainless steel, heat-tinted' },
       build: specBuild(`Headers_${s}`, () => headerMeshes(s)),
       material: 'headerSteel',
       explodeRotation: [0, 0, sideSign(s) * X.headerSwing],
@@ -165,7 +165,7 @@ export const intakeExhaustParts: PartDef[] = [
       name: named(s, 'Silencer'),
       group: 'exhaust',
       description: 'Box silencer tucked into the rear corner of the car, tuning the V12’s sound before it leaves through the twin tips.',
-      specs: {},
+      specs: { Size: `${fmtMm(E.exhaust.silencer.x[1] - E.exhaust.silencer.x[0], 0)} × ${fmtMm(E.exhaust.silencer.z[1] - E.exhaust.silencer.z[0], 0)} × ${fmtMm(E.exhaust.silencer.y[1] - E.exhaust.silencer.y[0], 0)}` },
       build: specBuild(`Silencer_${s}`, () => silencerMeshes(s)),
       material: 'steel',
       explodeOffset: [sideSign(s) * X.silencer.out, 0, -X.silencer.back],
@@ -190,8 +190,8 @@ export const intakeExhaustParts: PartDef[] = [
       id: `ecu-${s}`,
       name: named(s, 'Engine ECU'),
       group: 'engine',
-      description: 'One of two engine control units, each running one bank: injection, ignition timing and the variable cam phasing.',
-      specs: {},
+      description: 'One of two engine control units, each running one bank: injection, ignition timing and the variable cam phasing. Mounted on the bay wall, away from the exhaust heat.',
+      specs: { Banks: '1 each', Mounting: 'Bay side wall' },
       build: specBuild(`Ecu_${s}`, () => ecuMeshes(s)),
       material: 'castAluminium',
       explodeOffset: [sideSign(s) * X.ecu, 0, 0],
@@ -203,7 +203,7 @@ export const intakeExhaustParts: PartDef[] = [
     name: 'Fuse and relay box',
     group: 'engine',
     description: 'Protects and switches the engine’s 12 V circuits: pumps, fans, injectors and ignition.',
-    specs: {},
+    specs: { Voltage: '12 V' },
     build: specBuild('FuseBox', fuseBoxMeshes),
     material: 'satinBlack',
     explodeOffset: [-X.fuseBox, 0, 0],

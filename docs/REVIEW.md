@@ -4,8 +4,9 @@ Unattended run of the overnight plan: 2b, 2c, 2f, then milestone 7. One checkpoi
 commit per phase on `wip/m2-overnight`; nothing pushed, `main` untouched. Decisions taken
 without review are in docs/BRIEF.md under "Decisions made unattended (review)".
 
-Screenshots are in docs/review/ (headless Chromium + SwiftShader, 1440×900, dev panel
-visible). The dev panel and the FPS meter in the corner are dev-only.
+Screenshots are in docs/review/ (Playwright Chromium, 1440×900 unless noted; phone shots
+390×844). Phases 1–3 show the dev panel; phase 4 hides it (`?panel=0`). The FPS meter in
+the corner is dev-only, and reads near 0 because the review browser renders slowly.
 
 ## How performance is measured
 Dev-only `PerfProbe` (src/scene/PerfProbe.tsx) reads `renderer.info` per frame
@@ -25,6 +26,7 @@ Budget: under ~1.5M triangles and ~500 draw calls for the whole scene.
 | 1 (2b) | 670k (powertrain 568k) | 187 / 0.65M · 214 / 0.67M | 377 / 1.06M |
 | 2 (2c) | 756k | 221 / 0.74M · 248 / 0.76M | 433 / 1.23M |
 | 3 (2f) | 695k | ≈285 / 0.68M · 305 / 0.70M | 400–493 / 0.91–1.20M |
+| 4 (M7) | 695k | 268 / 0.69M (panel open) · 278 / 0.69M (hover) · 301 / 0.74M (X-ray) | 408–484 / 0.93–1.22M (exploded, crankshaft inspected) |
 
 Phase 3 adds the post-processing passes (N8AO at half resolution, tone mapping, SMAA: a handful of full-screen draws) and still comes in lower than phase 2: the hidden internals were trimmed.
 Before phase 1 every frame re-rendered the shadow map, the contact shadows and a
@@ -153,6 +155,43 @@ p3-headers-tint, p3-coolant-hose, p3-paint.
 **Known**: on this machine's iGPU the full scene runs at ~1 fps in the review browser,
 so frame times aren't meaningful here (draw calls and triangles are). The cabin glass
 now shows the studio's reflections from above, which looks grey in the engine view.
+
+## Phase 4: milestone 7, inspect panel and X-ray
+
+**Built**:
+- **Hover** (mouse only): cyan outline round the part and its name beside the pointer;
+  the cursor becomes a pointer. Picking is BVH-accelerated and passes through glass,
+  X-rayed panels and hidden parts.
+- **Click**: the camera eases to frame the part (keeping its direction unless other parts
+  would hide it, then the clearest nearby direction) and the panel opens with the
+  part's group, name, description and specs; the picture shifts so the part sits beside
+  the panel. Esc, the close button or a click on empty space closes it and the camera
+  returns. A drag (orbit) doesn't close it. Works assembled and exploded, and while the
+  explode is running (it frames where the part is heading).
+- **Info**: every one of the 98 parts has a written description and specs; the thin
+  ones (scavenge pump, filter, cooler, water pumps, mounts, ECUs, silencers, all the
+  body panels, doors, wheels, calipers, tub) were rewritten or filled in.
+- **X-ray** toggle next to Explode: body panels and the tub turn into faint ghost shells
+  in place; wheels and brakes stay solid; parts inside can be hovered and clicked
+  through them.
+- **Mobile** (< 720 px wide): the panel is a bottom sheet (42% of the height), the
+  Explode and X-ray buttons sit above it, tap selects, no hover; the camera presets back
+  off on upright phones so the car fits across.
+
+**Gates**: typecheck and build pass; clash check: assembled vs body none, exploded
+overlaps none (no geometry changed). Interaction checked in the browser with real
+pointer events: hover → tooltip and outline; click through the engine-cover glass →
+plenum; Esc → closed, camera back to the exact earlier view; click on empty background
+→ closed; drag → stays open; pointer onto the panel → hover cleared; touch tap on a
+phone viewport → selected, no hover.
+
+**Screenshots**: p4-hover-plenum (outline + tooltip through the glass), p4-panel-plenum,
+p4-panel-crankshaft (exploded, clicked from the rear three-quarter overview),
+p4-xray-rear34, p4-xray-side, p4-mobile, p4-mobile-sheet, p4-mobile-xray.
+
+**Known**: the explode framing (from before this run) fits the exploded bounding box,
+whose corners stick far out of a three-quarter view (the engine cover lifts to 4.2 m),
+so the exploded car comes out small; fitting to the parts' own boxes would be tighter.
 
 ## Blocked
 (none so far)

@@ -19,6 +19,11 @@ export const useContactShadowTick = create<{ tick: number }>(() => ({ tick: 0 })
 /** Dev readout: whether a shadow pass ran this frame. */
 export const shadowState = { live: false };
 
+type State = ReturnType<typeof useAppStore.getState>;
+/** Store keys that can't change the shadows; any other change re-renders them. */
+const IGNORED = new Set<keyof State>(['hoveredId', 'selectedId', 'cameraFit', 'view']);
+const INERT = (Object.keys(useAppStore.getState()) as (keyof State)[]).filter((k) => !IGNORED.has(k));
+
 /**
  * Shadows only re-render while something moves: the explode timeline is running, or app
  * state (solo, visibility, explode) just changed. Even then the two passes alternate
@@ -33,7 +38,11 @@ export function ShadowScheduler() {
   useEffect(() => {
     gl.shadowMap.autoUpdate = false;
     gl.shadowMap.needsUpdate = true;
-    const unsubscribe = useAppStore.subscribe(() => (pending.current = Math.max(pending.current, TAIL_FRAMES)));
+    const unsubscribe = useAppStore.subscribe((now, prev) => {
+      // Pointer and camera state (hover, inspect, framing) don't change what casts shadows.
+      if (INERT.every((k) => now[k] === prev[k])) return;
+      pending.current = Math.max(pending.current, TAIL_FRAMES);
+    });
     return () => {
       unsubscribe();
       gl.shadowMap.autoUpdate = true;

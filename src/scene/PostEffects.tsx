@@ -3,6 +3,7 @@ import { N8AOPostPass } from 'n8ao';
 import { ToneMappingMode } from 'postprocessing';
 import type { WebGLRenderTarget } from 'three';
 import { SCENE } from '../config/scene';
+import { PartOutline } from './Inspect';
 
 /**
  * Compatibility fix for n8ao 2.0.1 on three r187: its half-resolution depth target (a
@@ -37,7 +38,7 @@ const MSAA = import.meta.env.DEV && params.has('msaa') ? Number(params.get('msaa
 /**
  * Screen-space ambient occlusion (N8AO at half resolution: it darkens the engine's
  * crevices and contact lines, which environment lighting alone leaves flat), the final
- * tone mapping and SMAA. The renderer's own tone mapping is off while this is mounted.
+ * tone mapping, the outline round hovered and inspected parts, and SMAA. The renderer's own tone mapping is off while this is mounted.
  */
 export function PostEffects() {
   const { ao } = post;
@@ -57,6 +58,7 @@ export function PostEffects() {
         renderMode={AO_VIEW ? 1 : 0}
       />
       <ToneMapping mode={TONE === 'aces' ? ToneMappingMode.ACES_FILMIC : ToneMappingMode.AGX} />
+      <PartOutline />
       <SMAA />
     </EffectComposer>
   );

@@ -210,6 +210,8 @@ function createCable(route: CableRoute) {
     normal.needsUpdate = true;
     geometry.computeBoundingBox();
     geometry.computeBoundingSphere();
+    // Keep the picking BVH (added by <Bvh>) in step with the new shape.
+    (geometry as { boundsTree?: { refit: () => void } }).boundsTree?.refit();
 
     if (clips) {
       for (let c = 0; c < clipAt.length; c++) {

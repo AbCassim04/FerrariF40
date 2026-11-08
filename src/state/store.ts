@@ -13,6 +13,8 @@ const vec = (k: string) => {
   return v?.length === 3 && v.every(Number.isFinite) ? (v as unknown as Vec3) : null;
 };
 
+export type CameraSlot = 'explode' | 'inspect';
+
 interface AppState {
   /** Target state of the explode animation (the timeline may still be travelling). */
   exploded: boolean;
@@ -23,9 +25,10 @@ interface AppState {
   view: { name: ViewName; seq: number } | null;
   /**
    * Camera framing request: fit `box` (keeping the current viewing angle), or with
-   * `box: null` return to the view saved before the last fit that had `remember`.
+   * `box: null` return to the view saved in `slot` before its first fit. Explode and
+   * inspect keep separate saved views; `slot: null` fits without saving.
    */
-  cameraFit: { box: [Vec3, Vec3] | null; remember: boolean; seq: number } | null;
+  cameraFit: { box: [Vec3, Vec3] | null; slot: CameraSlot | null; focus?: string; seq: number } | null;
 
   // Dev-only review aids
   showLabels: boolean;
@@ -55,7 +58,8 @@ interface AppState {
   hover: (id: string | null) => void;
   toggleXray: () => void;
   requestView: (name: ViewName) => void;
-  requestCameraFit: (box: [Vec3, Vec3] | null, remember: boolean) => void;
+  /** `focus`: a part id; the camera then also looks for a direction that isn't blocked by other parts. */
+  requestCameraFit: (box: [Vec3, Vec3] | null, slot: CameraSlot | null, focus?: string) => void;
   setClashReport: (report: string | null) => void;
   toggleLabels: () => void;
   toggleGuides: () => void;
@@ -70,9 +74,9 @@ interface AppState {
 
 export const useAppStore = create<AppState>()((set) => ({
   exploded: flag('explode'),
-  selectedId: null,
+  selectedId: params.get('inspect'),
   hoveredId: null,
-  xray: false,
+  xray: flag('xray'),
   view: params.get('view') ? { name: params.get('view') as ViewName, seq: 0 } : null,
   cameraFit: null,
 
@@ -94,7 +98,7 @@ export const useAppStore = create<AppState>()((set) => ({
   hover: (id) => set({ hoveredId: id }),
   toggleXray: () => set((s) => ({ xray: !s.xray })),
   requestView: (name) => set((s) => ({ view: { name, seq: (s.view?.seq ?? 0) + 1 } })),
-  requestCameraFit: (box, remember) => set((s) => ({ cameraFit: { box, remember, seq: (s.cameraFit?.seq ?? 0) + 1 } })),
+  requestCameraFit: (box, slot, focus) => set((s) => ({ cameraFit: { box, slot, focus, seq: (s.cameraFit?.seq ?? 0) + 1 } })),
   setClashReport: (clashReport) => set({ clashReport }),
   toggleLabels: () => set((s) => ({ showLabels: !s.showLabels })),
   toggleGuides: () => set((s) => ({ showGuides: !s.showGuides })),
@@ -106,3 +110,11 @@ export const useAppStore = create<AppState>()((set) => ({
   setSoloGroupPick: (group) => set((s) => ({ soloGroupPick: group, soloGroup: s.soloGroup ? group : null })),
   toggleGhost: () => set((s) => ({ showGhost: !s.showGhost })),
 }));
+
+// Dev: lets review scripts read the interaction state.
+if (DEV) {
+  (window as unknown as { __state: () => unknown }).__state = () => {
+    const { selectedId, hoveredId, xray, exploded } = useAppStore.getState();
+    return { selectedId, hoveredId, xray, exploded };
+  };
+}

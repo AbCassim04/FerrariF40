@@ -184,7 +184,7 @@ One milestone at a time; run the dev server, commit with a clear message, stop f
 4. (folded into 2d/2e) Subframes, suspension, brakes.
 5. (done by the model) Body shell.
 6. Full staged explode timeline + reverse.
-7. Hover/click/inspect panel + X-ray mode.
+7. Hover/click/inspect panel + X-ray mode. ✓ (overnight run, on `wip/m2-overnight`)
 8. Polish: post-processing, performance pass, mobile layout.
 
 ## Open questions
@@ -346,4 +346,30 @@ Each was the most reasonable option at the time; all are easy to revisit.
   the wire, timing-chain links plain boxes); contact shadows only consider the 1.2 m
   above the ground; no shadow casting under 5 cm; plain meshes merged per material in
   each part.
+
+*Phase 4 (milestone 7: inspect + X-ray)*
+- Outline: postprocessing's OutlineEffect, but without its full-scene depth pre-pass
+  (it doubled the draw calls) and with a plain mask material (the stock one failed to
+  link on the Mesa/D3D12 driver). So the outline shows a part's whole silhouette, also
+  where other parts cover it; that reads as "it's in there" and helped with buried parts.
+  Hovered and selected parts are both outlined.
+- Glass (engine cover, cabin) is click-through: clicking the plenum through the engine
+  cover selects the plenum, not the cover. The cover's rails still select it.
+- Framing: the camera keeps its viewing direction when it can, but tries nearby
+  directions and takes the one from which other parts hide least of the selected part
+  (needed once exploded: zooming straight in on the crankshaft put the catalyst in front
+  of it). The picture is shifted so the part sits in the space beside the panel (above
+  the sheet on phones). Esc / close / a click on empty space returns to the earlier view.
+- Explode or Assemble while the panel is open: the panel stays, the camera takes the
+  explode framing, and the view to return to is the one from before the inspect.
+- X-ray: body panels and the tub become fresnel "ghost" shells (additive, faint face-on,
+  glowing at the silhouette, in each panel's own colour mixed with a cool white). Plain
+  alpha made the stacked panels pile into an opaque red block. Wheels and brakes stay
+  solid. X-ray doesn't explode anything and works in either state.
+- The panel shows group, "part of the …" for child parts, description and specs. Body
+  descriptions keep "From the licensed body model."
+- Phones held upright: the camera presets back off (up to 2.4×) so the car fits across
+  the screen; the bottom sheet is 42% of the height; the controls ride above it; the
+  model credit moves to the top while the sheet is open (it stays visible).
+- Hover and selection don't re-render the shadows (they can't change them).
 

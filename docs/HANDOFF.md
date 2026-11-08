@@ -19,8 +19,10 @@ docs/BRIEF.md; read that first.
 - **Phase 3 (2f) done**: studio HDRI + Lightformers, ACES, N8AO (half res) + SMAA,
   clear-coated paint, heat-tinted headers, cast grain, lathe rounds, coolant hoses and
   brackets/bolts/harness detail (`parts/cooling.ts`).
-- Next: phase 4 = milestone 7 (inspect panel: hover outline + tooltip, click to frame +
-  side panel; info for every part; X-ray; mobile bottom sheet).
+- **Phase 4 (milestone 7) done**: hover outline + name tooltip, click to frame + inspect
+  panel (bottom sheet on narrow screens), info copy for every part, X-ray toggle.
+- Next: review the run (docs/REVIEW.md, "What to do next"), merge `wip/m2-overnight`,
+  then 2d (chassis and suspension) per docs/M2-PLAN.md.
 
 ## Run
 ```
@@ -48,6 +50,13 @@ npm run prep:body    # regenerate public/models/body.opt.glb + docs/body-report.
 - `src/body/BodyModel.tsx` — loads body.opt.glb, builds model parts, tunes the
   engine-cover glass, dev diagnostics (bbox, wheel drift vs DIMS) and segment colours.
 - `src/scene/ClashCheck.tsx` — dev key C.
+- Inspect (milestone 7): `src/scene/Inspect.tsx` (camera framing of the selected part,
+  X-ray switch, the outline effect), `clearView.ts` (picks an unblocked direction for
+  the framing), `picking.ts` (what blocks a click), `xray.ts` (ghost shells),
+  `src/ui/InspectPanel.tsx`, `HoverTooltip.tsx`, `XrayToggle.tsx`. Picking is
+  BVH-accelerated (`<Bvh>` in PartsRenderer); a click a part doesn't claim closes the
+  panel (App.tsx). `CameraRig` keeps separate saved views for explode and inspect and
+  shifts the picture (focal offset) so the part sits beside the panel.
 - `src/scene/PostEffects.tsx` — N8AO, ACES tone mapping, SMAA (dev: `?ao=0`, `?aoView=1`,
   `?tone=agx`). `public/hdri/` — the CC0 studio HDRI.
 - `src/scene/EnvironmentLevels.tsx` — per-material environment levels (bay specular
@@ -69,7 +78,10 @@ npm run prep:body    # regenerate public/models/body.opt.glb + docs/body-report.
 ## Dev aids
 Keys: L ids, G guides, K segments, C clashes, S solo group, B engine-bay ghost.
 Panel: solo part or group, camera presets, clash report.
-URL: `?view=front34|top|engine|side|rear34&explode=1&t=<s>&fit=1&segments=1&labels=1&solo=<id>[,<id>…]&soloGroup=<group>&ghost=1&clashes=1|all&clashFocus=<a,b>&clashAt=<s>&guides=0&cam=x,y,z&look=x,y,z&perfPeak=1`
+URL: `?view=front34|top|engine|side|rear34&explode=1&t=<s>&fit=1&segments=1&labels=1&solo=<id>[,<id>…]&soloGroup=<group>&ghost=1&clashes=1|all&clashFocus=<a,b>&clashAt=<s>&guides=0&cam=x,y,z&look=x,y,z&perfPeak=1&inspect=<id>&xray=1&snap=1&panel=0`
+(`inspect` opens the panel on a part, `snap` makes camera framing instant (the review
+browser renders too slowly for the ease), `panel=0` hides the dev panel for product
+shots; `window.__state()` returns selection/hover/X-ray/explode for scripts).
 (`explode=1` jumps straight to the final pose; `fit=1` frames the scene after load;
 `cam`/`look` set the starting camera for review screenshots).
 

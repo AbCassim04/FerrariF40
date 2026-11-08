@@ -4,6 +4,8 @@ import { DIMS, type Vec3 } from './dims';
 export const REFERENCE_LAYER = 1;
 /** Small detail (bolts, clips, springs): seen and picked, but left out of both shadow passes. */
 export const DETAIL_LAYER = 2;
+/** Render layer for the hover/inspect outline's mask (postprocessing's selection layer). */
+export const OUTLINE_LAYER = 11;
 
 export const SCENE = {
   background: '#0b0c0f',
@@ -24,6 +26,11 @@ export const SCENE = {
     smoothTime: 0.25,
     /** Fraction of the view kept clear around a fitted box (explode framing). */
     fitPadding: 0.12,
+    /** Screen aspect the views are composed for; narrower screens back the camera off, up to `narrowBackOff` times. */
+    designAspect: 1.6,
+    narrowBackOff: 2.4,
+    /** Looser framing for an inspected part, so the panel doesn't crowd it. */
+    inspectPadding: 0.3,
     /** Where panning may move the orbit target. */
     targetBounds: { min: [-6, 0.05, -7] as Vec3, max: [6, 4, 7] as Vec3 },
   },
@@ -46,6 +53,17 @@ export const SCENE = {
    */
   environment: { file: '/hdri/studio_small_09_2k.hdr', intensity: 0.85, resolution: 512 },
   /** Post-processing: N8AO ambient occlusion (half resolution), then tone mapping. */
+  /**
+   * Inspect panel. Desktop: a side panel `panelWidth` px wide on the right; below
+   * `compactBelow` px of width it becomes a bottom sheet `sheetHeight` of the screen tall.
+   * The camera frames the inspected part in the space left over (styles read these too).
+   */
+  inspect: {
+    panelWidth: 380,
+    sheetHeight: 0.42,
+    compactBelow: 720,
+    outline: { colour: '#7fd6ff', strength: 2.2 },
+  },
   post: {
     /** No MSAA: N8AO gets no usable depth from multisampled buffers; SMAA does the edges. */
     multisampling: 0,

@@ -8,6 +8,7 @@ import { CameraRig } from './CameraRig';
 import { ClashCheck } from './ClashCheck';
 import { EnvironmentLevels } from './EnvironmentLevels';
 import { Ground } from './Ground';
+import { InspectController } from './Inspect';
 import { Guides } from './Guides';
 import { Lighting } from './Lighting';
 import { PartLabels } from './PartLabels';
@@ -38,6 +39,7 @@ export function Experience() {
         <ExplodeController />
         <ShadowScheduler />
         <EnvironmentLevels />
+        <InspectController />
         {DEV && showLabels && <PartLabels />}
         {DEV && <ClashCheck />}
         {DEV && showGhost && <EngineBayGhost />}

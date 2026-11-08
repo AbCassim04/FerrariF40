@@ -16,6 +16,7 @@ export interface PartObjects {
 }
 
 export const partObjects = new Map<string, PartObjects>();
+if (import.meta.env.DEV) Object.assign(window, { __partObjects: partObjects });
 
 /**
  * Parts whose geometry follows other parts (HV cables re-curve between their ends). They
@@ -27,3 +28,6 @@ export const dynamicParts = new Map<string, () => void>();
 export function syncDynamicParts() {
   for (const update of dynamicParts.values()) update();
 }
+
+/** Clicks a part claimed; any other click on the canvas (not a drag) closes the inspect panel. */
+export const claimedClicks = new WeakSet<Event>();
