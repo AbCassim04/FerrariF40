@@ -1,6 +1,6 @@
 import { InstancedMesh, Matrix4, Raycaster, Spherical, Vector3, type Box3, type Mesh, type Object3D, type PerspectiveCamera } from 'three';
 import { DETAIL_LAYER } from '../config/scene';
-import { fitView } from './fitView';
+import { boxCorners, fitView } from './fitView';
 import { blocksView } from './picking';
 
 /** Directions tried round the current one (azimuth, elevation; radians), nearest first. */
@@ -28,11 +28,12 @@ export function clearView(
   const centre = box.getCenter(new Vector3());
   const points = surfacePoints(part, SAMPLES);
   const base = new Spherical().setFromVector3(from.position.clone().sub(from.target));
-  let best = { score: -Infinity, view: fitView(box, from.position, from.target, camera, padding, area) };
+  const corners = boxCorners(box);
+  let best = { score: -Infinity, view: fitView(corners, from.position, from.target, camera, padding, area) };
   for (const [da, de] of OFFSETS) {
     const s = new Spherical(1, Math.min(maxPolar, Math.max(0.15, base.phi + de)), base.theta + da);
     const eye = centre.clone().add(new Vector3().setFromSpherical(s));
-    const view = fitView(box, eye, centre, camera, padding, area);
+    const view = fitView(corners, eye, centre, camera, padding, area);
     const score = seen(view.position, points, part, scenery) - TURN_COST * (Math.abs(da) + Math.abs(de));
     if (score > best.score + 1e-6) best = { score, view };
   }

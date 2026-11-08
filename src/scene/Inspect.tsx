@@ -5,6 +5,7 @@ import { Box3, Color, ShaderMaterial, type Material, type Mesh, type Object3D, t
 import { OUTLINE_LAYER, SCENE } from '../config/scene';
 import { explodeTimeline } from '../explode/buildTimeline';
 import { useAppStore } from '../state/store';
+import { boxCorners } from './fitView';
 import { partObjects } from './partObjects';
 import { applyXray } from './xray';
 
@@ -30,7 +31,7 @@ export function InspectController() {
       return;
     }
     const box = settledBounds(content);
-    if (!box.isEmpty()) requestCameraFit([box.min.toArray(), box.max.toArray()], 'inspect', selectedId!);
+    if (!box.isEmpty()) requestCameraFit(boxCorners(box).map((p) => p.toArray()), 'inspect', selectedId!);
   }, [selectedId]);
 
   return null;

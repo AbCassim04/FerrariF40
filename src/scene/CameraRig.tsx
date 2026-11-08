@@ -24,11 +24,21 @@ function forScreen(view: { position: Vec3; target: Vec3 }, aspect: number) {
   return { position: position.toArray(), target: view.target };
 }
 
-/** Fraction of the canvas left for the scene while the inspect panel is open. */
-function freeArea(open: boolean, width: number) {
-  if (!open) return { w: 1, h: 1 };
-  if (width < inspect.compactBelow) return { w: 1, h: 1 - inspect.sheetHeight };
-  return { w: Math.max(0.4, 1 - inspect.panelWidth / width), h: 1 };
+/**
+ * Fraction of the canvas a framed subject should fill: clear of the Explode/X-ray
+ * buttons at the bottom, and of the inspect panel (or sheet) while it is open.
+ */
+function freeArea(open: boolean, width: number, height: number) {
+  const controlsH = inspect.controlsReserve / height;
+  if (!open) return { w: 1, h: 1 - controlsH };
+  if (width < inspect.compactBelow) return { w: 1, h: 1 - inspect.sheetHeight - controlsH };
+  return { w: Math.max(0.4, 1 - inspect.panelWidth / width), h: 1 - controlsH };
+}
+
+interface SavedView {
+  position: Vector3;
+  target: Vector3;
+  offset: Vector3;
 }
 
 /**
@@ -41,7 +51,7 @@ export function CameraRig() {
   const camera = useThree((s) => s.camera);
   const view = useAppStore((s) => s.view);
   const fit = useAppStore((s) => s.cameraFit);
-  const saved = useRef<Record<CameraSlot, { position: Vector3; target: Vector3 } | null>>({ explode: null, inspect: null });
+  const saved = useRef<Record<CameraSlot, SavedView | null>>({ explode: null, inspect: null });
 
   const raycaster = useThree((s) => s.raycaster);
   const size = useThree((s) => s.size);
@@ -72,39 +82,50 @@ export function CameraRig() {
     if (!fit || !c) return;
     const { slot } = fit;
     const cam = camera as PerspectiveCamera;
-    const area = freeArea(useAppStore.getState().selectedId !== null, size.width);
-    let from = { position: c.getPosition(new Vector3(), true), target: c.getTarget(new Vector3(), true) };
+    const open = useAppStore.getState().selectedId !== null;
+    const area = freeArea(open, size.width, size.height);
+    let from: SavedView = {
+      position: c.getPosition(new Vector3(), true),
+      target: c.getTarget(new Vector3(), true),
+      offset: c.getFocalOffset(new Vector3(), true),
+    };
     // Explode and assemble take over from any inspect framing; the view to come back to
     // is the one from before the inspect.
     if (slot === 'explode' && saved.current.inspect) {
       from = saved.current.inspect;
       saved.current.inspect = null;
     }
-    const frame = (position: Vector3, target: Vector3) => {
-      c.setLookAt(...position.toArray(), ...target.toArray(), !SNAP);
-      // Shift the picture so the target sits in the middle of the area beside the panel
-      // (or above the sheet). camera-controls moves the camera down for a positive y.
+    // Focal offset that shifts the picture so the target sits in the middle of the free
+    // area (beside the panel, above the sheet and buttons). camera-controls moves the
+    // camera down for a positive y.
+    const centreIn = (position: Vector3, target: Vector3) => {
       const d = position.distanceTo(target);
       const tan = Math.tan(((cam.fov / 2) * Math.PI) / 180);
-      c.setFocalOffset((1 - area.w) * d * tan * cam.aspect, (1 - area.h) * d * tan, 0, !SNAP);
+      return new Vector3((1 - area.w) * d * tan * cam.aspect, (1 - area.h) * d * tan, 0);
     };
-    if (!fit.box) {
-      // Back to the view from before this slot's first fit (or stay, re-centred).
-      const back = (slot && saved.current[slot]) || from;
+    const frame = (position: Vector3, target: Vector3, offset: Vector3) => {
+      c.setLookAt(...position.toArray(), ...target.toArray(), !SNAP);
+      c.setFocalOffset(offset.x, offset.y, offset.z, !SNAP);
+    };
+    if (!fit.points) {
+      // Back to the view from before this slot's first fit, exactly unless the panel is
+      // (still) open; with none saved, stay and re-centre.
+      const back = slot ? saved.current[slot] : null;
       if (slot) saved.current[slot] = null;
-      frame(back.position, back.target);
+      if (back) frame(back.position, back.target, open ? centreIn(back.position, back.target) : back.offset);
+      else frame(from.position, from.target, centreIn(from.position, from.target));
       return;
     }
-    if (slot && !saved.current[slot]) saved.current[slot] = { position: from.position.clone(), target: from.target.clone() };
-    const box = new Box3(new Vector3(...fit.box[0]), new Vector3(...fit.box[1]));
+    if (slot && !saved.current[slot]) saved.current[slot] = { position: from.position.clone(), target: from.target.clone(), offset: from.offset.clone() };
+    const points = fit.points.map((p) => new Vector3(...p));
     const padding = slot === 'inspect' ? controls.inspectPadding : controls.fitPadding;
     const focus = fit.focus ? partObjects.get(fit.focus)?.content : undefined;
     const scenery = [...partObjects.values()].map((o) => o.content);
     const { position, target } = focus
-      ? clearView(focus, box, scenery, from, cam, padding, area, controls.maxPolarAngle)
-      : fitView(box, from.position, from.target, cam, padding, area);
-    frame(position, target);
-  }, [fit, camera, size.width]);
+      ? clearView(focus, new Box3().setFromPoints(points), scenery, from, cam, padding, area, controls.maxPolarAngle)
+      : fitView(points, from.position, from.target, cam, padding, area);
+    frame(position, target, centreIn(position, target));
+  }, [fit, camera, size.width, size.height]);
 
   return (
     <CameraControls

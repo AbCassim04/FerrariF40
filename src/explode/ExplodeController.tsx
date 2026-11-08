@@ -1,10 +1,10 @@
 import { useEffect, useRef } from 'react';
-import type { Box3 } from 'three';
+import type { Vector3 } from 'three';
 import type { Vec3 } from '../config/dims';
 import { useAppStore } from '../state/store';
-import { buildExplodeTimeline, explodedBounds, explodeTimeline, partsBounds } from './buildTimeline';
+import { buildExplodeTimeline, explodedCorners, explodeTimeline, partCorners } from './buildTimeline';
 
-const tuple = (b: Box3): [Vec3, Vec3] => [b.min.toArray(), b.max.toArray()];
+const tuples = (points: Vector3[]) => points.map((p) => p.toArray() as Vec3);
 
 /**
  * Drives the explode timeline from the store, and asks the camera to frame the full
@@ -24,7 +24,7 @@ export function ExplodeController() {
     if (timeAt !== null) tl.time(timeAt);
     tlRef.current = tl;
     explodeTimeline.current = tl;
-    if (fitOnLoad) requestCameraFit(tuple(partsBounds()), null);
+    if (fitOnLoad) requestCameraFit(tuples(partCorners()), null);
     return () => {
       tl.kill();
       tlRef.current = null;
@@ -40,7 +40,7 @@ export function ExplodeController() {
     if (exploded) tl.play();
     else tl.reverse();
     const { requestCameraFit } = useAppStore.getState();
-    requestCameraFit(exploded ? tuple(explodedBounds(tl)) : null, 'explode');
+    requestCameraFit(exploded ? tuples(explodedCorners(tl)) : null, 'explode');
   }, [exploded]);
 
   return null;

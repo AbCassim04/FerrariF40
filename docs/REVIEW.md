@@ -189,9 +189,21 @@ phone viewport → selected, no hover.
 p4-panel-crankshaft (exploded, clicked from the rear three-quarter overview),
 p4-xray-rear34, p4-xray-side, p4-mobile, p4-mobile-sheet, p4-mobile-xray.
 
-**Known**: the explode framing (from before this run) fits the exploded bounding box,
-whose corners stick far out of a three-quarter view (the engine cover lifts to 4.2 m),
-so the exploded car comes out small; fitting to the parts' own boxes would be tighter.
+**Polish after the checkpoint**: camera framing (Explode and inspect) now fits the
+corners of each part's own box instead of one box round everything (the exploded car
+came out small in three-quarter views), and keeps the subject clear of the Explode/X-ray
+buttons. Saved views restore exactly, focal offset included.
 
 ## Blocked
-(none so far)
+None.
+
+## What to do next
+1. Review the four phases with the screenshots above and the "Decisions made unattended
+   (review)" entries in docs/BRIEF.md; merge `wip/m2-overnight` if happy (never pushed).
+2. Look at the X-ray ghost look and the inspect framing on a real GPU at full frame rate
+   (the review browser here runs at ~1 fps, so the camera eases were only checked with
+   `?snap=1`).
+3. Continue milestone 2 with 2d (chassis and suspension) per docs/M2-PLAN.md; the
+   side-pod radiators the coolant hoses run to are still to come.
+4. Smaller follow-ups: cabin glass reads grey in the engine view under the new studio
+   environment; the gear clusters are only visible in a future cutaway mode.

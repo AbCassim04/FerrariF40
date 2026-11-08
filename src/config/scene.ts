@@ -56,10 +56,12 @@ export const SCENE = {
   /**
    * Inspect panel. Desktop: a side panel `panelWidth` px wide on the right; below
    * `compactBelow` px of width it becomes a bottom sheet `sheetHeight` of the screen tall.
-   * The camera frames the inspected part in the space left over (styles read these too).
+   * The camera frames things in the space left over (styles read these too).
    */
   inspect: {
     panelWidth: 380,
+    /** Height (px) kept clear at the bottom for the Explode and X-ray buttons when framing. */
+    controlsReserve: 100,
     sheetHeight: 0.42,
     compactBelow: 720,
     outline: { colour: '#7fd6ff', strength: 2.2 },
