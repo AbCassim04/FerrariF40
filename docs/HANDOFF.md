@@ -16,7 +16,11 @@ docs/BRIEF.md; read that first.
   for the through-the-glass view, shadow scheduling and perf probe.
 - **Phase 2 (2c) done**: transaxle, clutch, hybrid system and re-curving HV cables in
   `parts/drivetrain/` (the `ref-*` placeholders are gone).
-- Next: phase 3 = 2f realism (N8AO, studio HDRI, tone mapping, bevels, detail, materials).
+- **Phase 3 (2f) done**: studio HDRI + Lightformers, ACES, N8AO (half res) + SMAA,
+  clear-coated paint, heat-tinted headers, cast grain, lathe rounds, coolant hoses and
+  brackets/bolts/harness detail (`parts/cooling.ts`).
+- Next: phase 4 = milestone 7 (inspect panel: hover outline + tooltip, click to frame +
+  side panel; info for every part; X-ray; mobile bottom sheet).
 
 ## Run
 ```
@@ -44,6 +48,8 @@ npm run prep:body    # regenerate public/models/body.opt.glb + docs/body-report.
 - `src/body/BodyModel.tsx` — loads body.opt.glb, builds model parts, tunes the
   engine-cover glass, dev diagnostics (bbox, wheel drift vs DIMS) and segment colours.
 - `src/scene/ClashCheck.tsx` — dev key C.
+- `src/scene/PostEffects.tsx` — N8AO, ACES tone mapping, SMAA (dev: `?ao=0`, `?aoView=1`,
+  `?tone=agx`). `public/hdri/` — the CC0 studio HDRI.
 - `src/scene/EnvironmentLevels.tsx` — per-material environment levels (bay specular
   occlusion; body glass). `ShadowScheduler.tsx` — shadows only re-render while things
   move. `PerfProbe.tsx` — dev perf readout (`window.__perf`, `window.__perfParts()`).

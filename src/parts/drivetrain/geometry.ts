@@ -395,8 +395,19 @@ export function inverterMeshes(s: Side): MeshSpec[] {
     const z0 = at.z - dir.z * 0.02;
     return cylinderZ(0.016, Math.min(z0, at.z), Math.max(z0, at.z), at.x, at.y, SEGMENTS.small);
   });
+  // Feet at the corners, down onto the casing top (which falls away toward the rear).
+  const feet = [-1, 1].flatMap((kx) =>
+    [-1, 1].map((kz) => {
+      const z = centre.z + kz * (d / 2 - I.foot);
+      const top = casingSection(z).top;
+      const g = roundedBox(I.foot, I.bottom - top + E.bevel, I.foot, E.bevel / 2);
+      g.translate(centre.x + kx * (w / 2 - I.foot), (I.bottom + top) / 2, z);
+      return g;
+    }),
+  );
   return [
     { geometry: merge([box, ...bars, ...rim]), material: 'castAluminium' },
+    { geometry: merge(feet), material: 'satinBlack' },
     { geometry: merge(connectors), material: 'hvOrange' },
     { geometry: bolt(), material: 'darkSteel', instances: bolts },
   ];

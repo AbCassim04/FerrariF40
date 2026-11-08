@@ -1,5 +1,6 @@
 import { useLayoutEffect, useMemo, useRef } from 'react';
 import type { BufferGeometry, InstancedMesh, Material, Matrix4 } from 'three';
+import { merge } from '../geometry/build';
 import { getMaterial, type MaterialKey } from '../materials/materials';
 
 /**
@@ -12,10 +13,13 @@ export interface MeshSpec {
   instances?: readonly Matrix4[];
 }
 
-/** Part build from a list of mesh specs, computed once per mount. */
+/**
+ * Part build from a list of mesh specs, computed once per mount. Plain (non-instanced)
+ * meshes sharing a material are merged, so each part costs one draw per material.
+ */
 export function specBuild(name: string, spec: () => MeshSpec[]) {
   function Build() {
-    const meshes = useMemo(spec, []);
+    const meshes = useMemo(() => mergeByMaterial(spec()), []);
     return (
       <>
         {meshes.map((m, i) =>
@@ -42,4 +46,15 @@ function Instances({ geometry, material, matrices }: { geometry: BufferGeometry;
     mesh.computeBoundingSphere();
   }, [matrices]);
   return <instancedMesh ref={ref} args={[geometry, material, matrices.length]} />;
+}
+
+function mergeByMaterial(specs: MeshSpec[]): MeshSpec[] {
+  const plain = new Map<MaterialKey, BufferGeometry[]>();
+  const out: MeshSpec[] = [];
+  for (const m of specs) {
+    if (m.instances) out.push(m);
+    else plain.set(m.material, [...(plain.get(m.material) ?? []), m.geometry]);
+  }
+  for (const [material, geometries] of plain) out.push({ geometry: geometries.length > 1 ? merge(geometries) : geometries[0], material });
+  return out;
 }

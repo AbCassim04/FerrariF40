@@ -319,3 +319,31 @@ Each was the most reasonable option at the time; all are easy to revisit.
 - Removed the `ref-*` placeholders; the powertrain assembly moved to
   `src/parts/powertrain.ts`.
 
+*Phase 3 (2f realism)*
+- Environment: CC0 Poly Haven "Studio Small 09" (Sergej Majboroda), 2k HDR in
+  public/hdri/, with the existing softbox Lightformers on top; never the background.
+- Tone mapping: ACES filmic. AgX was tried first and turned the body's red to salmon.
+- N8AO at half resolution (radius 0.25 m, intensity 6). The composer runs without MSAA
+  (N8AO received no usable depth from multisampled buffers) and SMAA does the edges.
+  n8ao 2.0.1's half-res render target breaks on three r187 (its `texture` getter
+  returns an array); patched at load in `PostEffects.tsx`. n8ao is now a direct
+  dependency, with a minimal type declaration.
+- Body paint: the model's paints had no clear coat, so the body read flat in the new
+  environment. They now have a satin base under a near-mirror clear coat (red and black).
+- Exhaust tips are exempt from the bay's specular occlusion (they are seen outside).
+- Bevels: every lathe-turned corner gets a 1.5 mm round by default (skipped on features
+  under ~4 mm and points on the axis); extrusions and rounded boxes already had bevels.
+- Materials: fine low-contrast cast grain (roughness + slight bump) instead of blotchy
+  noise; headers heat-tinted by vertex colour (blue/purple at the ports → bronze → gold
+  → straw → steel); cam covers read red under ACES and bay occlusion (no colour change).
+- Detail: coolant hoses (re-curving, single rubber strand, 4 clamps) from re-angled water
+  pump inlets out through the bay walls to the side-pod radiator area; oil-tank straps;
+  inverter feet; ECU wall tabs and harnesses; airbox brackets and lid screws; flange
+  bolts on the throttle bodies, catalysts and exhaust pipes.
+- Aux e-motor now explodes down and forward (0.2 down, 0.15 forward) instead of out and
+  forward, so it clears the new coolant hose.
+- Performance: hidden internals trimmed (valve springs 12 segments per coil and 6 round
+  the wire, timing-chain links plain boxes); contact shadows only consider the 1.2 m
+  above the ground; no shadow casting under 5 cm; plain meshes merged per material in
+  each part.
+

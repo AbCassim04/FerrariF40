@@ -2,7 +2,7 @@ import { useGLTF } from '@react-three/drei';
 import { useEffect, useMemo } from 'react';
 import { Box3, Color, CustomBlending, DoubleSide, MeshBasicMaterial, MeshStandardMaterial, OneFactor, OneMinusSrcAlphaFactor, Vector3, type Mesh, type MeshPhysicalMaterial, type Object3D } from 'three';
 import { DIMS } from '../config/dims';
-import { CABIN_GLASS, ENGINE_COVER_GLASS, LAMP_GLASS, modelEnvLevels } from '../materials/materials';
+import { BODY_PAINT, CABIN_GLASS, ENGINE_COVER_GLASS, LAMP_GLASS, modelEnvLevels } from '../materials/materials';
 import { useAppStore } from '../state/store';
 
 /**
@@ -65,7 +65,12 @@ function tuneMaterials(nodes: Record<string, Object3D>) {
         if (m.name === 'EngineCoverGlass') pane(m, ENGINE_COVER_GLASS);
         else if (m.name === 'uv1MAT_Glass1') pane(m, CABIN_GLASS);
         else if (m.name === 'red_glass') m.opacity = LAMP_GLASS.opacity;
-        else continue;
+        else if (BODY_PAINT[m.name]) {
+          Object.assign(m, BODY_PAINT[m.name], { clearcoat: 1 });
+          done.add(m);
+          m.needsUpdate = true;
+          continue;
+        } else continue;
         done.add(m);
         m.transmission = 0;
         m.transparent = true;

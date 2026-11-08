@@ -24,7 +24,9 @@ Budget: under ~1.5M triangles and ~500 draw calls for the whole scene.
 | Start (2a + body, before fixes) | — | ~980–1030 calls / 3.3M (every frame) | same |
 | 1 (2b) | 670k (powertrain 568k) | 187 / 0.65M · 214 / 0.67M | 377 / 1.06M |
 | 2 (2c) | 756k | 221 / 0.74M · 248 / 0.76M | 433 / 1.23M |
+| 3 (2f) | 695k | ≈285 / 0.68M · 305 / 0.70M | 400–493 / 0.91–1.20M |
 
+Phase 3 adds the post-processing passes (N8AO at half resolution, tone mapping, SMAA: a handful of full-screen draws) and still comes in lower than phase 2: the hidden internals were trimmed.
 Before phase 1 every frame re-rendered the shadow map, the contact shadows and a
 transmission pass for the body glass: four scene passes. See "Phase 1" below.
 
@@ -121,6 +123,36 @@ inverters and cables now fill the back of the bay where the white placeholder wa
 
 **Known, left for later phases**: the gear clusters are only visible in a cutaway (not
 built); the bellhousing's front is a flat face (no visible bolt-on flywheel opening).
+
+## Phase 3: 2f realism
+
+**Lighting and post**: CC0 studio HDRI (Poly Haven "Studio Small 09", 2k) under our
+softbox Lightformers; ACES tone mapping (AgX made the red salmon); N8AO ambient occlusion
+at half resolution plus SMAA (`src/scene/PostEffects.tsx`). Two compatibility fixes were
+needed: no MSAA in the composer (N8AO got blank depth) and a patch for n8ao 2.0.1's
+half-res target on three r187.
+
+**Materials**: body paint gets a clear coat over a satin base (it had none and read
+flat); fine sand-cast grain on cast aluminium; heat-tinted header primaries (vertex
+colours, blue/purple at the ports to gold and straw); cam covers confirmed red; matte
+rubber, satin-black brackets, clear-coated carbon as before.
+
+**Geometry**: 1.5 mm rounds on every lathe-turned corner (no raw 90° edges on turned
+parts; extrusions and boxes were already bevelled); coolant hoses from the water pumps
+to the side-pod radiator area (re-curving, clamped); oil-tank straps, inverter feet, ECU
+tabs and harnesses, airbox brackets and lid screws, flange bolts on throttle bodies,
+catalysts and pipes.
+
+**Gates**: typecheck and build pass; clash check: assembled vs body none, exploded
+overlaps none; hoses and cables also checked at t = 2.0–5.0 s: none.
+
+**Screenshots** (before = end of phase 2): p3-before/after-engine-glass,
+p3-before/after-engine-solo, p3-before/after-rear34; N8AO off/on: p3-ao-off, p3-ao-on;
+p3-headers-tint, p3-coolant-hose, p3-paint.
+
+**Known**: on this machine's iGPU the full scene runs at ~1 fps in the review browser,
+so frame times aren't meaningful here (draw calls and triangles are). The cabin glass
+now shows the studio's reflections from above, which looks grey in the engine view.
 
 ## Blocked
 (none so far)

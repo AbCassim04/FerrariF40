@@ -1,4 +1,4 @@
-import { CatmullRomCurve3, Matrix4, Quaternion, Vector3 } from 'three';
+import { BufferAttribute, CatmullRomCurve3, Color, Matrix4, Quaternion, Vector3, type BufferGeometry } from 'three';
 import { DIMS } from '../../../config/dims';
 import { SEGMENTS } from '../../../config/detail';
 import {
@@ -28,6 +28,18 @@ const sEllipse = (u: number, p: number) => Math.pow(Math.max(0, 1 - Math.pow(Mat
 
 /** Pose a geometry modelled along +y so that +y follows `dir`, at `at`. */
 const along = (at: Vector3, dir: Vector3) => compose(at, new Quaternion().setFromUnitVectors(up, dir.clone().normalize()));
+
+const smallBolt = () => boltHead(E.block.bolt.radius * 0.7, E.block.bolt.height * 0.8);
+
+/** `n` bolt heads on a circle of radius r round `centre`, in the plane normal to q's +y. */
+function flangeBolts(centre: Vector3, r: number, n: number, q: Quaternion) {
+  const u = new Vector3(1, 0, 0).applyQuaternion(q);
+  const v = new Vector3(0, 0, 1).applyQuaternion(q);
+  return Array.from({ length: n }, (_, k) => {
+    const a = ((k + 0.5) / n) * Math.PI * 2;
+    return compose(centre.clone().addScaledVector(u, r * Math.cos(a)).addScaledVector(v, r * Math.sin(a)), q);
+  });
+}
 
 // ─── Plenum cover ────────────────────────────────────────────────────────────
 
@@ -119,9 +131,12 @@ export function throttleBodyMeshes(s: Side): MeshSpec[] {
   const [aw, ah, ad] = T.actuator;
   const actuator = roundedBox(aw, ah, ad, E.bevel * 2);
   actuator.translate(x + sideSign(s) * (T.radius * 0.3), T.y + T.radius + ah / 2 - E.bevel, (T.frontZ + z1) / 2);
+  const fq = new Quaternion().setFromUnitVectors(up, new Vector3(0, 0, -1));
+  const bolts = flangeBolts(new Vector3(x, T.y, T.frontZ - T.flange.thickness), T.flange.radius - E.bevel * 3, 4, fq);
   return [
     { geometry: merge([body, flange, rear]), material: 'castAluminium' },
     { geometry: actuator, material: 'satinBlack' },
+    { geometry: smallBolt(), material: 'darkSteel', instances: bolts },
   ];
 }
 
@@ -175,7 +190,23 @@ export function airboxMeshes(s: Side): MeshSpec[] {
   ]);
   const at = new Vector3(sx * x1, N.y, N.z);
   snout.applyMatrix4(along(at, new Vector3(sx, 0, 0)));
-  return [{ geometry: merge([box, lid, snout]), material: 'carbonGloss' }];
+  // Lid screws round the rim, and two satin brackets from the box's floor to the casing side.
+  const screws: Matrix4[] = [];
+  const rimY = y1 + A.lid.height - E.bevel;
+  for (const fx of [0.15, 0.5, 0.85]) {
+    for (const fz of [A.lid.inset * 1.5, d - A.lid.inset * 1.5]) screws.push(compose(new Vector3(sx * (x0 + w * fx), rimY, z0 + fz), new Quaternion()));
+  }
+  const B2 = A.bracket;
+  const brackets = B2.z.map((z) => {
+    const g = roundedBox(B2.size[0], B2.size[1], B2.size[2], E.bevel);
+    g.translate(sx * (x0 - B2.size[0] / 2 + B2.overlap), y0 + B2.size[1] / 2 - E.bevel, z);
+    return g;
+  });
+  return [
+    { geometry: merge([box, lid, snout]), material: 'carbonGloss' },
+    { geometry: smallBolt(), material: 'darkSteel', instances: screws },
+    { geometry: merge(brackets), material: 'satinBlack' },
+  ];
 }
 
 export function fuelRailMeshes(s: Side): MeshSpec[] {
@@ -199,8 +230,41 @@ export function fuelRailMeshes(s: Side): MeshSpec[] {
 
 const X = E.exhaust;
 
+/**
+ * Heat oxide along a primary from its port (t = 0): blue/purple where it runs hottest,
+ * through bronze and gold to straw, then plain steel. sRGB stops.
+ */
+const HEAT_TINT: [number, string][] = [
+  [0, '#4a4e86'],
+  [0.06, '#5f4f80'],
+  [0.13, '#83626f'],
+  [0.21, '#a8875a'],
+  [0.31, '#bfae88'],
+  [0.45, '#b2ada5'],
+  [1, '#a9a39a'],
+];
+
+/** Vertex colours from the tube's along-coordinate (uv.x, 0 at the port). */
+function heatTint(g: BufferGeometry) {
+  const uv = g.getAttribute('uv');
+  const colours = new Float32Array(uv.count * 3);
+  const c = new Color();
+  const a = new Color();
+  const b = new Color();
+  for (let i = 0; i < uv.count; i++) {
+    const t = uv.getX(i);
+    const k = HEAT_TINT.findIndex(([at]) => at >= t);
+    const [t1, c1] = HEAT_TINT[Math.max(1, k)];
+    const [t0, c0] = HEAT_TINT[Math.max(1, k) - 1];
+    c.copy(a.set(c0)).lerp(b.set(c1), (t - t0) / (t1 - t0 || 1));
+    colours.set([c.r, c.g, c.b], i * 3);
+  }
+  g.setAttribute('color', new BufferAttribute(colours, 3));
+  return g;
+}
+
 export function headerMeshes(s: Side): MeshSpec[] {
-  const tubes = primaries(s).map((p) => tubeAlong(p.curve, X.primaryRadius, false, SEGMENTS.primary));
+  const tubes = primaries(s).map((p) => heatTint(tubeAlong(p.curve, X.primaryRadius, false, SEGMENTS.primary)));
   const mouth = collectorMouth(s);
   const c = X.collector;
   const big = c.ringRadius + X.primaryRadius + E.bevel;
@@ -232,7 +296,8 @@ export function headerMeshes(s: Side): MeshSpec[] {
     return along(at, new Vector3(sideSign(s) * 0.4, 1, 0));
   });
   return [
-    { geometry: merge([...tubes, cone]), material: 'headerSteel' },
+    { geometry: merge(tubes), material: 'headerTint' },
+    { geometry: cone, material: 'headerSteel' },
     { geometry: flange, material: 'headerSteel', instances: flanges },
     { geometry: gasket, material: 'gasket', instances: gaskets },
     { geometry: boltHead(E.block.bolt.radius * 0.8, E.block.bolt.height), material: 'darkSteel', instances: bolts },
@@ -269,7 +334,20 @@ export function catalystMeshes(s: Side): MeshSpec[] {
     g.translate(mouth.x, mouth.y, zf - (zf - zr) * f);
     return g;
   });
-  return [{ geometry: merge([can, ...ribs]), material: 'steel' }];
+  // Flanged joints at both ends: four bolts round each neck.
+  const q = new Quaternion().setFromUnitVectors(up, new Vector3(0, 0, -1));
+  const fr = X.pipeFlange.radius - E.bevel * 2;
+  const bolts = [zf + C.gap * 0.5, zr + E.bevel].flatMap((z) => flangeBolts(new Vector3(mouth.x, mouth.y, z), fr, 4, q));
+  const flanges = [zf + C.gap * 0.5, zr + X.pipeFlange.thickness].map((z) => {
+    const g = lathe(band(X.pipeRadius, X.pipeFlange.radius, -X.pipeFlange.thickness, 0), SEGMENTS.cylinder / 2);
+    g.rotateX(-Math.PI / 2);
+    g.translate(mouth.x, mouth.y, z);
+    return g;
+  });
+  return [
+    { geometry: merge([can, ...ribs, ...flanges]), material: 'steel' },
+    { geometry: smallBolt(), material: 'darkSteel', instances: bolts },
+  ];
 }
 
 const S = X.silencer;
@@ -303,10 +381,15 @@ export function exhaustPipeMeshes(s: Side): MeshSpec[] {
   const flanges = [along(curve.getPointAt(0), curve.getTangentAt(0)), along(curve.getPointAt(1), curve.getTangentAt(1).negate())];
   const clamp = lathe(band(X.pipeRadius, X.pipeRadius + E.intakeTube.clamp.thickness, -E.intakeTube.clamp.width / 2, E.intakeTube.clamp.width / 2), SEGMENTS.cylinder / 2);
   const clamps = [0.3, 0.7].map((t) => along(curve.getPointAt(t), curve.getTangentAt(t)));
+  const ends = [0, 1].map((t) => ({ at: curve.getPointAt(t), dir: curve.getTangentAt(t).multiplyScalar(t ? 1 : -1) }));
+  const bolts = ends.flatMap(({ at, dir }) =>
+    flangeBolts(at.clone().addScaledVector(dir, -F.thickness), F.radius - E.bevel * 2, 4, new Quaternion().setFromUnitVectors(up, dir.clone().normalize())),
+  );
   return [
     { geometry: pipe, material: 'steel' },
     { geometry: flange, material: 'steel', instances: flanges },
     { geometry: clamp, material: 'darkSteel', instances: clamps },
+    { geometry: smallBolt(), material: 'darkSteel', instances: bolts },
   ];
 }
 
@@ -377,9 +460,23 @@ export function ecuMeshes(s: Side): MeshSpec[] {
   const plug = roundedBox(w * 0.7, h * 0.18, d * 0.35, E.bevel);
   plug.translate(-sx * w * 0.1, h / 2 + h * 0.07, d * 0.2);
   const pose = onBayWall(U.centre, s);
+  // Two tabs bolting it to the bay wall.
+  const tabs = [-1, 1].map((k) => {
+    const g = roundedBox(U.tab[0], U.tab[1], U.tab[2], E.bevel / 2);
+    g.translate(sx * (w / 2 + U.tab[0] / 2 - E.bevel), 0, k * (d / 2 - U.tab[2]));
+    return g;
+  });
+  // Harness from the plug, over towards the engine (its loom joins the cam-cover loom).
+  const plugTop = new Vector3(-sx * w * 0.1, h / 2 + h * 0.16, d * 0.2).applyMatrix4(pose);
+  const harness = tube(
+    [plugTop, ...U.harness.map(([x, y, z]) => new Vector3(sx * x, y, z))],
+    U.harnessRadius,
+  );
   return [
     { geometry: merge([box, ...fins]).applyMatrix4(pose), material: 'castAluminium' },
     { geometry: plug.applyMatrix4(pose), material: 'satinBlack' },
+    { geometry: merge(tabs).applyMatrix4(pose), material: 'satinBlack' },
+    { geometry: harness, material: 'loom' },
   ];
 }
 

@@ -163,7 +163,7 @@ export function valvetrainMeshes(s: Side): MeshSpec[] {
       }
     }
   }
-  const spring = tubeAlong(new Helix(S.radius, S.length, S.coils), S.wire / 2, false, S.coils * SEGMENTS.springCoil);
+  const spring = tubeAlong(new Helix(S.radius, S.length, S.coils), S.wire / 2, false, S.coils * SEGMENTS.springCoil, SEGMENTS.springWire);
   const retainer = lathe([[0, 0], [V.stemDiameter, 0], [R.radius, R.height], [0, R.height]], SEGMENTS.small * 2);
   return [
     { geometry: valveGeometry(V.intakeHeadDiameter), material: 'steel', instances: valves.intake },

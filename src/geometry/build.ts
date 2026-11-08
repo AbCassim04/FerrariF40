@@ -26,7 +26,7 @@ export type P2 = readonly [number, number];
 function normalise(g: BufferGeometry) {
   const out = g.index ? g.toNonIndexed() : g;
   for (const name of Object.keys(out.attributes)) {
-    if (name !== 'position' && name !== 'normal' && name !== 'uv') out.deleteAttribute(name);
+    if (!['position', 'normal', 'uv', 'color'].includes(name)) out.deleteAttribute(name);
   }
   if (!out.getAttribute('normal')) out.computeVertexNormals();
   if (!out.getAttribute('uv')) {
@@ -71,8 +71,46 @@ export function extrude(shape: Shape, depth: number, bevel = 0, curveSegments: n
 }
 
 /** Solid of revolution about +y from an (r, y) profile. */
-export function lathe(profile: readonly P2[], segments: number = SEGMENTS.cylinder) {
-  return normalise(new LatheGeometry(profile.map(([r, y]) => new Vector2(r, y)), segments));
+export function lathe(profile: readonly P2[], segments: number = SEGMENTS.cylinder, round: number = ROUND) {
+  const pts = round > 0 ? roundCorners(profile, round) : profile;
+  return normalise(new LatheGeometry(pts.map(([r, y]) => new Vector2(r, y)), segments));
+}
+
+/** Default edge round on turned parts: no raw 90° edges (clamped on small features). */
+const ROUND = 0.0015;
+
+/**
+ * Rounds each interior corner of an open profile with a short arc of radius `r` (at most
+ * a third of either neighbouring segment, so small features keep their shape). Points
+ * on the axis and nearly straight joints are left alone.
+ */
+export function roundCorners(profile: readonly P2[], r: number, steps: number = SEGMENTS.bevel): P2[] {
+  const out: P2[] = [profile[0]];
+  for (let i = 1; i < profile.length - 1; i++) {
+    const p = new Vector2(...profile[i]);
+    const a = new Vector2(...profile[i - 1]).sub(p);
+    const b = new Vector2(...profile[i + 1]).sub(p);
+    const la = a.length();
+    const lb = b.length();
+    const turn = Math.acos(Math.min(1, Math.max(-1, a.dot(b) / (la * lb || 1))));
+    // Skip near-straight joints, points on the axis, and features too small to show a round.
+    if (Math.min(la, lb) < 2.5 * r || turn > Math.PI * 0.95 || p.x < 1e-6) {
+      out.push(profile[i]);
+      continue;
+    }
+    // Distance from the corner to the tangent points, clamped to the segments.
+    const d = Math.min(r / Math.tan(turn / 2), la / 3, lb / 3);
+    const t0 = p.clone().addScaledVector(a, d / la);
+    const t1 = p.clone().addScaledVector(b, d / lb);
+    // Quadratic Bézier through the corner: close to a circular arc for these small radii.
+    for (let k = 0; k <= steps; k++) {
+      const t = k / steps;
+      const q = t0.clone().multiplyScalar((1 - t) ** 2).addScaledVector(p, 2 * t * (1 - t)).addScaledVector(t1, t * t);
+      out.push([q.x, q.y]);
+    }
+  }
+  out.push(profile[profile.length - 1]);
+  return out;
 }
 
 /** Rounded box centred on the origin. */
@@ -102,8 +140,8 @@ export function tube(points: readonly Vector3[], radius: number, closed = false)
   return tubeAlong(curve, radius, closed);
 }
 
-export function tubeAlong(curve: Curve<Vector3>, radius: number, closed = false, tubular: number = SEGMENTS.tube) {
-  return normalise(new TubeGeometry(curve, tubular, radius, SEGMENTS.tubeRadial, closed));
+export function tubeAlong(curve: Curve<Vector3>, radius: number, closed = false, tubular: number = SEGMENTS.tube, radial: number = SEGMENTS.tubeRadial) {
+  return normalise(new TubeGeometry(curve, tubular, radius, radial, closed));
 }
 
 /**

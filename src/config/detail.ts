@@ -11,8 +11,9 @@ export const SEGMENTS = {
   roundedBox: 2,
   tube: 64,
   tubeRadial: 10,
-  /** Per coil of a valve spring. */
-  springCoil: 20,
+  /** Per coil of a valve spring, and round the wire (48 springs, mostly hidden). */
+  springCoil: 12,
+  springWire: 6,
   /** Plenum loft: stations along its length, points across each section. */
   loftStations: 64,
   loftSection: 56,

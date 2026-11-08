@@ -38,7 +38,21 @@ export const SCENE = {
     side: { position: [7.5, 0.9, 0] as Vec3, target: [0, 0.5, DIMS.body.centreZ] as Vec3 },
     rear34: { position: [-4.8, 2.4, -6.2] as Vec3, target: [0, 0.5, -0.4] as Vec3 },
   },
-  contactShadows: { scale: 12, far: 2.5, blur: 2.2, opacity: 0.75, resolution: 1024 },
+  /** `far`: only things within this height of the ground cast contact shadows (the lifted, exploded parts drop out of the pass). */
+  contactShadows: { scale: 12, far: 1.2, blur: 2.2, opacity: 0.75, resolution: 1024 },
+  /**
+   * Reflections and fill: a CC0 studio HDRI (Poly Haven "Studio Small 09", Sergej
+   * Majboroda) with our softbox Lightformers on top; the HDRI is never the background.
+   */
+  environment: { file: '/hdri/studio_small_09_2k.hdr', intensity: 0.85, resolution: 512 },
+  /** Post-processing: N8AO ambient occlusion (half resolution), then tone mapping. */
+  post: {
+    /** No MSAA: N8AO gets no usable depth from multisampled buffers; SMAA does the edges. */
+    multisampling: 0,
+    ao: { radius: 0.25, distanceFalloff: 1, intensity: 6, quality: 'medium' as const, halfRes: true },
+    // ACES: AgX desaturates the body's red to salmon.
+    toneMapping: 'aces' as 'agx' | 'aces',
+  },
   /**
    * Showroom "display light" in the engine bay: a soft area light facing down over the
    * engine's footprint. It sits below the deck around the cover opening (so no light
@@ -48,9 +62,10 @@ export const SCENE = {
    * Specular occlusion for our parts while the body encloses them: the fraction of their
    * environment reflections they keep (1 once the body is off, or hidden by solo).
    */
-  bayOcclusion: { enclosed: 0.25 },
+  /** `exempt`: our materials seen outside the bay (the exhaust tips in the rear openings). */
+  bayOcclusion: { enclosed: 0.25, exempt: ['tipSteel'] as readonly string[] },
   /** Meshes smaller than this (bounding-sphere radius, m) cast no shadows: unseen, but each costs a draw in both shadow passes. */
-  shadowCasterMinRadius: 0.04,
+  shadowCasterMinRadius: 0.05,
   /**
    * Display lights in the engine bay: two narrow strips just under the deck along each side
    * of the engine (no visible source). On the plenum's clear coat they read as highlight

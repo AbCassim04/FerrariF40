@@ -13,6 +13,7 @@ import { Lighting } from './Lighting';
 import { PartLabels } from './PartLabels';
 import { PartsRenderer } from './PartsRenderer';
 import { PerfProbe } from './PerfProbe';
+import { PostEffects } from './PostEffects';
 import { ShadowScheduler } from './ShadowScheduler';
 
 const DEV = import.meta.env.DEV;
@@ -42,6 +43,7 @@ export function Experience() {
         {DEV && showGhost && <EngineBayGhost />}
       </Suspense>
       <CameraRig />
+      <PostEffects />
       {DEV && showGuides && <Guides />}
       {DEV && <Stats className="stats" />}
       {DEV && <PerfProbe />}

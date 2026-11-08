@@ -35,6 +35,7 @@ export type MaterialKey =
   | 'carbonGloss'
   | 'redAccent'
   | 'headerSteel'
+  | 'headerTint'
   | 'tipSteel'
   | 'loom'
   | 'reference';
@@ -51,7 +52,7 @@ export const PALETTE = {
   ceramic: '#3a3c40',
   caliper: '#c8ccd2',
   radiator: '#2b2e33',
-  castAluminium: '#b9bdc3',
+  castAluminium: '#a9adb2',
   /** Wrinkle-finish red of the cam covers. */
   camCover: '#a3141c',
   piston: '#cfd2d6',
@@ -82,6 +83,15 @@ export const ENGINE_COVER_GLASS = { opacity: 0.12, roughness: 0.05, envMapIntens
 export const CABIN_GLASS = { opacity: 0.62, roughness: 0.04, envMapIntensity: 1 } as const;
 /** Tail-light lenses: keep the model's red, plain alpha. */
 export const LAMP_GLASS = { opacity: 0.55 } as const;
+/**
+ * Body paint: the model's paints have no clear coat (one glossy layer, so reflections
+ * stayed weak and the body read flat). A satin base coat under a near-mirror clear coat,
+ * keyed by the model's material names.
+ */
+export const BODY_PAINT: Record<string, { roughness: number; metalness: number; clearcoatRoughness: number }> = {
+  uv1MAT_Carpaint_Red1: { roughness: 0.32, metalness: 0.05, clearcoatRoughness: 0.03 },
+  uv1MAT_Car_Paint_Black1: { roughness: 0.28, metalness: 0.2, clearcoatRoughness: 0.03 },
+};
 
 const factories: Record<MaterialKey, () => Material> = {
   carbon: () => {
@@ -129,8 +139,11 @@ const factories: Record<MaterialKey, () => Material> = {
   caliper: () => new MeshStandardMaterial({ color: PALETTE.caliper, metalness: 0.3, roughness: 0.35 }),
   radiator: () => new MeshStandardMaterial({ color: PALETTE.radiator, metalness: 0.6, roughness: 0.5 }),
   /** Sand-cast alloy: mottled roughness, no brushing. */
-  castAluminium: () =>
-    new MeshStandardMaterial({ color: PALETTE.castAluminium, metalness: 1, roughness: 1, roughnessMap: castNoiseTexture(6, 105, 150) }),
+  /** Sand-cast finish: a fine, low-contrast grain in roughness and a whisper of bump. */
+  castAluminium: () => {
+    const grain = castNoiseTexture(28, 118, 146);
+    return new MeshStandardMaterial({ color: PALETTE.castAluminium, metalness: 1, roughness: 1, roughnessMap: grain, bumpMap: grain, bumpScale: 0.15 });
+  },
   camCover: () =>
     new MeshPhysicalMaterial({
       color: PALETTE.camCover,
@@ -164,6 +177,8 @@ const factories: Record<MaterialKey, () => Material> = {
   },
   redAccent: () => new MeshPhysicalMaterial({ color: PALETTE.redAccent, metalness: 0, roughness: 0.3, clearcoat: 1, clearcoatRoughness: 0.1 }),
   headerSteel: () => new MeshStandardMaterial({ color: PALETTE.headerSteel, metalness: 1, roughness: 0.42 }),
+  /** Header primaries: the tint comes from vertex colours (heat oxide, blue/purple to gold). */
+  headerTint: () => new MeshStandardMaterial({ color: '#ffffff', vertexColors: true, metalness: 1, roughness: 0.36 }),
   tipSteel: () => new MeshStandardMaterial({ color: PALETTE.tipSteel, metalness: 1, roughness: 0.18 }),
   /** Braided loom sleeve: matte black. */
   loom: () => new MeshStandardMaterial({ color: PALETTE.loom, metalness: 0, roughness: 0.85 }),

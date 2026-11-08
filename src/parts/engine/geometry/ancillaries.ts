@@ -1,4 +1,4 @@
-import { Matrix4, Quaternion, Vector3 } from 'three';
+import { BoxGeometry, Matrix4, Quaternion, Vector3 } from 'three';
 import { DIMS } from '../../../config/dims';
 import { SEGMENTS } from '../../../config/detail';
 import {
@@ -92,7 +92,8 @@ export function timingCoverMeshes(): MeshSpec[] {
 
 export function timingChainMeshes(): MeshSpec[] {
   const C = T.chain;
-  const link = roundedBox(C.pitch * C.linkFill, C.height, C.width, C.height / 4);
+  // Plain boxes: ~300 links, only seen once the timing cover is off.
+  const link = new BoxGeometry(C.pitch * C.linkFill, C.height, C.width);
   const poses: Matrix4[] = [];
   for (const s of SIDES) {
     for (const { p, t } of samplePolyline(hullOf(chainCircles(s), 0), C.pitch)) {
@@ -235,13 +236,34 @@ export function oilTankMeshes(): MeshSpec[] {
   neck.translate(0, K.y, K.z + half * 0.6);
   const cap = cylinderY(K.neckRadius * 1.4, r + K.neckHeight, r + K.neckHeight + K.capHeight, SEGMENTS.small * 2);
   cap.translate(0, K.y, K.z + half * 0.6);
+  // Two straps round the tank, over the fins; they meet the gearbox casing at the bottom.
+  const strapR = K.finRadius + K.strap.thickness;
+  const straps = [-1, 1].map((k) => {
+    const g = lathe(band(K.finRadius, strapR, -K.strap.width / 2, K.strap.width / 2), SEGMENTS.cylinder, 0);
+    g.rotateX(Math.PI / 2);
+    g.translate(0, K.y, K.z + k * half * K.strap.at);
+    return g;
+  });
   return [
     { geometry: merge([body, neck]), material: 'castAluminium' },
     { geometry: cap, material: 'satinBlack' },
+    { geometry: merge(straps), material: 'satinBlack' },
   ];
 }
 
 // ─── Water pumps, mounts, auxiliary e-motor ──────────────────────────────────
+
+/** End of a water pump's inlet stub (engine coordinates) and the way a hose leaves it. */
+export function waterPumpInlet(s: Side) {
+  const W = E.waterPump;
+  const sx = sideSign(s);
+  const [cx, cy] = W.centre;
+  const d = W.inlet.length * Math.SQRT1_2;
+  return {
+    at: new Vector3(sx * (cx + W.radius + W.inlet.radius + d), cy - W.radius - d, E.blockFrontZ + W.length / 2),
+    dir: new Vector3(sx, -1, 0).normalize(),
+  };
+}
 
 export function waterPumpMeshes(s: Side): MeshSpec[] {
   const W = E.waterPump;
@@ -252,11 +274,13 @@ export function waterPumpMeshes(s: Side): MeshSpec[] {
   const body = cylinderZ(W.radius, z0, z0 + W.length, x, cy);
   const face = cylinderZ(W.radius * W.faceScale, z0 + W.length, z0 + W.length + W.faceThickness, x, cy);
   const zMid = z0 + W.length / 2;
+  // Inlet stub out and down, clear of the aux motor below the left pump.
+  const tip = waterPumpInlet(s).at;
   const inlet = tube(
     [
       new Vector3(x + sx * W.radius * 0.6, cy - W.radius * 0.5, zMid),
       new Vector3(x + sx * (W.radius + W.inlet.radius), cy - W.radius, zMid),
-      new Vector3(x + sx * (W.radius + W.inlet.radius), cy - W.radius - W.inlet.length, zMid),
+      tip,
     ],
     W.inlet.radius,
   );

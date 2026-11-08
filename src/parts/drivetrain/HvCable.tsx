@@ -4,7 +4,7 @@ import { BufferAttribute, BufferGeometry, CatmullRomCurve3, MathUtils, Matrix4, 
 import { DIMS, type Vec3 } from '../../config/dims';
 import { SEGMENTS } from '../../config/detail';
 import { lathe } from '../../geometry/build';
-import { getMaterial } from '../../materials/materials';
+import { getMaterial, type MaterialKey } from '../../materials/materials';
 import { dynamicParts, partObjects } from '../../scene/partObjects';
 import { band } from '../engine/geometry/core';
 
@@ -17,8 +17,41 @@ export interface CableEnd {
   dir: Vector3;
 }
 
+/** How a cable or hose is built: strands round the centreline, material, clamps. */
+export interface CableStyle {
+  strands: number;
+  strandRadius: number;
+  /** Distance of each strand from the centreline (0 for a single hose). */
+  offset: number;
+  /** Turns per metre of the strands round each other. */
+  twist: number;
+  material: MaterialKey;
+  clipMaterial: MaterialKey;
+  clipWidth: number;
+  /** Where the clips or clamps sit along the cable (0…1), given its length. */
+  clips: (length: number) => number[];
+}
+
+const H = DIMS.hvCable;
+
+/** Three orange strands twisted round each other, black clips every `clipSpacing`. */
+export const HV_STYLE: CableStyle = {
+  strands: 3,
+  strandRadius: H.strandRadius,
+  offset: H.bundleOffset,
+  twist: H.twist,
+  material: 'hvOrange',
+  clipMaterial: 'satinBlack',
+  clipWidth: H.clip[1],
+  clips: (length) => {
+    const n = Math.max(1, Math.floor(length / H.clipSpacing));
+    return Array.from({ length: n }, (_, c) => (c + 0.5) / n);
+  },
+};
+
 export interface CableRoute {
   id: string;
+  style?: CableStyle;
   from: CableEnd;
   to: CableEnd;
   /** Assembled route between the ends (car coordinates). */
@@ -32,16 +65,14 @@ export interface CableRoute {
   slackPeak?: number;
 }
 
-const H = DIMS.hvCable;
-const STRANDS = 3;
 const T = SEGMENTS.cable;
 const R = SEGMENTS.cableRadial;
 /** Straight run out of each connector before the cable may bend. */
 const LEAD = 0.05;
 
 /**
- * Build for an HV bundle (3 orange strands twisted round each other, with clips) that
- * re-curves every frame between its two ends. Each assembled waypoint is carried along
+ * Build for a cable or hose (by default an HV bundle: 3 orange strands twisted round each
+ * other, with clips) that re-curves every frame between its two ends. Each assembled waypoint is carried along
  * by a blend of the two ends' displacements (by its position along the route), so the
  * assembled route is exact and the cable follows its ends smoothly as they separate.
  */
@@ -63,8 +94,8 @@ export function cableBuild(route: CableRoute) {
 
     return (
       <>
-        <mesh geometry={state.geometry} material={getMaterial('hvOrange')} />
-        <instancedMesh ref={clipsRef} args={[state.clipGeometry, getMaterial('satinBlack'), state.clipCount]} />
+        <mesh geometry={state.geometry} material={getMaterial(state.style.material)} />
+        <instancedMesh ref={clipsRef} args={[state.clipGeometry, getMaterial(state.style.clipMaterial), state.clipAt.length]} />
       </>
     );
   }
@@ -74,6 +105,8 @@ export function cableBuild(route: CableRoute) {
 
 function createCable(route: CableRoute) {
   const { from, to } = route;
+  const style = route.style ?? HV_STYLE;
+  const STRANDS = style.strands;
   const leadA = from.at.clone().addScaledVector(from.dir, LEAD);
   const leadB = to.at.clone().addScaledVector(to.dir, LEAD);
   const assembled = [from.at, leadA, ...route.via, leadB, to.at];
@@ -106,11 +139,10 @@ function createCable(route: CableRoute) {
   geometry.setIndex(index);
   geometry.userData.dynamic = true;
 
-  const clipR = H.bundleOffset + H.strandRadius;
-  const [, clipWidth] = H.clip;
-  const clipGeometry = lathe(band(clipR, clipR + H.strandRadius * 0.4, -clipWidth / 2, clipWidth / 2), SEGMENTS.small);
+  const clipR = style.offset + style.strandRadius;
+  const clipGeometry = lathe(band(clipR, clipR + style.strandRadius * 0.4, -style.clipWidth / 2, style.clipWidth / 2), SEGMENTS.small);
   const length = cum[cum.length - 1];
-  const clipCount = Math.max(1, Math.floor(length / H.clipSpacing));
+  const clipAt = style.clips(length);
 
   const local = (end: CableEnd) => end.at.clone().sub(new Vector3(...end.origin));
   const localA = local(from);
@@ -138,7 +170,7 @@ function createCable(route: CableRoute) {
     last.b.copy(nowB);
     const dA = nowA.clone().sub(from.at);
     const dB = nowB.clone().sub(to.at);
-    const grown = MathUtils.clamp((nowA.distanceTo(nowB) - span) / H.slackGrowth, 0, 1);
+    const grown = MathUtils.clamp((nowA.distanceTo(nowB) - span) / DIMS.hvCable.slackGrowth, 0, 1);
     const points = assembled.map((p, i) =>
       p.clone().add(dA.clone().lerp(dB, share[i])).addScaledVector(route.slack, grown * Math.sin(Math.PI * share[i] ** slackPower)),
     );
@@ -162,12 +194,12 @@ function createCable(route: CableRoute) {
         const t = tangents[i];
         const nn = normals[i];
         const bb = new Vector3().crossVectors(t, nn);
-        const twist = (k / STRANDS) * Math.PI * 2 + (i / T) * length * H.twist * Math.PI * 2;
-        off.copy(nn).multiplyScalar(Math.cos(twist) * H.bundleOffset).addScaledVector(bb, Math.sin(twist) * H.bundleOffset);
+        const twist = (k / STRANDS) * Math.PI * 2 + (i / T) * length * style.twist * Math.PI * 2;
+        off.copy(nn).multiplyScalar(Math.cos(twist) * style.offset).addScaledVector(bb, Math.sin(twist) * style.offset);
         for (let j = 0; j <= R; j++) {
           const a = (j / R) * Math.PI * 2;
           dir.copy(nn).multiplyScalar(Math.cos(a)).addScaledVector(bb, Math.sin(a));
-          p.copy(pts[i]).add(off).addScaledVector(dir, H.strandRadius);
+          p.copy(pts[i]).add(off).addScaledVector(dir, style.strandRadius);
           position.setXYZ(v, p.x, p.y, p.z);
           normal.setXYZ(v, dir.x, dir.y, dir.z);
           v++;
@@ -180,8 +212,8 @@ function createCable(route: CableRoute) {
     geometry.computeBoundingSphere();
 
     if (clips) {
-      for (let c = 0; c < clipCount; c++) {
-        const i = Math.round(((c + 0.5) / clipCount) * T);
+      for (let c = 0; c < clipAt.length; c++) {
+        const i = Math.round(clipAt[c] * T);
         const t = tangents[i];
         const nn = normals[i];
         m.makeBasis(new Vector3().crossVectors(t, nn), t, nn).setPosition(pts[i]);
@@ -195,5 +227,5 @@ function createCable(route: CableRoute) {
 
   // Assembled shape up front, so bounds (shadow and culling decisions) are right on mount.
   update(null);
-  return { geometry, clipGeometry, clipCount, update };
+  return { geometry, clipGeometry, clipAt, style, update };
 }

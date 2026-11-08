@@ -42,7 +42,7 @@ export function EnvironmentLevels() {
     for (const m of ours) {
       if (!m.isMeshStandardMaterial) continue;
       m.userData.envLevel ??= m.envMapIntensity;
-      bind(m, m.userData.envLevel * factor);
+      bind(m, m.userData.envLevel * (SCENE.bayOcclusion.exempt.includes(m.name) ? 1 : factor));
     }
     for (const [m, level] of modelEnvLevels) bind(m as MeshStandardMaterial, level);
     applied.current = { factor, count: ours.length, env };

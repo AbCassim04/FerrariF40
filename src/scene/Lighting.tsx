@@ -4,18 +4,16 @@ import { SCENE } from '../config/scene';
 
 RectAreaLightUniformsLib.init();
 
-const { bayLight } = SCENE;
+const { bayLight, environment } = SCENE;
 
 /**
- * Dark studio: a procedural softbox environment (no HDR download) for reflections,
- * one shadow-casting key light, and soft display strips in the engine bay.
+ * Studio lighting: a CC0 studio HDRI with our softbox Lightformers on top for
+ * reflections, one shadow-casting key light, and soft display strips in the engine bay.
  */
 export function Lighting() {
   return (
     <>
-      <Environment resolution={256} frames={1} environmentIntensity={0.9}>
-        {/* Dim studio walls, so metals always have something to reflect */}
-        <color attach="background" args={['#2a2e35']} />
+      <Environment files={environment.file} resolution={environment.resolution} frames={1} environmentIntensity={environment.intensity}>
         {/* Overhead softbox */}
         <Lightformer form="rect" intensity={3} position={[0, 6, 0]} rotation={[Math.PI / 2, 0, 0]} scale={[12, 5, 1]} />
         {/* Side strips for long highlights down the flanks */}

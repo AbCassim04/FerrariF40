@@ -331,6 +331,8 @@ const engineParts = {
     neckRadius: mm(18),
     neckHeight: mm(25),
     capHeight: mm(12),
+    /** Straps round the tank, at this fraction of its half-length either side of centre. */
+    strap: { at: 0.55, width: mm(16), thickness: mm(3) },
   },
   waterPump: {
     radius: mm(45),
@@ -419,6 +421,8 @@ const engineParts = {
     /** Intake snout out of the outboard face, toward the side scoop (clear of the tub's ducting). */
     snout: { z: -1.55, y: mm(325), length: mm(85), radius: mm(48), bell: mm(8) },
     lid: { inset: mm(10), height: mm(8) },
+    /** Satin brackets under the inboard edge, reaching to the gearbox casing's side. */
+    bracket: { size: [mm(40), mm(6), mm(30)] as Vec3, overlap: mm(15), z: [-1.5, -1.7] as readonly number[] },
   },
   /** Direct-injection fuel rails along the V side of each head, injectors into the head. */
   fuelRail: { b: -mm(132), a: mm(30), radius: mm(8), injectorRadius: mm(6), injectorLength: mm(28) },
@@ -452,7 +456,15 @@ const engineParts = {
    * Engine ECUs against the bay side walls (left-side centre; mirrored), and the fuse/relay
    * box ahead of the right ECU. `yaw` follows the walls, which close in toward the rear.
    */
-  ecu: { size: [mm(36), mm(150), mm(180)] as Vec3, centre: [mm(563), mm(195), -0.7] as Vec3, fins: 8 },
+  ecu: {
+    size: [mm(36), mm(150), mm(180)] as Vec3,
+    centre: [mm(563), mm(195), -0.7] as Vec3,
+    fins: 8,
+    tab: [mm(14), mm(40), mm(22)] as Vec3,
+    /** Harness route (left side; engine coordinates) from the plug toward the cam cover's outer edge. */
+    harness: [[mm(480), mm(298), -0.69], [mm(390), mm(296), -0.67], [mm(305), mm(300), -0.64]] as readonly Vec3[],
+    harnessRadius: mm(8),
+  },
   fuseBox: { size: [mm(36), mm(110), mm(100)] as Vec3, centre: [-mm(612), mm(190), -0.53] as Vec3 },
   bayWallYaw: deg(15.6),
   /** Ignition loom along each cam cover's top, inboard of the coil packs (`b` across the bank). */
@@ -493,7 +505,7 @@ const transaxleInput = {
   gears: { shaftRadius: mm(20), layshaftX: mm(85), layshaftY: -mm(10), thickness: mm(18) },
   eMotor: { radius: mm(120), length: mm(155), boss: mm(10), y: mm(165), flange: mm(12), capInset: mm(8), bolts: 12, boltCircle: mm(98), ribs: 5, terminal: [mm(80), mm(40), mm(60)] as Vec3 },
   /** Inverters on the casing top (left-side box; mirrored), X-braced lids. */
-  inverter: { x: [mm(20), mm(160)] as const, bottom: mm(318), height: mm(62), z: [-1.46, -1.24] as const, lid: mm(6), brace: mm(10), bolts: 8 },
+  inverter: { x: [mm(20), mm(160)] as const, bottom: mm(318), height: mm(62), z: [-1.46, -1.24] as const, lid: mm(6), brace: mm(10), bolts: 8, foot: mm(20) },
 };
 
 /**
@@ -522,6 +534,19 @@ const hybridInput = {
    * each cable's own slack (how far its middle bows out) is set with its route.
    */
   hvCable: { strandRadius: mm(7), bundleOffset: mm(8.5), twist: 0.6, clip: [mm(28), mm(10), mm(22)] as Vec3, clipSpacing: 0.25, slackGrowth: 0.6 },
+  /**
+   * Coolant hoses (left; mirrored) from each water pump's inlet, low and ahead of the
+   * header primaries, out through the bay wall to the side-pod radiator area (the
+   * radiators themselves are 2d). Car coordinates.
+   */
+  coolantHose: {
+    radius: mm(19),
+    clampWidth: mm(12),
+    clamps: [0.03, 0.35, 0.65, 0.97] as readonly number[],
+    radiatorEnd: [0.62, 0.26, -0.53] as Vec3,
+    via: [[0.345, 0.215, -0.395], [0.43, 0.215, -0.425], [0.52, 0.235, -0.48]] as readonly Vec3[],
+    slack: [0.2, 0.1, 0.1] as Vec3,
+  },
 };
 
 // ─── Derived ─────// ─── Derived ─────────────────────────────────────────────────────────────────
@@ -698,7 +723,7 @@ export const EXPLODE = {
     timingCover: 0.22, // forward, toward the cabin
     timingChains: 0.1, // forward, out of the sprockets' way as the heads lift
     waterPump: 0.15, // forward, outboard of the timing cover
-    auxMotor: [0.12, 0, 0.15] as Vec3, // out and forward (left side)
+    auxMotor: [0.02, -0.2, 0.15] as Vec3, // down and forward, under the coolant hose (beside the dropped sump)
     mount: 0.15, // outboard
     oilFilter: 0.12, // outboard
     oilCooler: [-0.1, -0.12, 0] as Vec3, // down and out, under the swung headers
