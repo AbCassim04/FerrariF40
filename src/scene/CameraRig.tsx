@@ -25,7 +25,8 @@ export function CameraRig() {
     const c = ref.current;
     if (!c) return;
     c.setBoundary(new Box3(new Vector3(...controls.targetBounds.min), new Vector3(...controls.targetBounds.max)));
-    c.setLookAt(...initial.position, ...initial.target, false);
+    const start = useAppStore.getState().devCamera ?? initial;
+    c.setLookAt(...start.position, ...start.target, false);
   }, [camera]);
 
   useEffect(() => {

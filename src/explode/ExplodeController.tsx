@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import type { Box3 } from 'three';
 import type { Vec3 } from '../config/dims';
 import { useAppStore } from '../state/store';
-import { buildExplodeTimeline, explodedBounds, partsBounds } from './buildTimeline';
+import { buildExplodeTimeline, explodedBounds, explodeTimeline, partsBounds } from './buildTimeline';
 
 const tuple = (b: Box3): [Vec3, Vec3] => [b.min.toArray(), b.max.toArray()];
 
@@ -21,10 +21,12 @@ export function ExplodeController() {
     const { exploded: initial, fitOnLoad, requestCameraFit } = useAppStore.getState();
     tl.progress(initial ? 1 : 0);
     tlRef.current = tl;
+    explodeTimeline.current = tl;
     if (fitOnLoad) requestCameraFit(tuple(partsBounds()), false);
     return () => {
       tl.kill();
       tlRef.current = null;
+      explodeTimeline.current = null;
     };
   }, []);
 

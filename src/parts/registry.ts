@@ -1,12 +1,13 @@
 import { bodyParts } from './body';
-import { referenceParts } from './reference';
+import { engineParts } from './engine';
+import { powertrainAssembly, referenceParts } from './reference';
 import type { PartDef } from './types';
 
 /**
  * Every part in the car: the single source of truth for geometry, placement,
  * explode choreography and the info panel. Parents must be listed before their children.
  */
-export const PARTS: readonly PartDef[] = [...bodyParts, ...referenceParts];
+export const PARTS: readonly PartDef[] = [...bodyParts, powertrainAssembly, ...engineParts, ...referenceParts];
 
 export const PARTS_BY_ID: ReadonlyMap<string, PartDef> = new Map(PARTS.map((p) => [p.id, p]));
 

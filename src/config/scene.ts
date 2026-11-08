@@ -14,7 +14,8 @@ export const SCENE = {
     target: [0, DIMS.overall.height * 0.4, DIMS.body.centreZ] as Vec3,
   },
   controls: {
-    minDistance: 1.5,
+    /** Close enough to read valve springs and bolt heads on the exploded engine. */
+    minDistance: 0.6,
     maxDistance: 20,
     /** Keep the camera just above the orbit target (and so above the ground). */
     maxPolarAngle: Math.PI / 2 - 0.04,
@@ -35,6 +36,17 @@ export const SCENE = {
     rear34: { position: [-4.8, 2.4, -6.2] as Vec3, target: [0, 0.5, -0.4] as Vec3 },
   },
   contactShadows: { scale: 12, far: 2.5, blur: 2.2, opacity: 0.75, resolution: 1024 },
+  /**
+   * Showroom "display light" in the engine bay: a soft area light facing down over the
+   * engine's footprint. It sits below the deck around the cover opening (so no light
+   * spills onto the paint) and above the intake plenum. No visible source, no shadows.
+   */
+  bayLight: {
+    colour: '#fff3e3',
+    intensity: 5,
+    position: [0, DIMS.body.engineCoverHinge[1] - 0.17, (DIMS.engine.frontZ + DIMS.engine.blockRearZ) / 2] as Vec3,
+    size: [DIMS.engine.widthAcrossCovers, DIMS.engine.length] as const,
+  },
 } as const;
 
 export type ViewName = keyof typeof SCENE.views;

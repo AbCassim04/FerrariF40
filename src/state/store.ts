@@ -1,12 +1,17 @@
 import { create } from 'zustand';
 import type { Vec3 } from '../config/dims';
 import type { ViewName } from '../config/scene';
+import type { PartGroup } from '../parts/types';
 
 const DEV = import.meta.env.DEV;
 
-/** Dev only: initial review state from the URL, e.g. ?view=top&segments=1&solo=door-l&explode=1 */
+/** Dev only: initial review state from the URL, e.g. ?view=top&segments=1&soloGroup=engine&explode=1 */
 const params = DEV ? new URLSearchParams(window.location.search) : new URLSearchParams();
 const flag = (k: string) => params.get(k) === '1';
+const vec = (k: string) => {
+  const v = params.get(k)?.split(',').map(Number);
+  return v?.length === 3 && v.every(Number.isFinite) ? (v as unknown as Vec3) : null;
+};
 
 interface AppState {
   /** Target state of the explode animation (the timeline may still be travelling). */
@@ -31,10 +36,17 @@ interface AppState {
   showClashes: boolean;
   /** Render only this part (and its children). */
   solo: string | null;
+  /** Render only parts of this group (key S); `soloGroupPick` is the group S will solo. */
+  soloGroup: PartGroup | null;
+  soloGroupPick: PartGroup;
+  /** Show the original car's engine-bay dressing as a faint ghost (placement guide). */
+  showGhost: boolean;
   /** Result of the last clash check, for the dev panel. */
   clashReport: string | null;
   /** Fit the camera to the scene once it has loaded (URL ?fit=1). */
   fitOnLoad: boolean;
+  /** Initial camera from the URL (?cam=x,y,z&look=x,y,z), for review screenshots. */
+  devCamera: { position: Vec3; target: Vec3 } | null;
 
   toggleExploded: () => void;
   select: (id: string | null) => void;
@@ -48,6 +60,10 @@ interface AppState {
   toggleSegments: () => void;
   toggleClashes: () => void;
   setSolo: (id: string | null) => void;
+  /** Solo the selected part's group (or the picked group); again to show everything. */
+  toggleSoloGroup: (selectedGroup?: PartGroup) => void;
+  setSoloGroupPick: (group: PartGroup) => void;
+  toggleGhost: () => void;
 }
 
 export const useAppStore = create<AppState>()((set) => ({
@@ -63,8 +79,12 @@ export const useAppStore = create<AppState>()((set) => ({
   showSegments: flag('segments'),
   showClashes: flag('clashes'),
   solo: params.get('solo'),
+  soloGroup: (params.get('soloGroup') as PartGroup | null) ?? null,
+  soloGroupPick: (params.get('soloGroup') as PartGroup | null) ?? 'engine',
+  showGhost: flag('ghost'),
   clashReport: null,
   fitOnLoad: flag('fit'),
+  devCamera: vec('cam') && vec('look') ? { position: vec('cam')!, target: vec('look')! } : null,
 
   toggleExploded: () => set((s) => ({ exploded: !s.exploded })),
   select: (id) => set({ selectedId: id }),
@@ -78,4 +98,8 @@ export const useAppStore = create<AppState>()((set) => ({
   toggleSegments: () => set((s) => ({ showSegments: !s.showSegments })),
   toggleClashes: () => set((s) => ({ showClashes: !s.showClashes })),
   setSolo: (id) => set({ solo: id }),
+  toggleSoloGroup: (selectedGroup) =>
+    set((s) => (s.soloGroup ? { soloGroup: null } : { soloGroup: selectedGroup ?? s.soloGroupPick })),
+  setSoloGroupPick: (group) => set((s) => ({ soloGroupPick: group, soloGroup: s.soloGroup ? group : null })),
+  toggleGhost: () => set((s) => ({ showGhost: !s.showGhost })),
 }));

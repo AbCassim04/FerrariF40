@@ -45,6 +45,8 @@ function PartNode({ def, parentPosition }: { def: PartDef; parentPosition: Vec3 
   const pivot = def.pivot ?? ZERO;
   const Build = def.build;
   const solo = useAppStore((s) => (import.meta.env.DEV ? s.solo : null));
+  const soloGroup = useAppStore((s) => (import.meta.env.DEV ? s.soloGroup : null));
+  const visible = (!solo || isSelfOrDescendant(def, solo)) && (!soloGroup || def.group === soloGroup);
 
   useLayoutEffect(() => {
     const anchor = anchorRef.current!;
@@ -54,7 +56,11 @@ function PartNode({ def, parentPosition }: { def: PartDef; parentPosition: Vec3 
     // Set imperatively (not via props) so React re-renders never fight the timeline.
     anchor.position.copy(base);
     content.traverse((o) => {
-      if ((o as Mesh).isMesh) o.castShadow = o.receiveShadow = true;
+      const mesh = o as Mesh;
+      if (!mesh.isMesh) return;
+      mesh.receiveShadow = true;
+      // Glass and lenses let the key light through (the engine is lit under its cover).
+      mesh.castShadow = ![mesh.material].flat().some((m) => m.transparent);
     });
     partObjects.set(def.id, { anchor, pivot: pivotRef.current!, content, base });
     return () => {
@@ -67,7 +73,7 @@ function PartNode({ def, parentPosition }: { def: PartDef; parentPosition: Vec3 
       <group ref={pivotRef} position={[...pivot]}>
         <group position={[-pivot[0], -pivot[1], -pivot[2]]}>
           <group rotation={def.rotation ? [...def.rotation] : undefined}>
-            <group ref={contentRef} userData={{ partId: def.id }} visible={!solo || isSelfOrDescendant(def, solo)}>
+            <group ref={contentRef} userData={{ partId: def.id }} visible={visible}>
               {Build && <Build material={def.material ? getMaterial(def.material) : undefined} />}
             </group>
           </group>

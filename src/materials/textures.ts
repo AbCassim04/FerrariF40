@@ -69,3 +69,35 @@ export function brushedRoughnessTexture(repeat: number) {
   tex.repeat.set(repeat, repeat);
   return tex;
 }
+
+/**
+ * Fine mottled noise for cast and wrinkle-finish surfaces (roughness or bump). Value
+ * noise at two scales from a seeded hash, so it is identical on every load.
+ */
+export function castNoiseTexture(repeat: number, lo = 90, hi = 170) {
+  const size = 256;
+  const hash = (x: number, y: number) => {
+    const n = Math.sin(x * 127.1 + y * 311.7) * 43758.5453;
+    return n - Math.floor(n);
+  };
+  const tex = canvasTexture(
+    size,
+    (ctx) => {
+      const img = ctx.createImageData(size, size);
+      for (let y = 0; y < size; y++) {
+        for (let x = 0; x < size; x++) {
+          const coarse = hash(Math.floor(x / 8), Math.floor(y / 8));
+          const fine = hash(x, y);
+          const v = Math.round(lo + (hi - lo) * (0.45 * coarse + 0.55 * fine));
+          const i = (y * size + x) * 4;
+          img.data[i] = img.data[i + 1] = img.data[i + 2] = v;
+          img.data[i + 3] = 255;
+        }
+      }
+      ctx.putImageData(img, 0, 0);
+    },
+    false,
+  );
+  tex.repeat.set(repeat, repeat);
+  return tex;
+}

@@ -1,12 +1,11 @@
 import { SEGMENTS } from '../../config/detail';
 import { DIMS, EXPLODE, type Vec3 } from '../../config/dims';
-import { fmtDeg, fmtM, fmtMm } from '../../lib/format';
+import { fmtM, fmtMm } from '../../lib/format';
 import type { PartBuildProps, PartDef } from '../types';
 
 /**
- * Reference placeholders: rough packaging volumes for the powertrain and battery, used to
- * check placement and every explode mechanism (stages, parent) until the real assemblies
- * replace them in milestones 2–3.
+ * Reference placeholders: rough packaging volumes for the gearbox, e-motor and battery,
+ * until the real assemblies replace them in milestone 2c.
  */
 
 const PLACEHOLDER = 'Placeholder volume.';
@@ -32,48 +31,19 @@ function EMotor({ material }: PartBuildProps) {
 
 const P = DIMS.packaging;
 
+/** Virtual assembly the engine, gearbox and e-motor hang from: lifts out as one unit in stage 3. */
+export const powertrainAssembly: PartDef = {
+  id: 'powertrain',
+  name: 'Powertrain assembly',
+  group: 'engine',
+  description: 'Engine, gearbox and main e-motor. Lifts out of the bay as one unit before breaking apart.',
+  specs: {},
+  position: DIMS.engine.origin,
+  stage: 3,
+  explodeOffset: [0, EXPLODE.powertrainLift, 0],
+};
+
 export const referenceParts: PartDef[] = [
-  {
-    id: 'powertrain',
-    name: 'Powertrain assembly',
-    group: 'engine',
-    description: 'Engine, gearbox and main e-motor. Lifts out of the bay as one unit before breaking apart.',
-    specs: {},
-    position: P.engine.centre,
-    stage: 3,
-    explodeOffset: [0, EXPLODE.powertrainLift, 0],
-  },
-  {
-    id: 'ref-engine',
-    name: 'Engine volume',
-    group: 'engine',
-    parent: 'powertrain',
-    description: `${PLACEHOLDER} Rough V12 packaging volume between the cabin firewall and the gearbox.`,
-    specs: {
-      Displacement: `${Math.round(DIMS.engine.displacementCc)} cc`,
-      'Bore × stroke': `${fmtMm(DIMS.engine.bore)} × ${fmtMm(DIMS.engine.stroke)}`,
-      'Bank angle': fmtDeg(DIMS.engine.bankAngle),
-      Length: fmtM(DIMS.engine.length),
-    },
-    build: boxBuild('EngineVolume', P.engine.size),
-    position: P.engine.centre,
-    material: 'aluminium',
-    stage: 3,
-    explodeOffset: [0, 0, 0],
-  },
-  {
-    id: 'ref-sump',
-    name: 'Dry-sump volume',
-    group: 'engine',
-    parent: 'powertrain',
-    description: `${PLACEHOLDER} Shallow dry-sump pan. Drops away from the block in stage 4.`,
-    specs: { Depth: fmtMm(P.sump.size[1], 0) },
-    build: boxBuild('SumpVolume', P.sump.size),
-    position: P.sump.centre,
-    material: 'steel',
-    stage: 4,
-    explodeOffset: [0, -EXPLODE.sumpDrop, 0],
-  },
   {
     id: 'ref-gearbox',
     name: 'Gearbox volume',

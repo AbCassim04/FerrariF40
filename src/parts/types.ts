@@ -56,4 +56,9 @@ export interface PartDef {
   pivot?: Vec3;
   /** Seconds after the stage starts before this part moves. */
   delay?: number;
+  /**
+   * Parts this one is designed to touch (body-model or procedural ids), e.g. a brake disc
+   * running inside its caliper. The clash check skips these pairs.
+   */
+  contacts?: readonly string[];
 }

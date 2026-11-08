@@ -190,15 +190,16 @@ for (const node of root.listNodes().filter((n) => n.getMesh() && !partNodes.has(
   node.dispose();
 }
 
-// The engine-cover glass gets its own material so it can be tuned without touching the windscreen.
+await doc.transform(prune(), dedup());
+
+// The engine-cover glass gets its own material so it can be tuned without touching the
+// windscreen. Cloned after dedup(), which ignores names and would merge it straight back.
 for (const meshNode of partNode('engine-cover').listChildren()) {
   for (const p of meshNode.getMesh().listPrimitives()) {
     const m = p.getMaterial();
     if (m && /Glass/i.test(m.getName())) p.setMaterial(m.clone().setName('EngineCoverGlass'));
   }
 }
-
-await doc.transform(prune(), dedup());
 
 if (DEBUG_REGION) {
   const f = (v) => v.toArray().map((n) => n.toFixed(3).padStart(6)).join(' ');

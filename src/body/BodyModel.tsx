@@ -1,7 +1,8 @@
 import { useGLTF } from '@react-three/drei';
 import { useEffect, useMemo } from 'react';
-import { Box3, Color, DoubleSide, MeshStandardMaterial, Vector3, type Material, type Mesh, type Object3D } from 'three';
+import { Box3, Color, DoubleSide, MeshBasicMaterial, MeshStandardMaterial, Vector3, type Mesh, type MeshPhysicalMaterial, type Object3D } from 'three';
 import { DIMS } from '../config/dims';
+import { ENGINE_COVER_GLASS } from '../materials/materials';
 import { useAppStore } from '../state/store';
 
 /**
@@ -39,18 +40,23 @@ export function modelPartBuild(partId: string) {
 /** Tweaks to the model's own materials, applied once after load. */
 function tuneMaterials(nodes: Record<string, Object3D>) {
   nodes['engine-cover']?.traverse((o) => {
-    const m = (o as Mesh).material as Material & { transmission?: number; opacity: number };
+    const m = (o as Mesh).material as MeshPhysicalMaterial;
     if (!m || m.name !== 'EngineCoverGlass') return;
-    // Plain alpha instead of transmission: cheaper, and the engine reads clearly through it.
+    // A clear pane with plain alpha (cheaper than transmission): no dark tint texture,
+    // no metallic mirror, so the engine reads through it.
+    const g = ENGINE_COVER_GLASS;
     m.transmission = 0;
+    m.map = null;
+    m.color.set(g.color);
+    m.metalness = 0;
+    m.roughness = g.roughness;
+    m.envMapIntensity = g.envMapIntensity; // less milky sheen at grazing angles
     m.transparent = true;
-    m.opacity = ENGINE_GLASS_OPACITY;
+    m.opacity = g.opacity;
     m.depthWrite = false;
     m.needsUpdate = true;
   });
 }
-
-const ENGINE_GLASS_OPACITY = 0.25;
 
 /** Mount once inside the Canvas: material tweaks plus dev diagnostics of the loaded model. */
 export function BodyModelSetup() {
@@ -79,6 +85,30 @@ function logDiagnostics(nodes: Record<string, Object3D>, scene: Object3D) {
     if (err > 0.005) console.warn(`[body] wheel-${k} is ${(err * 1000).toFixed(1)} mm from DIMS`);
   }
   console.table(rows);
+}
+
+// ─── Dev: the original engine-bay dressing as a placement guide (key B) ───────
+
+/** Name of the hidden node holding the model's stand-in engine-bay geometry. */
+const ENGINE_BAY_NODE = 'model-engine-bay';
+
+const GHOST_MATERIAL = new MeshBasicMaterial({ color: '#5fd0ff', transparent: true, opacity: 0.16, depthWrite: false, side: DoubleSide });
+
+/** Dev only: the original car's engine-bay dressing as a faint ghost, fixed in the bay. */
+export function EngineBayGhost() {
+  const { nodes } = useBody();
+  const object = useMemo(() => {
+    const ghost = nodes[ENGINE_BAY_NODE].clone(true);
+    ghost.traverse((o) => {
+      const mesh = o as Mesh;
+      if (mesh.isMesh) {
+        mesh.material = GHOST_MATERIAL;
+        mesh.renderOrder = 1;
+      }
+    });
+    return ghost;
+  }, [nodes]);
+  return <primitive object={object} />;
 }
 
 // ─── Dev: colour each segment so the part split can be reviewed ───────────────

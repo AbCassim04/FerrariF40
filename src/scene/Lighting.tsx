@@ -1,8 +1,14 @@
 import { Environment, Lightformer } from '@react-three/drei';
+import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
+import { SCENE } from '../config/scene';
+
+RectAreaLightUniformsLib.init();
+
+const { bayLight } = SCENE;
 
 /**
  * Dark studio: a procedural softbox environment (no HDR download) for reflections,
- * plus one shadow-casting key light.
+ * one shadow-casting key light, and a soft display light in the engine bay.
  */
 export function Lighting() {
   return (
@@ -32,6 +38,13 @@ export function Lighting() {
       >
         <orthographicCamera attach="shadow-camera" args={[-4, 4, 4, -4, 0.5, 20]} />
       </directionalLight>
+
+      {/* Faces down (its −z) onto the engine from just under the cover glass. */}
+      <rectAreaLight
+        args={[bayLight.colour, bayLight.intensity, ...bayLight.size]}
+        position={[...bayLight.position]}
+        rotation={[-Math.PI / 2, 0, 0]}
+      />
     </>
   );
 }

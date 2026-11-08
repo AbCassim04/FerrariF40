@@ -140,7 +140,7 @@ Full text in the request of that date; the essentials:
   2b intake + fuel + exhaust, 2c gearbox + clutch + hybrid + cables, 2d cooling + fuel
   tank + rear chassis + suspension, 2e front axle + car-level parts, 2f realism pass.
 
-## Explode sequence (GSAP timeline, ~4 s total, staged)
+## Explode sequence (GSAP timeline, ~5.2 s total, staged)
 Stage 1: body. Engine cover first and highest (it's the reveal; it opens about its front
          hinge as it lifts), doors swing up, then roof/canopy, the other panels, and
          finally the rear clam (up and back) and the wing above it.
@@ -165,10 +165,11 @@ Second click: reverse timeline. Allow interruption mid-animation.
 - Model credit line, bottom left.
 
 ### Dev-only aids
-Keys: L part ids, G guides, S segment colours (milestone 2 moves solo-by-group to S),
-C clash check, B model engine-bay ghost (milestone 2). Panel: solo a part, camera
-presets. URL: ?view=front34|top|engine|side|rear34, explode=1, fit=1, segments=1,
-labels=1, solo=<id>, clashes=1, guides=0. FPS meter.
+Keys: L part ids, G guides, K segment colours, C clash check (real triangles, assembled
+vs body + overlaps at full explode), S solo the selected part's group, B model engine-bay
+ghost. Panel: solo a part or a group, camera presets. URL: ?view=front34|top|engine|side|
+rear34, explode=1, fit=1, segments=1, labels=1, solo=<id>, soloGroup=<group>, ghost=1,
+clashes=1, guides=0, cam=x,y,z&look=x,y,z. FPS meter.
 
 ### Later (noted, not built)
 - "Cutaway" toggle that slices the gearbox and one bank open with a red section face,
@@ -187,9 +188,6 @@ One milestone at a time; run the dev server, commit with a clear message, stop f
 8. Polish: post-processing, performance pass, mobile layout.
 
 ## Open questions
-- Battery: the model's floor pan sits at y ≈ 0.09–0.13 with only ~9 cm to the ground,
-  and the seats sit on it, so a battery "under the cabin floor" intersects the model
-  (the dev clash check flags it). Options go with the milestone 2 plan.
 - Battery exit in stage 5: it currently sinks to the ground while sliding out past the
   car's left side ("drops below the tub" would go through the floor).
 
@@ -227,3 +225,33 @@ One milestone at a time; run the dev server, commit with a clear message, stop f
   with the third brake light) separate from the rear clam; stagger engine cover →
   canopy → panels → rear clam → wing. Camera fits the exploded bounds on Explode and
   returns on Assemble.
+
+**2026-11-08 (milestone 2 plan and 2a)**
+- Milestone 2 plan approved (docs/M2-PLAN.md, layout figures docs/m2-layout-*.svg).
+- Battery: a flat tray on the model's underbody (y ≈ 0.10) under the cabin floor,
+  20 mm deep at the back stepping to 42 mm at the front; touches nothing (built in 2c).
+- Model shells: driveshafts and rear suspension pass through the model's connected
+  underbody shell (wheelhouse liners, bay walls) as expected contacts; the duct panels
+  behind each side-intake grille get hidden so the radiators sit there (2d).
+- Clash check (C) tests real triangles, with a per-part `contacts` allowlist, plus a
+  second pass for overlaps at full explode.
+- Explode ~5.2 s: stage 4 is the outside-in teardown (0.8 s moves), stage 5 at 4.2 s.
+- Dev keys: K segment colours, S solo group, B engine-bay ghost.
+- Engine at true scale, never shrunk to fit: 0.58 m across the cam covers (from bore
+  94, stroke 75.2, spacing 104, 65° V, rod 140 mm and estimated head proportions; no
+  published F140 external dimensions found). The ~0.8 m often quoted is across the
+  exhaust headers (2b). Deck height 0.207, block 0.67 m long, timing face to bellhousing
+  0.715 m, sump bottom 0.145 above ground. It fits the bay with no body contact.
+- Bank stagger: the right bank sits one rod width (22 mm) behind the left; crank 6
+  throws at 0/240/120/120/240/0°, firing order 1-5-3-6-2-4 per bank; pistons and valves
+  posed at their real positions for a 20° crank angle.
+- Teardown distances retuned so nothing overlaps at full explode: rods rise 0.30 (out of
+  the bores), pistons 0.36, gasket 0.40, heads 0.47; crank drops 0.25 and the sump 0.29
+  (the scavenge pump stays above the bay's top-front ducts).
+- Engine-cover glass: the prep's dedup() had merged the cover's own glass material back
+  into the shared dark glass, so it was never tuned. It is now cloned after dedup and
+  tuned to a clear, faintly tinted pane (15% opacity, no metallic tint, no shadow).
+  Transparent model materials no longer cast shadows.
+- Engine-bay display light: a soft downward area light over the engine's footprint,
+  below the deck around the cover opening (no spill on the paint), intensity 5.
+- Camera minDistance 1.5 → 0.6 so the exploded engine's detail can be inspected.

@@ -89,25 +89,276 @@ const tyreShoulderRadius = mm(22); // (est) tread-to-sidewall fillet
 
 const brakeDiscDiameter = { front: mm(398), rear: mm(380) }; // (ref)
 
+/**
+ * The V12 at true scale: everything below is sized from bore, stroke, spacing and bank
+ * angle plus estimated proportions, never shrunk to fit the bay (the clash check proves
+ * the fit). Engine coordinates: x and z are car axes, y is measured from the crank
+ * centreline. Bank-local coordinates: `a` runs up the bore axis from the crank centreline
+ * (or from the deck where noted), `b` across the bank, positive outboard (exhaust side).
+ */
 const engine = {
   cylinders: 12, // (ref)
   bankAngle: deg(65), // (ref)
   bore: mm(94), // (ref)
   stroke: mm(75.2), // (ref)
-  cylinderSpacing: mm(104), // (est) bore centre to bore centre within a bank
-  crankHeight: 0.28, // (est) crank centreline above ground
-  frontZ: -0.36, // (est) accessory end, faces the cabin; just behind the firewall (−0.338)
-  rearZ: -1.12, // (est) flywheel face, bolts to the DCT
+  cylinderSpacing: mm(104), // (ref) bore centre to bore centre within a bank
+  rodLength: mm(140), // (est) centre to centre
+  /** (est) Rods share each crankpin side by side, so the right bank sits one rod width behind the left. */
+  bankStagger: mm(22),
+  crankHeight: 0.275, // (est) crank centreline above ground
+  /** (est) Front face of the timing cover. The timing end faces the cabin, 22 mm clear of the firewall. */
+  frontZ: -0.36,
+  /** Six-throw crank laid out like an inline six; cylinders 1–6 counted from the timing end. */
+  throwAngles: [0, 240, 120, 120, 240, 0].map(deg),
+  /** Firing order within each bank (inline-six order); throws match it 120° apart. */
+  bankFiringOrder: [1, 5, 3, 6, 2, 4],
+  /** (est) Crank angle of the assembled pose, so pistons and valves sit at varied, real phases. */
+  crankPhase: deg(20),
+};
+
+/** (est) Detail sizes of the engine's parts; see the coordinate note above `engine`. */
+const engineParts = {
+  piston: {
+    compressionHeight: mm(29), // wrist-pin centre to crown
+    height: mm(54), // crown to skirt bottom
+    crownDome: mm(2),
+    ringClearance: mm(0.2), // piston to bore; rings stand this far proud of the lands
+    skirtWall: mm(4),
+    chamfer: mm(0.8),
+    /** Ring grooves: distance of each ring's centre below the crown, and ring height. */
+    rings: [
+      { depth: mm(5.5), height: mm(1.2) },
+      { depth: mm(9.5), height: mm(1.2) },
+      { depth: mm(14), height: mm(2.5) },
+    ],
+    pin: { radius: mm(10.5), length: mm(62) },
+  },
+  rod: {
+    bigEndRadius: mm(35),
+    smallEndRadius: mm(14),
+    clearance: mm(1), // side clearance between the two rods on a crankpin
+    boltRadius: mm(5),
+    boltHeight: mm(5),
+    /** Cap-bolt heads sit this fraction of the big-end radius below the crankpin. */
+    boltDrop: 0.95,
+  },
+  crank: {
+    mainJournalRadius: mm(30),
+    pinRadius: mm(24),
+    webThickness: mm(16),
+    webPinRadius: mm(33),
+    webHubRadius: mm(40),
+    counterweightRadius: mm(80),
+    counterweightHalfAngle: deg(62),
+    snoutRadius: mm(22),
+    flangeRadius: mm(46),
+    flangeThickness: mm(12),
+    shellThickness: mm(1.5),
+  },
+  block: {
+    /** Timing-cover face to the block's front face: the depth of the timing case. */
+    timingCaseDepth: mm(45),
+    /** Block end face to the nearest bore centre. */
+    endWall: mm(64),
+    /** Half width of each cylinder barrel across its bank. */
+    deckHalfWidth: mm(70),
+    /** Bores open into the crankcase this far up the bank axis (`a`). */
+    barrelBottom: mm(80),
+    skirtHalfWidth: mm(155),
+    /** Crankcase floor (y), with the main caps below it and the pan rail around them. */
+    bottomY: -mm(70),
+    panRail: { y: -mm(85), halfWidth: mm(165), width: mm(14) },
+    rib: { width: mm(12), depth: mm(7) },
+    liner: { thickness: mm(3.5), proud: mm(0.6) },
+    mainCap: { width: mm(30), halfWidth: mm(112), depth: mm(10) }, // bolt heads finish flush with the pan rail
+    /** Main-cap bolts: x offsets of the four per cap. */
+    capBoltX: [mm(45), mm(88)],
+    bolt: { radius: mm(7.5), height: mm(5) },
+  },
+  head: {
+    gasketThickness: mm(1.5),
+    /** Casting height from its deck face (`a` from the deck). */
+    height: mm(110),
+    halfWidth: mm(118),
+    topHalfWidth: mm(108),
+    /** Height up to which the side walls are vertical before they taper in. */
+    wallHeight: mm(70),
+    exhaustPort: { a: mm(42), width: mm(40), height: mm(32), depth: mm(14) },
+    intakePort: { a: mm(60), width: mm(44), height: mm(34), depth: mm(16) },
+    /** Top plate of the casting, pierced by the plug wells. */
+    topDeck: mm(12),
+    bolt: { radius: mm(7), height: mm(9), inset: mm(14) },
+    plugWell: { radius: mm(15), wall: mm(3), top: mm(190) },
+  },
+  valve: {
+    /** Each valve leans this far from the bore axis (intake inboard, exhaust outboard). */
+    angle: deg(11),
+    pairSpacing: mm(36),
+    seatOffset: mm(20),
+    intakeHeadDiameter: mm(36),
+    exhaustHeadDiameter: mm(30),
+    stemDiameter: mm(6),
+    faceThickness: mm(2),
+    tulipHeight: mm(10),
+    length: mm(135),
+    spring: { radius: mm(11.5), wire: mm(1.8), coils: 6, length: mm(32) },
+    retainer: { radius: mm(13), height: mm(4) },
+    /** Valve events in crank degrees after firing TDC, and half the opening duration. */
+    intakePeak: deg(470),
+    exhaustPeak: deg(250),
+    halfDuration: deg(120),
+  },
+  camshaft: {
+    shaftRadius: mm(12),
+    journalRadius: mm(16.5),
+    journalWidth: mm(16),
+    baseRadius: mm(17.5),
+    lift: mm(11),
+    lobeWidth: mm(14),
+    tower: { halfWidth: mm(18), thickness: mm(16), capHeight: mm(14) },
+    sprocket: { radius: mm(37), thickness: mm(8), teeth: 30 },
+  },
+  camCover: {
+    height: mm(90),
+    baseHalfWidth: mm(104), // sits inside the head's top face
+    topHalfWidth: mm(82),
+    cornerRadius: mm(26),
+    edgeRadius: mm(6),
+    flange: { halfWidth: mm(116), height: mm(8) },
+    /** Raised seats for the coil packs over each plug well. */
+    seatRadius: mm(22),
+    seatHeight: mm(3),
+    boltsPerSide: 10,
+    boltEndInset: mm(20),
+    bolt: { radius: mm(5), height: mm(6) },
+  },
+  coilPack: {
+    length: mm(54),
+    width: mm(30),
+    height: mm(30),
+    yaw: deg(20),
+    bootRadius: mm(11),
+    connector: [mm(16), mm(12), mm(18)] as Vec3,
+  },
+  /** Spark plug, measured up its axis from the head's deck face (`tip` is in the chamber). */
+  sparkPlug: {
+    tip: mm(6),
+    top: mm(100),
+    threadRadius: mm(7),
+    hexStart: mm(20),
+    hexHeight: mm(12),
+    hexRadius: mm(9),
+    insulatorRadius: mm(5.5),
+    insulatorTaper: mm(10),
+    terminalRadius: mm(3),
+    terminalHeight: mm(6),
+  },
+  timing: {
+    coverThickness: mm(12),
+    /** Cover outline clearance around the sprockets it encloses. */
+    coverMargin: mm(20),
+    coverBolts: 16,
+    coverBevel: mm(5),
+    /** Cover bolts sit this far in from the cover's edge. */
+    boltInset: mm(9),
+    /** Chain planes, measured forward from the block's front face. */
+    chainOffset: { l: mm(13), r: mm(25) },
+    crankSprocketRadius: mm(28),
+    sprocketThickness: mm(8),
+    /** 3/8" pitch; each link drawn as a rounded plate filling most of its pitch. */
+    chain: { pitch: mm(9.525), width: mm(9), height: mm(8.5), linkFill: 0.92 },
+  },
+  sump: {
+    depth: mm(45),
+    halfWidth: mm(150),
+    cornerRadius: mm(35),
+    flange: { halfWidth: mm(165), thickness: mm(6) },
+    boltsPerSide: 9,
+    /** Scavenge pick-ups along the right side, as z positions of their sump outlets. */
+    pickupZ: [-0.52, -0.76, -1.0],
+    outletRadius: mm(10),
+    outletLength: mm(14),
+    outletY: -mm(110), // engine y of the outlets
+    pickupRadius: mm(7),
+    /** The scavenge lines run this far below the pump's underside. */
+    pickupDrop: mm(12),
+    endBoltX: [-mm(100), 0, mm(100)],
+  },
+  /** Dry-sump scavenge pump, low on the right beside the sump (engine coordinates). */
+  oilPump: {
+    radius: mm(34),
+    length: mm(160),
+    centre: [-mm(205), -mm(72), -0.53] as Vec3,
+    capLip: mm(4),
+    capThickness: mm(8),
+    driveRadius: mm(12),
+    driveLength: mm(30),
+  },
+  /** Vertical spin-on filter, low on the left near the bellhousing. */
+  oilFilter: { radius: mm(38), length: mm(100), top: -mm(30), x: mm(200), z: -0.98, round: mm(8), seal: mm(8), adapterHeight: mm(18) },
+  oilCooler: {
+    size: [mm(45), mm(100), mm(140)] as Vec3,
+    centre: [-mm(178), -mm(10), -0.91] as Vec3,
+    fins: 12,
+    finDepth: mm(8),
+    finThickness: mm(2),
+    portRadius: mm(9),
+    portLength: mm(18),
+  },
+  /** Dry-sump tank, on top of the gearbox between the airboxes (car z). */
+  oilTank: {
+    radius: mm(75),
+    length: mm(300),
+    y: mm(385),
+    z: -1.62,
+    fins: 9,
+    finRadius: mm(83),
+    finThickness: mm(3),
+    neckRadius: mm(18),
+    neckHeight: mm(25),
+    capHeight: mm(12),
+  },
+  waterPump: {
+    radius: mm(45),
+    length: mm(38),
+    /** Centre (x, y) on the block's front face, outboard of the timing cover. */
+    centre: [mm(200), mm(60)] as const,
+    faceScale: 0.75,
+    faceThickness: mm(8),
+    inlet: { radius: mm(17), length: mm(55) },
+  },
+  /** Auxiliary e-motor, low on the left at the timing end; its front sits in the timing case. */
+  auxMotor: {
+    radius: mm(50),
+    length: mm(150),
+    centre: [mm(205), -mm(75)] as const,
+    frontGap: mm(20),
+    capThickness: mm(10),
+    capScale: 0.92,
+    fins: 8,
+    finHeight: mm(4),
+    finThickness: mm(3),
+    connector: [mm(36), mm(22), mm(44)] as Vec3,
+  },
+  mount: {
+    bracket: [mm(60), mm(70), mm(80)] as Vec3,
+    bushRadius: mm(30),
+    bushLength: mm(60),
+    /** Fraction of the bush radius it sits outboard of the bracket's end. */
+    bushOverlap: 0.6,
+    y: mm(10),
+    z: -0.7,
+  },
+  /** Bevel on cast and machined edges. */
+  bevel: mm(2.5),
 };
 
 /**
- * (est) Rough packaging volumes for the milestone-1 reference parts. Milestones 2–4
- * replace them with real assemblies sized from the inputs above.
+ * (est) Rough packaging volumes for the reference parts still standing in for the
+ * gearbox, e-motor and battery until milestones 2c–2d replace them.
  */
 const packaging = {
-  engine: { width: 0.66, topY: 0.74 }, // bottom sits on the sump; inside model.engineBay
-  sump: { width: 0.5, depth: 0.08, bottomY: 0.14 },
-  gearbox: { rearZ: -1.55, width: 0.42, bottomY: 0.22, topY: 0.58 }, // front = engine.rearZ
+  gearbox: { rearZ: -1.55, width: 0.42, bottomY: 0.22, topY: 0.58 }, // front = block rear face
   eMotor: { length: 0.2, diameter: 0.24, centreY: 0.4 }, // bolted to the gearbox rear face
   battery: { frontZ: 0.45, rearZ: -0.15, width: 0.9, height: 0.1, floorGap: 0.01 },
 };
@@ -164,7 +415,47 @@ function bayBox(b: BayInput): Box {
   return box([-b.halfWidth, b.halfWidth], b.y, b.z);
 }
 
-const sumpTopY = packaging.sump.bottomY + packaging.sump.depth;
+/** Engine layout derived from the inputs: bore positions, deck, block faces, extents. */
+function engineLayout() {
+  const { piston, block, head, camCover, timing } = engineParts;
+  const crankRadius = engine.stroke / 2;
+  /** Crank centreline to the block deck, along a bank axis (piston crown flush at TDC). */
+  const deckHeight = crankRadius + engine.rodLength + piston.compressionHeight;
+  const blockFrontZ = engine.frontZ - block.timingCaseDepth;
+  const firstBore = { l: blockFrontZ - block.endWall, r: blockFrontZ - block.endWall - engine.bankStagger };
+  const perBank = engine.cylinders / 2;
+  const boreZ = {
+    l: Array.from({ length: perBank }, (_, i) => firstBore.l - i * engine.cylinderSpacing),
+    r: Array.from({ length: perBank }, (_, i) => firstBore.r - i * engine.cylinderSpacing),
+  };
+  const blockRearZ = boreZ.r[perBank - 1] - block.endWall;
+  /** Crank throws sit midway between their left and right bores. */
+  const throwZ = boreZ.l.map((z) => z - engine.bankStagger / 2);
+  const halfBank = engine.bankAngle / 2;
+  /** Cam-cover top, along the bank axis from the crank centreline. */
+  const coverTop = deckHeight + head.gasketThickness + head.height + camCover.height;
+  const cover = { a: coverTop, b: camCover.topHalfWidth };
+  /** Widest point across the heads: the cam-cover top's outboard edge. */
+  const halfWidthAcrossCovers = cover.a * Math.sin(halfBank) + cover.b * Math.cos(halfBank);
+  return {
+    crankRadius,
+    deckHeight,
+    blockFrontZ,
+    blockRearZ,
+    blockLength: blockFrontZ - blockRearZ,
+    boreZ,
+    throwZ,
+    /** Chain planes (car z) of each bank's timing chain. */
+    chainZ: { l: blockFrontZ + timing.chainOffset.l, r: blockFrontZ + timing.chainOffset.r },
+    halfBank,
+    coverTop,
+    widthAcrossCovers: 2 * halfWidthAcrossCovers,
+    /** Cam-cover top's inboard edge, the highest point of the heads, above the crank. */
+    coverTopY: cover.a * Math.cos(halfBank) + cover.b * Math.sin(halfBank),
+    sumpBottomY: block.panRail.y - engineParts.sump.depth,
+  };
+}
+const engineGeom = engineLayout();
 const batteryBottomY = groundClearance + packaging.battery.floorGap;
 
 export const DIMS = {
@@ -192,25 +483,20 @@ export const DIMS = {
   },
   engine: {
     ...engine,
-    length: engine.frontZ - engine.rearZ,
+    ...engineGeom,
+    ...engineParts,
+    /** Engine coordinates' origin in car coordinates: on the crank centreline at z = 0. */
+    origin: [0, engine.crankHeight, 0] as Vec3,
+    /** Timing-cover face to the block's rear (bellhousing) face. */
+    length: engine.frontZ - engineGeom.blockRearZ,
     /** Swept volume in cc, from bore and stroke (checks against the 6262 cc reference). */
     displacementCc: (Math.PI / 4) * engine.bore ** 2 * engine.stroke * engine.cylinders * 1e6,
   },
   packaging: {
-    engine: box(
-      [-packaging.engine.width / 2, packaging.engine.width / 2],
-      [sumpTopY, packaging.engine.topY],
-      [engine.rearZ, engine.frontZ],
-    ),
-    sump: box(
-      [-packaging.sump.width / 2, packaging.sump.width / 2],
-      [packaging.sump.bottomY, sumpTopY],
-      [engine.rearZ, engine.frontZ],
-    ),
     gearbox: box(
       [-packaging.gearbox.width / 2, packaging.gearbox.width / 2],
       [packaging.gearbox.bottomY, packaging.gearbox.topY],
-      [packaging.gearbox.rearZ, engine.rearZ],
+      [packaging.gearbox.rearZ, engineGeom.blockRearZ],
     ),
     eMotor: {
       centre: [0, packaging.eMotor.centreY, packaging.gearbox.rearZ - packaging.eMotor.length / 2] as Vec3,
@@ -247,7 +533,31 @@ export const EXPLODE = {
   /** Calipers follow the wheels part of the way (they live on the uprights). */
   caliperOut: 0.45,
   powertrainLift: 1.2,
-  sumpDrop: 0.3,
+  /**
+   * Stage-4 teardown. Bank parts travel along their bank axis; the comments give what
+   * each distance has to clear (all relative to the part they ride on).
+   */
+  engine: {
+    camCover: 0.25, // clears the cams after they lift
+    coilPacks: 0.14, // boots clear of the cover top
+    sparkPlugs: 0.1, // up between the lifted cams
+    camshafts: 0.12, // lobes clear of the springs and towers
+    head: 0.47, // above the gasket
+    gasket: 0.4, // above the risen pistons' crowns
+    pistons: 0.36, // skirts above the risen rods' small ends
+    rods: 0.3, // big ends (and cap bolts) clear of the deck
+    crankDrop: 0.25,
+    /** Clears the dropped crank, but keeps the scavenge pump above the bay's top-front ducts. */
+    sumpDrop: 0.29,
+    timingCover: 0.22, // forward, toward the cabin
+    timingChains: 0.1, // forward, out of the sprockets' way as the heads lift
+    waterPump: 0.15, // forward, outboard of the timing cover
+    auxMotor: [0.12, 0, 0.15] as Vec3, // out and forward (left side)
+    mount: 0.15, // outboard
+    oilFilter: 0.12, // outboard
+    oilCooler: 0.12, // outboard
+    oilTank: 0.3, // up off the gearbox
+  },
   eMotorBack: 0.5,
   battery: {
     /** Sits down onto the ground while sliding out past the car's left side. */

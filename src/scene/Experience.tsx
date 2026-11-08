@@ -1,6 +1,6 @@
 import { Stats } from '@react-three/drei';
 import { Suspense } from 'react';
-import { BodyModelSetup } from '../body/BodyModel';
+import { BodyModelSetup, EngineBayGhost } from '../body/BodyModel';
 import { SCENE } from '../config/scene';
 import { ExplodeController } from '../explode/ExplodeController';
 import { useAppStore } from '../state/store';
@@ -22,6 +22,7 @@ const DEV = import.meta.env.DEV;
 export function Experience() {
   const showGuides = useAppStore((s) => s.showGuides);
   const showLabels = useAppStore((s) => s.showLabels);
+  const showGhost = useAppStore((s) => s.showGhost);
   return (
     <>
       <color attach="background" args={[SCENE.background]} />
@@ -33,6 +34,7 @@ export function Experience() {
         <ExplodeController />
         {DEV && showLabels && <PartLabels />}
         {DEV && <ClashCheck />}
+        {DEV && showGhost && <EngineBayGhost />}
       </Suspense>
       <CameraRig />
       {DEV && showGuides && <Guides />}

@@ -5,7 +5,7 @@ import {
   MeshStandardMaterial,
   type Material,
 } from 'three';
-import { brushedRoughnessTexture, carbonWeaveTextures } from './textures';
+import { brushedRoughnessTexture, carbonWeaveTextures, castNoiseTexture } from './textures';
 
 /**
  * Shared materials, one instance per key. Parts reference materials by key so that
@@ -22,6 +22,16 @@ export type MaterialKey =
   | 'ceramic'
   | 'caliper'
   | 'radiator'
+  | 'castAluminium'
+  | 'camCover'
+  | 'piston'
+  | 'titanium'
+  | 'darkSteel'
+  | 'springSteel'
+  | 'bearing'
+  | 'gasket'
+  | 'insulator'
+  | 'satinBlack'
   | 'reference';
 
 export const PALETTE = {
@@ -36,8 +46,25 @@ export const PALETTE = {
   ceramic: '#3a3c40',
   caliper: '#c8ccd2',
   radiator: '#2b2e33',
+  castAluminium: '#b9bdc3',
+  /** Wrinkle-finish red of the cam covers. */
+  camCover: '#a3141c',
+  piston: '#cfd2d6',
+  titanium: '#8b8e94',
+  darkSteel: '#4a4d53',
+  springSteel: '#2f3136',
+  bearing: '#b48c58',
+  gasket: '#6a6d73',
+  insulator: '#ebe8e0',
+  satinBlack: '#17181b',
   reference: '#5fd0ff',
 } as const;
+
+/**
+ * The engine-cover glass comes from the body model (a near-black, mirror-like tint). It is
+ * retuned to a clear, faintly tinted pane so the engine reads through it.
+ */
+export const ENGINE_COVER_GLASS = { color: '#c9d0d6', opacity: 0.15, roughness: 0.05, envMapIntensity: 0.5 } as const;
 
 const factories: Record<MaterialKey, () => Material> = {
   carbon: () => {
@@ -84,6 +111,27 @@ const factories: Record<MaterialKey, () => Material> = {
   ceramic: () => new MeshStandardMaterial({ color: PALETTE.ceramic, metalness: 0.2, roughness: 0.75 }),
   caliper: () => new MeshStandardMaterial({ color: PALETTE.caliper, metalness: 0.3, roughness: 0.35 }),
   radiator: () => new MeshStandardMaterial({ color: PALETTE.radiator, metalness: 0.6, roughness: 0.5 }),
+  /** Sand-cast alloy: mottled roughness, no brushing. */
+  castAluminium: () =>
+    new MeshStandardMaterial({ color: PALETTE.castAluminium, metalness: 1, roughness: 1, roughnessMap: castNoiseTexture(6, 105, 150) }),
+  camCover: () =>
+    new MeshPhysicalMaterial({
+      color: PALETTE.camCover,
+      metalness: 0,
+      roughness: 0.55,
+      bumpMap: castNoiseTexture(10, 60, 200),
+      bumpScale: 0.6,
+      clearcoat: 0.15,
+      clearcoatRoughness: 0.5,
+    }),
+  piston: () => new MeshStandardMaterial({ color: PALETTE.piston, metalness: 1, roughness: 0.32 }),
+  titanium: () => new MeshStandardMaterial({ color: PALETTE.titanium, metalness: 1, roughness: 0.38 }),
+  darkSteel: () => new MeshStandardMaterial({ color: PALETTE.darkSteel, metalness: 1, roughness: 0.45 }),
+  springSteel: () => new MeshStandardMaterial({ color: PALETTE.springSteel, metalness: 0.9, roughness: 0.4 }),
+  bearing: () => new MeshStandardMaterial({ color: PALETTE.bearing, metalness: 1, roughness: 0.3 }),
+  gasket: () => new MeshStandardMaterial({ color: PALETTE.gasket, metalness: 0.85, roughness: 0.5 }),
+  insulator: () => new MeshStandardMaterial({ color: PALETTE.insulator, metalness: 0, roughness: 0.35 }),
+  satinBlack: () => new MeshStandardMaterial({ color: PALETTE.satinBlack, metalness: 0.3, roughness: 0.5 }),
   /** Thin lines for wireframe reference geometry. */
   reference: () => new LineBasicMaterial({ color: PALETTE.reference, transparent: true, opacity: 0.6 }),
 };
