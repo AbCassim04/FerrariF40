@@ -14,7 +14,8 @@ const tuple = (b: Box3): [Vec3, Vec3] => [b.min.toArray(), b.max.toArray()];
 export function ExplodeController() {
   const exploded = useAppStore((s) => s.exploded);
   const tlRef = useRef<ReturnType<typeof buildExplodeTimeline> | null>(null);
-  const first = useRef(true);
+  /** Last state the timeline was driven to; the initial state (from the URL) needs no play or fit. */
+  const shown = useRef(exploded);
 
   useEffect(() => {
     const tl = buildExplodeTimeline();
@@ -32,14 +33,11 @@ export function ExplodeController() {
 
   useEffect(() => {
     const tl = tlRef.current;
-    if (!tl) return;
+    // Only real changes: StrictMode re-runs this effect on mount, which must not count as a click.
+    if (!tl || shown.current === exploded) return;
+    shown.current = exploded;
     if (exploded) tl.play();
     else tl.reverse();
-    // The initial state (possibly from the URL) keeps whatever view was requested.
-    if (first.current) {
-      first.current = false;
-      return;
-    }
     const { requestCameraFit } = useAppStore.getState();
     requestCameraFit(exploded ? tuple(explodedBounds(tl)) : null, true);
   }, [exploded]);
