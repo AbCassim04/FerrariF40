@@ -1,0 +1,14 @@
+Copyright (c) 2026 Aboobaker Cassim. All rights reserved.
+
+The source code in this repository may be viewed for reference only. No
+permission is granted to copy, modify, distribute or use it, in whole or in
+part, without prior written permission from the author.
+
+Third-party assets are excluded and keep their own licences (see below).
+
+Exceptions:
+
+- public/models/body.opt.glb: "2014 Ferrari LaFerrari" by Ddiaz Design,
+  CC BY-NC-SA 4.0, modified; see public/models/LICENSE.md.
+- public/hdri/: "Studio Small 09" by Sergej Majboroda (Poly Haven), CC0.
+- npm dependencies keep their own licences.

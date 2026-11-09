@@ -34,7 +34,8 @@ body,
 .controls {
   position: absolute;
   left: 50%;
-  bottom: max(28px, env(safe-area-inset-bottom));
+  /* Just above the credit (its height is measured into --credits-h). */
+  bottom: calc(max(10px, env(safe-area-inset-bottom)) + var(--credits-h, 32px) + 12px);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -323,7 +324,7 @@ body,
   }
 
   .controls {
-    bottom: max(44px, env(safe-area-inset-bottom));
+    bottom: calc(max(10px, env(safe-area-inset-bottom)) + var(--credits-h, 62px) + 14px);
   }
 }
 
@@ -422,6 +423,16 @@ body,
   color: var(--muted);
   font-size: 11px;
   line-height: 1.4;
+}
+
+.credits p {
+  margin: 0;
+}
+
+.credits__disclaimer {
+  margin-top: 2px;
+  font-size: 10px;
+  opacity: 0.8;
 }
 
 .credits a {
