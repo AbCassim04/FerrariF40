@@ -56,7 +56,8 @@ export const SCENE = {
    * Reflections and fill: a CC0 studio HDRI (Poly Haven "Studio Small 09", Sergej
    * Majboroda) with our softbox Lightformers on top; the HDRI is never the background.
    */
-  environment: { file: '/hdri/studio_small_09_2k.hdr', intensity: 0.85, resolution: 512 },
+  /** `file` is relative to the site root (see lib/asset.ts). */
+  environment: { file: 'hdri/studio_small_09_2k.hdr', intensity: 0.85, resolution: 512 },
   /** Post-processing: N8AO ambient occlusion (half resolution), then tone mapping. */
   /**
    * Inspect panel. Desktop: a side panel `panelWidth` px wide on the right; below

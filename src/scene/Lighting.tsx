@@ -1,6 +1,7 @@
 import { Environment, Lightformer } from '@react-three/drei';
 import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
 import { SCENE } from '../config/scene';
+import { asset } from '../lib/asset';
 
 RectAreaLightUniformsLib.init();
 
@@ -13,7 +14,7 @@ const { bayLight, environment } = SCENE;
 export function Lighting() {
   return (
     <>
-      <Environment files={environment.file} resolution={environment.resolution} frames={1} environmentIntensity={environment.intensity}>
+      <Environment files={asset(environment.file)} resolution={environment.resolution} frames={1} environmentIntensity={environment.intensity}>
         {/* Overhead softbox */}
         <Lightformer form="rect" intensity={3} position={[0, 6, 0]} rotation={[Math.PI / 2, 0, 0]} scale={[12, 5, 1]} />
         {/* Side strips for long highlights down the flanks */}

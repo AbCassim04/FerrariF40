@@ -7,7 +7,8 @@
 - **Source:** https://sketchfab.com/3d-models/2014-ferrari-laferrari-8b46fa49718647de846387ef4c1e95b3
 - **Licence:** CC BY-NC-SA 4.0 — https://creativecommons.org/licenses/by-nc-sa/4.0/
 
-`body.glb` is the original download, unmodified.
+`body.glb` is the original download, unmodified. It lives in the repository at
+`assets-src/models/body.glb` and is not part of the published site.
 
 `body.opt.glb` is modified by `scripts/prep-body.mjs`: the unused skin was removed,
 transforms baked and the model rescaled and recentred, geometry was re-segmented into

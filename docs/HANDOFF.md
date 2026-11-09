@@ -32,8 +32,17 @@ npm install
 npm run dev          # http://127.0.0.1:5173/
 npm run typecheck
 npm run build
-npm run prep:body    # regenerate public/models/body.opt.glb + docs/body-report.md
+npm run prep:body    # assets-src/models/body.glb → public/models/body.opt.glb + docs/body-report.md
+npx vite preview     # after a build: http://localhost:4173/LaFerrari/ (the production subpath)
 ```
+
+## Deploy
+GitHub Pages, https://abcassim04.github.io/LaFerrari/, by `.github/workflows/deploy.yml` on
+every push to `main` (or run it by hand from the Actions tab). The repository's Pages
+source must be set to "GitHub Actions". Production builds use the base path
+`/LaFerrari/` (vite.config.ts); refer to files in public/ with `asset('models/…')`
+(src/lib/asset.ts), never with a leading slash. The original model
+(assets-src/models/body.glb) is not shipped.
 
 ## Layout
 - `src/config/dims.ts` — every dimension (reference, model-measured, derived, explode).

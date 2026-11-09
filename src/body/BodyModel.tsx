@@ -2,6 +2,7 @@ import { useGLTF } from '@react-three/drei';
 import { useEffect, useMemo } from 'react';
 import { Box3, Color, CustomBlending, DoubleSide, MeshBasicMaterial, MeshStandardMaterial, OneFactor, OneMinusSrcAlphaFactor, Vector3, type Mesh, type MeshPhysicalMaterial, type Object3D } from 'three';
 import { DIMS } from '../config/dims';
+import { asset } from '../lib/asset';
 import { BODY_PAINT, CABIN_GLASS, ENGINE_COVER_GLASS, LAMP_GLASS, modelEnvLevels } from '../materials/materials';
 import { useAppStore } from '../state/store';
 
@@ -9,7 +10,7 @@ import { useAppStore } from '../state/store';
  * The licensed body model, prepped by scripts/prep-body.mjs into car coordinates with
  * one top-level node per registry part id (see docs/body-report.md).
  */
-export const BODY_URL = '/models/body.opt.glb';
+export const BODY_URL = asset('models/body.opt.glb');
 
 useGLTF.preload(BODY_URL);
 

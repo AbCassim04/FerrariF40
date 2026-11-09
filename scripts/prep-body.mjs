@@ -2,7 +2,8 @@
 /**
  * Prepares the licensed body model for the app. Repeatable: `npm run prep:body`.
  *
- *   public/models/body.glb (original, never modified)
+ *   assets-src/models/body.glb (original, never modified; kept out of public/ so it is
+ *   never shipped)
  *     1. strip the unused skin/joints, bake every transform into the vertices
  *     2. normalise to car coordinates: metres, +Y up, +Z forward, +X = car's left,
  *        ground at y = 0, wheelbase centred on z = 0
@@ -21,7 +22,7 @@ import { Box3, BufferAttribute, BufferGeometry, DoubleSide, Matrix4, Mesh, MeshB
 import { MeshBVH, acceleratedRaycast } from 'three-mesh-bvh';
 import { MODEL_ENGINE_BAY, RULES, classifyFallback } from './body-rules.mjs';
 
-const SRC = 'public/models/body.glb';
+const SRC = 'assets-src/models/body.glb';
 const OUT = 'public/models/body.opt.glb';
 const REPORT = 'docs/body-report.md';
 

@@ -13,7 +13,8 @@ Engineering layout follows the real Ferrari LaFerrari.
 
 ### Body: licensed model (supersedes the original-body requirement, 2026-11-08)
 The body is a licensed model: "2014 Ferrari LaFerrari" by Ddiaz Design (Sketchfab),
-CC BY-NC-SA 4.0, at public/models/body.glb (original, untouched).
+CC BY-NC-SA 4.0, at assets-src/models/body.glb (original, untouched; not shipped: the
+site serves only the adapted public/models/body.opt.glb).
 - The MODEL provides: body panels, doors + door glass, hood, front/rear kits, engine
   cover, interior, wheels/tyres, calipers.
 - WE BUILD procedurally: the full V12, gearbox, diff, driveshafts, main + aux e-motors,
@@ -388,4 +389,14 @@ Each was the most reasonable option at the time; all are easy to revisit.
 - Ghost shells render in one pass (`forceSinglePass`), and N8AO's automatic
   transparency mode is off (it re-rendered every transparent mesh twice): isolation and
   X-ray stay within the draw-call budget, and plain views got cheaper too.
+
+**2026-11-09 (deployment; branch `wip/deploy`)**
+- Published on GitHub Pages at https://abcassim04.github.io/LaFerrari/ (a subpath):
+  Vite `base` is '/LaFerrari/' for builds and '/' in dev; files in public/ are referred
+  to through `asset()` (src/lib/asset.ts, on `import.meta.env.BASE_URL`), never with a
+  leading slash.
+- The original model moved to assets-src/models/body.glb (the prep script reads it from
+  there); only the adapted body.opt.glb and its LICENSE.md ship.
+- GitHub Actions workflow .github/workflows/deploy.yml builds and deploys on every push
+  to main (and on demand).
 
