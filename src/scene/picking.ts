@@ -1,6 +1,6 @@
 import type { Mesh, Object3D } from 'three';
 
-/** See-through: glass, and X-rayed panels (their ghost materials are marked with opacity 0). */
+/** See-through: glass, and ghosts (their materials are marked with opacity 0). */
 export function seeThrough(o: Object3D) {
   const m = (o as Mesh).material;
   return (Array.isArray(m) ? m : [m]).every((x) => x.transparent && x.opacity < 0.7);

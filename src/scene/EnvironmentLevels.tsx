@@ -16,7 +16,7 @@ import { useAppStore } from '../state/store';
  *   the body on, the engine reflected the whole studio and read as grey mush through the
  *   glass. While the body encloses the bay, our parts keep only part of the environment;
  *   that ramps to full as the body comes off (stages 1–2), and is full whenever a solo
- *   hides the body or X-ray makes it see-through.
+ *   hides the body, or X-ray or an inspect makes it see-through.
  * - Model materials with a tuned level (the body glass), registered in `modelEnvLevels`.
  */
 export function EnvironmentLevels() {
@@ -26,9 +26,9 @@ export function EnvironmentLevels() {
   useFrame(() => {
     const env = scene.environment;
     if (!env) return;
-    const { solo, soloGroup, xray } = useAppStore.getState();
+    const { solo, soloGroup, xray, selectedId } = useAppStore.getState();
     const t = explodeTimeline.current?.time() ?? 0;
-    const factor = solo || soloGroup || xray ? 1 : MathUtils.lerp(SCENE.bayOcclusion.enclosed, 1, MathUtils.smoothstep(t, STAGE_START[1], STAGE_START[3]));
+    const factor = solo || soloGroup || xray || selectedId ? 1 : MathUtils.lerp(SCENE.bayOcclusion.enclosed, 1, MathUtils.smoothstep(t, STAGE_START[1], STAGE_START[3]));
     const ours = [...sharedMaterials()] as MeshStandardMaterial[];
     const last = applied.current;
     if (factor === last.factor && ours.length === last.count && env === last.env) return;

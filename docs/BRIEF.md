@@ -373,3 +373,19 @@ Each was the most reasonable option at the time; all are easy to revisit.
   model credit moves to the top while the sheet is open (it stays visible).
 - Hover and selection don't re-render the shadows (they can't change them).
 
+**2026-11-09 (review of the overnight run; branch `wip/2d`)**
+- Inspect isolation: while a part is selected, every other part becomes a faint ghost
+  shell (the X-ray shader, fainter and cooler), not pickable, casting no shadow; the
+  selected part stays solid with its outline. Restored on close. This replaces the
+  camera's "find an unblocked direction" search, which is no longer needed.
+- Paint: deep rosso (#b4000c) with a weaker, rougher base-coat sheen under the same
+  clear coat; the model's brighter red went coral under ACES when lit from above.
+- Car presets (front34, top, side, rear34) give only a direction; the camera fits the
+  assembled car from there, clear of the buttons, on any screen shape. The engine
+  close-up keeps its hand-placed pose.
+- Review screenshots are no longer committed: docs/review/ is git-ignored and shots
+  live in the scratchpad; docs/REVIEW.md still describes them.
+- Ghost shells render in one pass (`forceSinglePass`), and N8AO's automatic
+  transparency mode is off (it re-rendered every transparent mesh twice): isolation and
+  X-ray stay within the draw-call budget, and plain views got cheaper too.
+

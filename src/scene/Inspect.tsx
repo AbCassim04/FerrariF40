@@ -7,11 +7,12 @@ import { explodeTimeline } from '../explode/buildTimeline';
 import { useAppStore } from '../state/store';
 import { boxCorners } from './fitView';
 import { partObjects } from './partObjects';
-import { applyXray } from './xray';
+import { applyGhosts } from './ghosts';
 
 /**
  * Frames the selected part (camera eases to fit it beside the panel; back to the earlier
- * view on close) and applies X-ray. Mounted with the parts, so both exist.
+ * view on close) and sets the ghosts: X-rayed body panels, and while a part is selected,
+ * every other part. Mounted with the parts, so both exist.
  */
 export function InspectController() {
   const selectedId = useAppStore((s) => s.selectedId);
@@ -19,7 +20,7 @@ export function InspectController() {
   /** Last selection framed; only real changes move the camera (StrictMode re-runs effects). */
   const framed = useRef<string | null>(null);
 
-  useEffect(() => applyXray(xray), [xray]);
+  useEffect(() => applyGhosts(xray, selectedId), [xray, selectedId]);
 
   useEffect(() => {
     if (selectedId === framed.current) return;
@@ -31,7 +32,7 @@ export function InspectController() {
       return;
     }
     const box = settledBounds(content);
-    if (!box.isEmpty()) requestCameraFit(boxCorners(box).map((p) => p.toArray()), 'inspect', selectedId!);
+    if (!box.isEmpty()) requestCameraFit(boxCorners(box).map((p) => p.toArray()), 'inspect');
   }, [selectedId]);
 
   return null;

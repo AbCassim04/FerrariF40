@@ -45,9 +45,14 @@ export function PostEffects() {
   return (
     <EffectComposer multisampling={MSAA}>
       <N8AO
-        // Gamma is applied once, at the end of the chain; N8AO would apply it too.
         ref={(pass) => {
-          if (pass) pass.configuration.gammaCorrection = false;
+          if (!pass) return;
+          // Gamma is applied once, at the end of the chain; N8AO would apply it too.
+          pass.configuration.gammaCorrection = false;
+          // N8AO turns this on by itself when anything in the scene is transparent, and then
+          // re-renders every transparent mesh in two extra passes: with X-ray or an inspect,
+          // that is hundreds of ghost shells. The glass and ghosts are see-through anyway.
+          pass.configuration.transparencyAware = false;
         }}
         enabled={AO_ON}
         halfRes={AO_HALF}

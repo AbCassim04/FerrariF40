@@ -6,3 +6,6 @@ dist
 
 # Third-party reference images (portfolio work; not ours to redistribute)
 docs/reference/
+
+# Review screenshots stay local (the scratchpad); docs/REVIEW.md describes them
+docs/review/

@@ -28,7 +28,7 @@ interface AppState {
    * `points: null` return to the view saved in `slot` before its first fit. Explode and
    * inspect keep separate saved views; `slot: null` fits without saving.
    */
-  cameraFit: { points: Vec3[] | null; slot: CameraSlot | null; focus?: string; seq: number } | null;
+  cameraFit: { points: Vec3[] | null; slot: CameraSlot | null; seq: number } | null;
 
   // Dev-only review aids
   showLabels: boolean;
@@ -58,8 +58,7 @@ interface AppState {
   hover: (id: string | null) => void;
   toggleXray: () => void;
   requestView: (name: ViewName) => void;
-  /** `focus`: a part id; the camera then also looks for a direction that isn't blocked by other parts. */
-  requestCameraFit: (points: Vec3[] | null, slot: CameraSlot | null, focus?: string) => void;
+  requestCameraFit: (points: Vec3[] | null, slot: CameraSlot | null) => void;
   setClashReport: (report: string | null) => void;
   toggleLabels: () => void;
   toggleGuides: () => void;
@@ -98,7 +97,7 @@ export const useAppStore = create<AppState>()((set) => ({
   hover: (id) => set({ hoveredId: id }),
   toggleXray: () => set((s) => ({ xray: !s.xray })),
   requestView: (name) => set((s) => ({ view: { name, seq: (s.view?.seq ?? 0) + 1 } })),
-  requestCameraFit: (points, slot, focus) => set((s) => ({ cameraFit: { points, slot, focus, seq: (s.cameraFit?.seq ?? 0) + 1 } })),
+  requestCameraFit: (points, slot) => set((s) => ({ cameraFit: { points, slot, seq: (s.cameraFit?.seq ?? 0) + 1 } })),
   setClashReport: (clashReport) => set({ clashReport }),
   toggleLabels: () => set((s) => ({ showLabels: !s.showLabels })),
   toggleGuides: () => set((s) => ({ showGuides: !s.showGuides })),

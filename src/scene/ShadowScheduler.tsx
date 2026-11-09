@@ -20,8 +20,8 @@ export const useContactShadowTick = create<{ tick: number }>(() => ({ tick: 0 })
 export const shadowState = { live: false };
 
 type State = ReturnType<typeof useAppStore.getState>;
-/** Store keys that can't change the shadows; any other change re-renders them. */
-const IGNORED = new Set<keyof State>(['hoveredId', 'selectedId', 'cameraFit', 'view']);
+/** Store keys that can't change the shadows; any other change re-renders them (an inspect ghosts the other parts, which then cast none). */
+const IGNORED = new Set<keyof State>(['hoveredId', 'cameraFit', 'view']);
 const INERT = (Object.keys(useAppStore.getState()) as (keyof State)[]).filter((k) => !IGNORED.has(k));
 
 /**
@@ -39,7 +39,7 @@ export function ShadowScheduler() {
     gl.shadowMap.autoUpdate = false;
     gl.shadowMap.needsUpdate = true;
     const unsubscribe = useAppStore.subscribe((now, prev) => {
-      // Pointer and camera state (hover, inspect, framing) don't change what casts shadows.
+      // Pointer and camera state (hover, framing) don't change what casts shadows.
       if (INERT.every((k) => now[k] === prev[k])) return;
       pending.current = Math.max(pending.current, TAIL_FRAMES);
     });

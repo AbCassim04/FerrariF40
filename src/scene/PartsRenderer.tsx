@@ -11,7 +11,6 @@ import type { PartDef } from '../parts/types';
 import { useAppStore } from '../state/store';
 import { claimedClicks, partObjects } from './partObjects';
 import { blocksView } from './picking';
-import { isXrayPart } from './xray';
 
 const ORIGIN: Vec3 = [0, 0, 0];
 
@@ -29,11 +28,10 @@ const CLICK_SLOP = 4;
 
 /**
  * Claims a pointer event for this part (the frontmost one hit), unless what was hit is
- * see-through (glass, X-rayed panels) or hidden: then the event passes on to whatever is
- * behind it.
+ * see-through (glass, ghosts) or hidden: then the event passes on to whatever is behind it.
  */
-function pick(e: ThreeEvent<PointerEvent | MouseEvent>, def: PartDef) {
-  if ((useAppStore.getState().xray && isXrayPart(def)) || !blocksView(e.object)) return false;
+function pick(e: ThreeEvent<PointerEvent | MouseEvent>) {
+  if (!blocksView(e.object)) return false;
   e.stopPropagation();
   return true;
 }
@@ -105,10 +103,10 @@ function PartNode({ def, parentPosition }: { def: PartDef; parentPosition: Vec3 
               ref={contentRef}
               userData={{ partId: def.id }}
               visible={visible}
-              onPointerOver={(e) => pick(e, def) && e.pointerType === 'mouse' && useAppStore.getState().hover(def.id)}
+              onPointerOver={(e) => pick(e) && e.pointerType === 'mouse' && useAppStore.getState().hover(def.id)}
               onPointerOut={() => useAppStore.getState().hoveredId === def.id && useAppStore.getState().hover(null)}
               onClick={(e) => {
-                if (!pick(e, def)) return;
+                if (!pick(e)) return;
                 claimedClicks.add(e.nativeEvent);
                 if (e.delta < CLICK_SLOP) useAppStore.getState().select(def.id);
               }}

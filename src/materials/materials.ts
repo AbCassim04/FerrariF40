@@ -86,10 +86,12 @@ export const LAMP_GLASS = { opacity: 0.55 } as const;
 /**
  * Body paint: the model's paints have no clear coat (one glossy layer, so reflections
  * stayed weak and the body read flat). A satin base coat under a near-mirror clear coat,
- * keyed by the model's material names.
+ * keyed by the model's material names. The red is a deep rosso with a weak base-coat
+ * sheen: the model's brighter red, lit from above, went coral (ACES pushes very bright
+ * reds toward orange, and the sheen added white).
  */
-export const BODY_PAINT: Record<string, { roughness: number; metalness: number; clearcoatRoughness: number }> = {
-  uv1MAT_Carpaint_Red1: { roughness: 0.32, metalness: 0.05, clearcoatRoughness: 0.03 },
+export const BODY_PAINT: Record<string, { colour?: string; roughness: number; metalness: number; specularIntensity?: number; clearcoatRoughness: number }> = {
+  uv1MAT_Carpaint_Red1: { colour: '#b4000c', roughness: 0.4, metalness: 0.05, specularIntensity: 0.4, clearcoatRoughness: 0.03 },
   uv1MAT_Car_Paint_Black1: { roughness: 0.28, metalness: 0.2, clearcoatRoughness: 0.03 },
 };
 

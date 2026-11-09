@@ -26,6 +26,8 @@ export const SCENE = {
     smoothTime: 0.25,
     /** Fraction of the view kept clear around a fitted box (explode framing). */
     fitPadding: 0.12,
+    /** The same for the car presets (the assembled car is compact, so tighter). */
+    presetPadding: 0.06,
     /** Screen aspect the views are composed for; narrower screens back the camera off, up to `narrowBackOff` times. */
     designAspect: 1.6,
     narrowBackOff: 2.4,
@@ -35,15 +37,18 @@ export const SCENE = {
     targetBounds: { min: [-6, 0.05, -7] as Vec3, max: [6, 4, 7] as Vec3 },
   },
   grid: { cellSize: 0.1, sectionSize: 1, fadeDistance: 28 },
-  /** Camera presets: [position, target]. */
+  /**
+   * Camera presets: [position, target]. `fit` presets only give the direction: the camera
+   * frames the whole assembled car from there (`presetPadding`), on any screen shape.
+   */
   views: {
-    front34: { position: [5.6, 2.1, 6.2] as Vec3, target: [0, DIMS.overall.height * 0.4, DIMS.body.centreZ] as Vec3 },
+    front34: { position: [5.6, 2.1, 6.2] as Vec3, target: [0, DIMS.overall.height * 0.4, DIMS.body.centreZ] as Vec3, fit: true },
     // A hair of z offset keeps the orbit basis defined when looking straight down.
-    top: { position: [0, 9.5, 0.01] as Vec3, target: [0, 0, DIMS.body.centreZ] as Vec3 },
+    top: { position: [0, 9.5, 0.01] as Vec3, target: [0, 0, DIMS.body.centreZ] as Vec3, fit: true },
     /** Looking down through the engine-cover glass. */
-    engine: { position: [0.75, 3.1, -0.45] as Vec3, target: [0, 0.6, -0.95] as Vec3 },
-    side: { position: [7.5, 0.9, 0] as Vec3, target: [0, 0.5, DIMS.body.centreZ] as Vec3 },
-    rear34: { position: [-4.8, 2.4, -6.2] as Vec3, target: [0, 0.5, -0.4] as Vec3 },
+    engine: { position: [0.75, 3.1, -0.45] as Vec3, target: [0, 0.6, -0.95] as Vec3, fit: false },
+    side: { position: [7.5, 0.9, 0] as Vec3, target: [0, 0.5, DIMS.body.centreZ] as Vec3, fit: true },
+    rear34: { position: [-4.8, 2.4, -6.2] as Vec3, target: [0, 0.5, -0.4] as Vec3, fit: true },
   },
   /** `far`: only things within this height of the ground cast contact shadows (the lifted, exploded parts drop out of the pass). */
   contactShadows: { scale: 12, far: 1.2, blur: 2.2, opacity: 0.75, resolution: 1024 },
@@ -65,6 +70,16 @@ export const SCENE = {
     sheetHeight: 0.42,
     compactBelow: 720,
     outline: { colour: '#7fd6ff', strength: 2.2 },
+  },
+  /**
+   * Ghost shells (fresnel, additive): `base` is the face-on glow, `rim` the silhouette
+   * glow, `tintMix` how far each surface's colour is mixed toward `cool`. X-ray ghosts the
+   * body; `isolate` ghosts every other part while one is inspected (fainter, so the
+   * inspected part stands out).
+   */
+  ghosts: {
+    xray: { base: 0.008, rim: 0.34, tintMix: 0.25, cool: '#a9c8dc' },
+    isolate: { base: 0.004, rim: 0.11, tintMix: 0.5 },
   },
   post: {
     /** No MSAA: N8AO gets no usable depth from multisampled buffers; SMAA does the edges. */

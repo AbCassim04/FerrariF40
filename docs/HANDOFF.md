@@ -21,8 +21,10 @@ docs/BRIEF.md; read that first.
   brackets/bolts/harness detail (`parts/cooling.ts`).
 - **Phase 4 (milestone 7) done**: hover outline + name tooltip, click to frame + inspect
   panel (bottom sheet on narrow screens), info copy for every part, X-ray toggle.
-- Next: review the run (docs/REVIEW.md, "What to do next"), merge `wip/m2-overnight`,
-  then 2d (chassis and suspension) per docs/M2-PLAN.md.
+- Overnight run reviewed and merged. Review fixes on `wip/2d` (2026-11-09): inspect
+  isolation (other parts ghosted), deeper paint, car presets fitted to the car,
+  screenshots no longer committed.
+- Next: 2d (radiators, fuel tank, rear subframe and suspension) on `wip/2d`.
 
 ## Run
 ```
@@ -51,8 +53,8 @@ npm run prep:body    # regenerate public/models/body.opt.glb + docs/body-report.
   engine-cover glass, dev diagnostics (bbox, wheel drift vs DIMS) and segment colours.
 - `src/scene/ClashCheck.tsx` — dev key C.
 - Inspect (milestone 7): `src/scene/Inspect.tsx` (camera framing of the selected part,
-  X-ray switch, the outline effect), `clearView.ts` (picks an unblocked direction for
-  the framing), `picking.ts` (what blocks a click), `xray.ts` (ghost shells),
+  ghost switching, the outline effect), `picking.ts` (what blocks a click), `ghosts.ts`
+  (ghost shells for X-ray and for isolating the inspected part),
   `src/ui/InspectPanel.tsx`, `HoverTooltip.tsx`, `XrayToggle.tsx`. Picking is
   BVH-accelerated (`<Bvh>` in PartsRenderer); a click a part doesn't claim closes the
   panel (App.tsx). `CameraRig` keeps separate saved views for explode and inspect and
@@ -99,7 +101,8 @@ Playwright's Chromium, driven by a small script (`page.goto` the dev URL, wait, 
   so the borrowed NSS/libasound libraries are no longer needed.
 - Benchmark (2026-11-08, same two shots): GPU 14 s and 23 s per shot; SwiftShader 41 s
   and 111 s. One GPU run crashed once ("page closed"), so scripts retry with SwiftShader.
-- Use small viewports (800×500) while iterating, 1440×900 for review shots. GSAP lag
+- Use small viewports (800×500) while iterating, 1440×900 for review shots. Shots live
+  in the scratchpad (docs/review/ is git-ignored). GSAP lag
   smoothing still stretches animations at low frame rates: pose with `?explode=1` or
   `?t=<seconds>` rather than waiting for the timeline. `window.__perf` has the frame cost.
 

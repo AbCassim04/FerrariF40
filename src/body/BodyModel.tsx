@@ -66,7 +66,9 @@ function tuneMaterials(nodes: Record<string, Object3D>) {
         else if (m.name === 'uv1MAT_Glass1') pane(m, CABIN_GLASS);
         else if (m.name === 'red_glass') m.opacity = LAMP_GLASS.opacity;
         else if (BODY_PAINT[m.name]) {
-          Object.assign(m, BODY_PAINT[m.name], { clearcoat: 1 });
+          const { colour, ...finish } = BODY_PAINT[m.name];
+          Object.assign(m, finish, { clearcoat: 1 });
+          if (colour) m.color.set(colour);
           done.add(m);
           m.needsUpdate = true;
           continue;

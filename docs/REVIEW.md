@@ -4,8 +4,8 @@ Unattended run of the overnight plan: 2b, 2c, 2f, then milestone 7. One checkpoi
 commit per phase on `wip/m2-overnight`; nothing pushed, `main` untouched. Decisions taken
 without review are in docs/BRIEF.md under "Decisions made unattended (review)".
 
-Screenshots are in docs/review/ (Playwright Chromium, 1440×900 unless noted; phone shots
-390×844). Phases 1–3 show the dev panel; phase 4 hides it (`?panel=0`). The FPS meter in
+Screenshots were in docs/review/ (Playwright Chromium, 1440×900 unless noted; phone shots
+390×844); since the review they are no longer committed (docs/review/ is git-ignored). Phases 1–3 show the dev panel; phase 4 hides it (`?panel=0`). The FPS meter in
 the corner is dev-only, and reads near 0 because the review browser renders slowly.
 
 ## How performance is measured
