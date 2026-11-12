@@ -145,9 +145,10 @@ Cable system: src/parts/cables/Cable.tsx — cables, hoses and looms that re-cur
 between their two ends (HT leads, oil and coolant lines, brake lines in the plan).
 
 ## Explode sequence (GSAP timeline, ~4.4 s now; ~5.2 s with the full plan)
-Stage 1: body. The rear clam (with the Lexan cover) opens 70° about its tail hinge, then
-         lifts up and back; the wing comes off it. Doors swing open about their front
-         hinges; the front clam tips up about its nose and moves forward; the glass lifts.
+Stage 1: body. The rear clam (with the Lexan cover and the wing, which is part of the
+         rear bodywork) opens 70° about its tail hinge, then lifts up and back. Doors swing
+         open about their front hinges; the front clam tips up about its nose and moves
+         forward; the glass lifts.
 Stage 2: wheels and discs slide outward; the powertrain slides 0.3 m back from under the
          roof's trailing edge.
 Stage 3: the powertrain rises 1.2 m out of the bay.
@@ -201,8 +202,10 @@ git: never run stash, reset, clean or checkout -- <file> without asking.
 7. Realism and performance pass, mobile check.
 
 ## Open questions
-See docs/F40-PLAN.md: wastegates (one or two), oil tank and fuel-cell positions, cylinder
-numbering and bank offset, rod length and bore spacing, the wing's exploded position.
+Settled by the owner on 2026-11-13 (see the decision log): two wastegates, estimated oil
+tank and fuel-cell positions, estimated numbering/offset/rod/spacing, the wing rides the
+rear clam. Positions marked (est) in dims.ts are still estimates; reference photos in
+docs/reference/f40/ would correct them (the folder is empty).
 
 ## Decision log
 **2026-11-12 (phase 1: reset to the F40 + body integration)**
@@ -257,3 +260,53 @@ numbering and bank offset, rod length and bore spacing, the wing's exploded posi
 - Visual verification (owner's request): Playwright MCP server on the GPU path with a
   SwiftShader fallback; dev-only `window.__dev` API (absent from production builds);
   one persistent page, no reloads between checks (docs/HANDOFF.md).
+
+**2026-11-13 (owner's answers to the plan's open questions; phases 2–4 built unattended)**
+- Wastegates: two, one per turbo, merged 2-into-1 into the centre tailpipe.
+- Oil tank and fuel cells: estimates, marked (est) in dims.ts and here.
+- Cylinder numbering, bank offset, rod length and bore spacing: estimates approved.
+- Rear wing: part of the rear bodywork, so it rides the rear clam (child, no move of its own).
+- Solo mode frames only the visible parts (dev): `partCorners()` skips parts hidden by solo,
+  and changing solo re-frames what is left (in the pose the explode is heading for).
+- All other plan decisions approved (engine placement, turbos inboard of the coilovers,
+  frame rails outboard of the manifolds, the model's wheels and track, stand-in chassis
+  replaced piece by piece, distributors, the 0.3 m slide before the lift).
+- Work on branch `wip/f40-build` with a commit per phase.
+
+**Phase 2 (intake, ignition, ancillaries)**
+- Intake: plenum along the V (x ±0.118, car y 0.62–0.74, from just behind the block's front
+  face to its rear face), four short cast runners per bank curving up from the ports into its
+  floor, two throttle bodies on its rear end (one per intercooler, linked by a cross-shaft).
+  Fuel rails beside the runners with one injector per runner (Weber-Marelli multipoint);
+  an injector loom along each rail.
+- Ignition: a distributor on the rear end of each bank's intake cam, four HT leads per bank
+  along the cam-cover top to the plug caps (cable system; several cables per part now share
+  one mesh). The plug-cap lead stubs now point back, toward the distributors.
+- Ancillaries: alternator low on the left at the timing end, a dry-sump oil tank with two
+  braided lines (scavenge pump → tank, tank → pump's pressure stage), two ECUs on the bay
+  walls (fixed to the car, not the powertrain).
+- Teardown (stage 4): plenum first (+0.1 s), then fuel rails back out along their injectors,
+  throttle bodies and distributors (+0.2), alternator and oil tank (+0.3), runners once the
+  injectors are clear (+0.5).
+
+### Decisions made unattended (review)
+- **Plenum finish: red crackle**, like the cam covers (no lettering). The plan's realism
+  notes already said so; no reference photo to confirm it.
+- **Oil tank on the right, not the left (est):** the scavenge pump is low on the right, so
+  both lines stay on one side. Upright finned tank behind the right bank, above where the
+  manifold runs, braced to the bellhousing.
+- **Alternator drive not drawn:** the belt-cover face is 30 mm from the bay's front wall,
+  too little for an accessory belt in front of it; the alternator's pulley sits just behind
+  the block's front face, and the info copy says it is belt-driven from the crank.
+- **ECUs fixed to the car** on the bay walls (x ±0.34–0.41, car y 0.50–0.66), clear of the
+  powertrain's slide and lift.
+- **Distributor position (est):** on the rear end of each intake cam (flywheel end), cap
+  facing back.
+- **Stand-in rear frame hidden early.** The model's stand-in upper rear frame (upper rails,
+  the crossmember over the axle, braces) and its rear suspension towers with the coilovers
+  now go to the hidden ghost (key B), ahead of the procedural frame (phase 5). They caged
+  the lift-out path (the oil tank and HT leads hit the crossmember in the stage-3 sweep,
+  and the turbos, intercoolers and gearbox would too) and the towers stand where the
+  approved turbo position is. The lower rails, wishbones, uprights and dampers stay.
+- **Oil-tank explode (−0.25, −0.2, 0):** out and down, below the HT leads, which bow up as
+  the right head lifts.

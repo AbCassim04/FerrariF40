@@ -225,41 +225,98 @@ export function oilCoolerMeshes(): MeshSpec[] {
   return [{ geometry: merge([core, ...fins, ...ports]), material: 'castAluminium' }];
 }
 
+const K = E.oilTank;
+
+/** Oil-tank hose fittings (engine coordinates): scavenge return on its inboard side, feed out of its bottom. */
+export function oilTankFittings() {
+  const F = K.fitting;
+  const inboard = -Math.sign(K.x);
+  const reach = K.finRadius + F.length;
+  const quarter = new Vector3(inboard, 0, 1).normalize();
+  return {
+    scavenge: { at: new Vector3(K.x + inboard * reach, F.scavengeY, K.z), dir: new Vector3(inboard, 0, 0) },
+    feed: { at: new Vector3(K.x, F.feedY, K.z).addScaledVector(quarter, reach), dir: quarter },
+  };
+}
+
+/** Upright finned dry-sump tank with a filler neck, hose fittings and a bracket to the bellhousing. */
 export function oilTankMeshes(): MeshSpec[] {
-  const K = E.oilTank;
-  const half = K.length / 2;
   const r = K.radius;
+  const h = K.height;
+  const dome = r * 0.35;
   const shell = lathe([
-    [0, -half],
-    [r * 0.7, -half],
-    [r, -half + r * 0.3],
-    [r, half - r * 0.3],
-    [r * 0.7, half],
-    [0, half],
+    [0, 0],
+    [r * 0.75, 0],
+    [r, dome],
+    [r, h - dome],
+    [r * 0.75, h],
+    [0, h],
   ]);
   const fins = Array.from({ length: K.fins }, (_, k) => {
-    const y = -half + r * 0.3 + ((k + 0.5) * (K.length - r * 0.6)) / K.fins;
-    return lathe(band(r - K.finThickness, K.finRadius, y - K.finThickness / 2, y + K.finThickness / 2));
+    const y = dome + ((k + 0.5) * (h - 2 * dome)) / K.fins;
+    return lathe(band(r - K.finThickness, K.finRadius, y - K.finThickness / 2, y + K.finThickness / 2), SEGMENTS.cylinder, 0);
   });
-  const body = merge([shell, ...fins]);
-  body.rotateX(Math.PI / 2);
-  body.translate(0, K.y, K.z);
-  const neck = cylinderY(K.neckRadius, 0, r + K.neckHeight, SEGMENTS.small * 2);
-  neck.translate(0, K.y, K.z + half * 0.6);
-  const cap = cylinderY(K.neckRadius * 1.4, r + K.neckHeight, r + K.neckHeight + K.capHeight, SEGMENTS.small * 2);
-  cap.translate(0, K.y, K.z + half * 0.6);
-  // Two straps round the tank, over the fins; they meet the gearbox casing at the bottom.
-  const strapR = K.finRadius + K.strap.thickness;
-  const straps = [-1, 1].map((k) => {
-    const g = lathe(band(K.finRadius, strapR, -K.strap.width / 2, K.strap.width / 2), SEGMENTS.cylinder, 0);
-    g.rotateX(Math.PI / 2);
-    g.translate(0, K.y, K.z + k * half * K.strap.at);
+  const neck = cylinderY(K.neckRadius, h - dome, h + K.neckHeight, SEGMENTS.small * 2);
+  const body = merge([shell, ...fins, neck]);
+  body.translate(K.x, K.bottom, K.z);
+  const cap = cylinderY(K.neckRadius * 1.45, h + K.neckHeight, h + K.neckHeight + K.capHeight, SEGMENTS.small * 2);
+  cap.translate(K.x, K.bottom, K.z);
+  // Fittings: lathe along +y, turned to each hose's direction.
+  const F = K.fitting;
+  const fittings = Object.values(oilTankFittings()).map(({ at, dir }) => {
+    const g = lathe([[0, 0], [F.radius, 0], [F.radius, F.length], [0, F.length]], SEGMENTS.small * 2);
+    g.applyMatrix4(new Matrix4().compose(at, new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), dir.clone().negate()), one));
     return g;
   });
+  // Flat bar sloping from the tank's inboard foot down onto the bellhousing's top.
+  const B = K.bracket;
+  const inboard = -Math.sign(K.x);
+  const p0 = new Vector3(K.x + inboard * (r - K.finThickness), B.y, K.z + B.z);
+  const p1 = new Vector3(Math.sign(K.x) * B.endX, B.endY, K.z + B.z);
+  const bracket = roundedBox(p0.distanceTo(p1), B.thickness, B.width, B.thickness / 2);
+  bracket.rotateZ(Math.atan2(p1.y - p0.y, p1.x - p0.x));
+  bracket.translate((p0.x + p1.x) / 2, (p0.y + p1.y) / 2, p0.z);
   return [
-    { geometry: merge([body, neck]), material: 'castAluminium' },
-    { geometry: cap, material: 'satinBlack' },
-    { geometry: merge(straps), material: 'satinBlack' },
+    { geometry: body, material: 'castAluminium' },
+    { geometry: merge([cap, bracket]), material: 'satinBlack' },
+    { geometry: merge(fittings), material: 'anodised' },
+  ];
+}
+
+// ─── Alternator ──────────────────────────────────────────────────────────────
+
+/** Alternator low on the left at the timing end: finned body, fan and pulley at the front, ears to the block. */
+export function alternatorMeshes(): MeshSpec[] {
+  const A = E.alternator;
+  const z0 = E.blockFrontZ - A.pulley.length;
+  const z1 = z0 - A.length;
+  const r = A.radius;
+  const body = cylinderZ(r, z1 + E.bevel * 2, z0 - E.bevel * 2, A.x, A.y);
+  const ends = [z0 - E.bevel * 2, z1 + E.bevel * 2].map((z, k) => cylinderZ(r * 0.93, k ? z - E.bevel * 3 : z, k ? z : z + E.bevel * 3, A.x, A.y));
+  const fins = Array.from({ length: A.fins }, (_, k) => {
+    const a = (k / A.fins) * Math.PI * 2;
+    const g = roundedBox(E.bevel * 2, E.bevel * 3, A.length * 0.8, E.bevel / 2);
+    g.translate(A.x + (r + E.bevel) * Math.cos(a), A.y + (r + E.bevel) * Math.sin(a), (z0 + z1) / 2);
+    g.rotateZ(0);
+    return g;
+  });
+  // Ears bolted to the block skirt, top and bottom.
+  const [ew, eh, ed] = A.ear;
+  const ears = [1, -1].map((k) => {
+    const g = roundedBox(ew, eh, ed, E.bevel);
+    g.translate(E.block.skirtHalfWidth + ew / 2, A.y + k * r * 0.55, z0 - ed);
+    return g;
+  });
+  const P = A.pulley;
+  const grooves: P2[] = [[0, 0]];
+  for (let k = 0; k <= P.grooves * 2; k++) grooves.push([P.radius - (k % 2 ? E.bevel : 0), (k * P.length) / (P.grooves * 2)]);
+  grooves.push([0, P.length]);
+  const pulley = lathe(grooves, SEGMENTS.cylinder, 0);
+  pulley.rotateX(Math.PI / 2); // +y → +z
+  pulley.translate(A.x, A.y, z0);
+  return [
+    { geometry: merge([body, ...ends, ...fins, ...ears]), material: 'castAluminium' },
+    { geometry: pulley, material: 'darkSteel' },
   ];
 }
 

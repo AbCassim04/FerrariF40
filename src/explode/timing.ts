@@ -10,14 +10,13 @@ export const EASE = 'power2.inOut';
 
 /**
  * Stage-1 order (s after the stage starts): the reveal first. The rear clam opens about its
- * tail hinge like the real one, showing the engine through the bay, then lifts away; the
- * wing comes off it as it rises. The doors, front clam and glass follow. Everything must be
- * clear before the powertrain rises in stage 3.
+ * tail hinge like the real one, showing the engine through the bay, then lifts away with
+ * the wing (part of the same bodywork). The doors, front clam and glass follow. Everything
+ * must be clear before the powertrain rises in stage 3.
  */
 export const BODY_DELAY = {
   rearClamOpen: 0,
   rearClamLift: 0.45,
-  rearWing: 0.55,
   doors: 0.15,
   frontClam: 0.25,
   glass: 0.35,
@@ -28,8 +27,14 @@ export const BODY_DELAY = {
  * the parts covering it have started moving away.
  */
 export const TEARDOWN = {
+  /** The plenum lifts first: everything in the V is under it. */
+  plenum: 0.1,
+  /** Fuel rails back out along their injectors; throttle bodies and distributors come off. */
+  intake: 0.2,
   frontCovers: 0.3,
   camCovers: 0.45,
+  /** Runners wait until the injectors are clear of their bosses. */
+  runners: 0.5,
   coilPacks: 0.55,
   camshafts: 0.6,
   sparkPlugs: 0.6,

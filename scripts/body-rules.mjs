@@ -122,6 +122,21 @@ const STANDIN_POWERTRAIN = [
   { name: 'driveshafts', absX: [0.1, 0.78], y: [0.28, 0.44], z: [-1.37, -1.18] },
   { name: 'engine top', absX: [0, 0.05], y: [0.54, 0.69], z: [-1.0, -0.88] },
 ];
+/**
+ * Upper rear section of the stand-in frame: its upper rails, the crossmember over the rear
+ * axle and their braces. It cages the powertrain's lift-out path (everything behind the
+ * block rises through it in stage 3), and the procedural frame's upper rails run outboard of
+ * the manifolds instead (F40-PLAN decision 4). Hidden with the stand-in powertrain until the
+ * procedural frame replaces it. Pieces reaching below y 0.375 (lower rails, coilovers,
+ * uprights) stay visible.
+ */
+const STANDIN_UPPER_REAR_FRAME = { absX: [0, 0.58], y: [0.375, 1.04], z: [-2.1, -0.34] };
+/**
+ * The stand-in's rear suspension towers (A-frames rising from the lower rails beside the
+ * axle) and the coilovers mounted on them: the turbos sit there (F40-PLAN decision 2).
+ * Hidden like the upper frame; the wishbones, uprights and lower rails stay visible.
+ */
+const STANDIN_REAR_TOWERS = { absX: [0.271, 0.641], y: [0.13, 0.891], z: [-1.474, -1.041] };
 /** Bay walls and rear bulkhead: one big box-shaped liner in F40_Mechanics. Fixed bodywork. */
 const BAY_LINER = { minTris: 400, absX: [0, 1.0], y: [0.1, 1.16], z: [-1.16, -0.3] };
 /** Front compartment structure (behind the front clam). Fixed bodywork. */
@@ -188,6 +203,7 @@ export const RULES = [
       if (piece.triCount >= BAY_LINER.minTris && inBoxAbs(piece.box, BAY_LINER)) return 'body-shell';
       if (piece.triCount >= FRONT_TUB.minTris && inBoxAbs(piece.box, FRONT_TUB)) return 'body-shell';
       if (isFloor(piece.box) || (piece.triCount >= DIFFUSER.minTris && inBoxAbs(piece.box, DIFFUSER))) return 'undertray';
+      if (inBoxAbs(piece.box, STANDIN_UPPER_REAR_FRAME) || inBoxAbs(piece.box, STANDIN_REAR_TOWERS)) return MODEL_ENGINE_BAY;
       // Frame rails and crossmembers, suspension, front radiator: placeholders for the procedural spaceframe and suspension.
       return 'model-chassis';
     },

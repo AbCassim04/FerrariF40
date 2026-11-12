@@ -42,10 +42,14 @@ export function buildExplodeTimeline() {
   return tl;
 }
 
-/** Corners of each mounted part's world bounds in its current pose (what the camera frames). */
+/**
+ * Corners of each visible part's world bounds in its current pose (what the camera frames).
+ * Parts hidden by solo are left out, so a soloed group is framed on its own.
+ */
 export function partCorners() {
   const corners: Vector3[] = [];
   for (const { content } of partObjects.values()) {
+    if (!content.visible) continue;
     content.updateWorldMatrix(true, true);
     const box = new Box3().expandByObject(content);
     if (!box.isEmpty()) corners.push(...boxCorners(box));

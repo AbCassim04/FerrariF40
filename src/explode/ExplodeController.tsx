@@ -13,9 +13,11 @@ const tuples = (points: Vector3[]) => points.map((p) => p.toArray() as Vec3);
  */
 export function ExplodeController() {
   const exploded = useAppStore((s) => s.exploded);
+  const solo = useAppStore((s) => (import.meta.env.DEV ? `${s.solo ?? ''}|${s.soloGroup ?? ''}` : ''));
   const tlRef = useRef<ReturnType<typeof buildExplodeTimeline> | null>(null);
   /** Last state the timeline was driven to; the initial state (from the URL) needs no play or fit. */
   const shown = useRef(exploded);
+  const soloShown = useRef(solo);
 
   useEffect(() => {
     const tl = buildExplodeTimeline();
@@ -44,6 +46,16 @@ export function ExplodeController() {
     const { requestCameraFit } = useAppStore.getState();
     requestCameraFit(exploded ? tuples(explodedCorners(tl)) : null, 'explode');
   }, [exploded]);
+
+  // Dev solo: frame what is left visible (in the pose the timeline is heading for), so a
+  // soloed group fills the view instead of sitting small where the whole car was framed.
+  useEffect(() => {
+    const tl = tlRef.current;
+    if (!tl || soloShown.current === solo) return;
+    soloShown.current = solo;
+    const corners = exploded ? explodedCorners(tl) : partCorners();
+    if (corners.length) useAppStore.getState().requestCameraFit(tuples(corners), null);
+  }, [solo]);
 
   return null;
 }

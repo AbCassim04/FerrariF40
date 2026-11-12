@@ -3,15 +3,14 @@
 Where the project stands and how to work on it. The spec and decision log are in
 docs/BRIEF.md; read that first. The build plan: docs/F40-PLAN.md.
 
-## Status (2026-11-12)
-- **Phase 1 done on branch `wip/f40-phase1`** (not pushed; the owner pushes): reset from
-  the LaFerrari copy, F40 body integrated and segmented, engine made parametric and
-  configured as the F120A, deploy base `/FerrariF40/`, layout sketch and build plan. Review
-  notes and screenshots: docs/REVIEW.md.
-- Visual verification upgraded: Playwright MCP server (GPU), dev-only `window.__dev` API,
-  one persistent page (below). Benchmarked against the old reload-per-shot method.
-- Next: owner review of docs/F40-PLAN.md, then phase 2 (intake, ignition, ancillaries) on
-  its own branch.
+## Status (2026-11-13)
+- Phase 1 approved and merged into `main`.
+- **Phases 2–4 in progress on `wip/f40-build`** (unattended run; commit per phase, not
+  pushed). Phase 2 (intake, ignition, ancillaries) done. Next: phase 3 (turbos,
+  intercoolers, exhaust), then phase 4 (5-speed transaxle). Progress and gates per phase:
+  docs/REVIEW.md; decisions (incl. "Decisions made unattended") in docs/BRIEF.md.
+- Visual checks: one persistent page + `window.__dev` (below). In this session the MCP tools
+  were not loaded, so the page is driven by a small Playwright script (same GPU launch).
 
 ## Run
 ```
@@ -38,8 +37,11 @@ slash. The original model (assets-src/models/f40/body.glb) is not shipped.
 - `src/config/scene.ts` — camera, controls, view presets, grid, shadows.
 - `src/parts/registry.ts` — all parts; `parts/body` (model parts, the rear-clam hinge),
   `parts/engine` (`layout.ts` bank frames, kinematics and the firing order; `geometry/*`
-  builders), `parts/powertrain.ts` (carrier + the assembly that lifts out),
-  `parts/cables/Cable.tsx` (re-curving cables and hoses). Types in `parts/types.ts`.
+  builders; `intake.ts` phase 2: intake, ignition, ancillaries, oil lines, ECUs),
+  `parts/powertrain.ts` (carrier + the assembly that lifts out),
+  `parts/cables/Cable.tsx` (re-curving cables and hoses; `cablesBuild` puts several in one
+  mesh; cable parts sit at the car origin as root parts, since their vertices are written in
+  car coordinates). Types in `parts/types.ts`.
 - `src/geometry/build.ts` — geometry toolkit (extrude with exact bevels, lathe, merge, hulls,
   gears). `src/scene/MeshSet.tsx` — part builds from mesh specs (plain or instanced).
 - `src/scene/PartsRenderer.tsx` — mounts each part as anchor → swing → content.

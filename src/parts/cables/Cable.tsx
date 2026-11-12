@@ -60,16 +60,24 @@ const LEAD = 0.05;
  * assembled route is exact and the cable follows its ends smoothly as they separate.
  */
 export function cableBuild(route: CableRoute) {
+  return cablesBuild(route.id, [route]);
+}
+
+/**
+ * Several cables of one style in one part (one mesh, one draw call): e.g. the four HT leads
+ * from a distributor to its bank's plug caps. Each re-curves between its own ends.
+ */
+export function cablesBuild(id: string, routes: readonly CableRoute[]) {
   function Build() {
     const clipsRef = useRef<InstancedMesh>(null);
-    const state = useMemo(() => createCable(route), []);
+    const state = useMemo(() => createCables(routes), []);
 
     useLayoutEffect(() => {
       const update = () => state.update(clipsRef.current);
-      dynamicParts.set(route.id, update);
+      dynamicParts.set(id, update);
       update();
       return () => {
-        dynamicParts.delete(route.id);
+        dynamicParts.delete(id);
       };
     }, [state]);
 
@@ -78,15 +86,74 @@ export function cableBuild(route: CableRoute) {
     return (
       <>
         <mesh geometry={state.geometry} material={getMaterial(state.style.material)} />
-        <instancedMesh ref={clipsRef} args={[state.clipGeometry, getMaterial(state.style.clipMaterial), state.clipAt.length]} />
+        {state.clipCount > 0 && <instancedMesh ref={clipsRef} args={[state.clipGeometry, getMaterial(state.style.clipMaterial), state.clipCount]} />}
       </>
     );
   }
-  Build.displayName = `Cable(${route.id})`;
+  Build.displayName = `Cable(${id})`;
   return Build;
 }
 
-function createCable(route: CableRoute) {
+function createCables(routes: readonly CableRoute[]) {
+  const style = routes[0].style;
+  const STRANDS = style.strands;
+  const perCable = STRANDS * (T + 1) * (R + 1);
+  const geometry = new BufferGeometry();
+  const verts = perCable * routes.length;
+  const position = new BufferAttribute(new Float32Array(verts * 3), 3);
+  const normal = new BufferAttribute(new Float32Array(verts * 3), 3);
+  geometry.setAttribute('position', position);
+  geometry.setAttribute('normal', normal);
+  geometry.setAttribute('uv', new BufferAttribute(new Float32Array(verts * 2), 2));
+  const index: number[] = [];
+  for (let c = 0; c < routes.length; c++) {
+    for (let k = 0; k < STRANDS; k++) {
+      const base = c * perCable + k * (T + 1) * (R + 1);
+      for (let i = 0; i < T; i++) {
+        for (let j = 0; j < R; j++) {
+          const a = base + i * (R + 1) + j;
+          const b = a + R + 1;
+          index.push(a, a + 1, b, b, a + 1, b + 1);
+        }
+      }
+    }
+  }
+  geometry.setIndex(index);
+  geometry.userData.dynamic = true;
+
+  const clipR = style.offset + style.strandRadius;
+  const clipGeometry = lathe(band(clipR, clipR + style.strandRadius * 0.4, -style.clipWidth / 2, style.clipWidth / 2), SEGMENTS.small);
+  let clipBase = 0;
+  const cables = routes.map((route, c) => {
+    const cable = createCable(route, position, normal, c * perCable, clipBase);
+    clipBase += cable.clipCount;
+    return cable;
+  });
+  const m = new Matrix4();
+
+  function update(clips: InstancedMesh | null) {
+    let changed = false;
+    for (const cable of cables) changed = cable.update(clips, m) || changed;
+    if (!changed) return;
+    position.needsUpdate = true;
+    normal.needsUpdate = true;
+    geometry.computeBoundingBox();
+    geometry.computeBoundingSphere();
+    // Keep the picking BVH (added by <Bvh>) in step with the new shape.
+    (geometry as { boundsTree?: { refit: () => void } }).boundsTree?.refit();
+    if (clips) {
+      clips.instanceMatrix.needsUpdate = true;
+      clips.computeBoundingBox();
+      clips.computeBoundingSphere();
+    }
+  }
+
+  // Assembled shape up front, so bounds (shadow and culling decisions) are right on mount.
+  update(null);
+  return { geometry, clipGeometry, clipCount: clipBase, style, update };
+}
+
+function createCable(route: CableRoute, position: BufferAttribute, normal: BufferAttribute, vertexBase: number, clipBase: number) {
   const { from, to } = route;
   const style = route.style;
   const STRANDS = style.strands;
@@ -100,30 +167,6 @@ function createCable(route: CableRoute) {
   const span = from.at.distanceTo(to.at);
   // Slack profile sin(π s^k), with k putting the peak at slackPeak.
   const slackPower = Math.log(0.5) / Math.log(route.slackPeak ?? 0.5);
-
-  const geometry = new BufferGeometry();
-  const verts = STRANDS * (T + 1) * (R + 1);
-  const position = new BufferAttribute(new Float32Array(verts * 3), 3);
-  const normal = new BufferAttribute(new Float32Array(verts * 3), 3);
-  geometry.setAttribute('position', position);
-  geometry.setAttribute('normal', normal);
-  geometry.setAttribute('uv', new BufferAttribute(new Float32Array(verts * 2), 2));
-  const index: number[] = [];
-  for (let k = 0; k < STRANDS; k++) {
-    const base = k * (T + 1) * (R + 1);
-    for (let i = 0; i < T; i++) {
-      for (let j = 0; j < R; j++) {
-        const a = base + i * (R + 1) + j;
-        const b = a + R + 1;
-        index.push(a, a + 1, b, b, a + 1, b + 1);
-      }
-    }
-  }
-  geometry.setIndex(index);
-  geometry.userData.dynamic = true;
-
-  const clipR = style.offset + style.strandRadius;
-  const clipGeometry = lathe(band(clipR, clipR + style.strandRadius * 0.4, -style.clipWidth / 2, style.clipWidth / 2), SEGMENTS.small);
   const length = cum[cum.length - 1];
   const clipAt = style.clips(length);
 
@@ -133,7 +176,7 @@ function createCable(route: CableRoute) {
   const nowA = new Vector3();
   const nowB = new Vector3();
   const last = { a: new Vector3(NaN, 0, 0), b: new Vector3() };
-  const m = new Matrix4();
+  let clipsPlaced = false;
 
   /** World position of a cable end now (assembled position if its part isn't mounted). */
   function endNow(end: CableEnd, loc: Vector3, out: Vector3) {
@@ -143,12 +186,13 @@ function createCable(route: CableRoute) {
     return out.copy(loc).applyMatrix4(o.content.matrixWorld);
   }
 
-  function update(clips: InstancedMesh | null) {
+  /** Rewrites this cable's vertices if an end moved; true if it did. */
+  function update(clips: InstancedMesh | null, m: Matrix4) {
     endNow(from, localA, nowA);
     endNow(to, localB, nowB);
     const still = nowA.distanceToSquared(last.a) < 1e-12 && nowB.distanceToSquared(last.b) < 1e-12;
-    if (still && (!clips || clips.userData.placed)) return;
-    if (clips) clips.userData.placed = true;
+    if (still && (!clips || clipsPlaced)) return false;
+    if (clips) clipsPlaced = true;
     last.a.copy(nowA);
     last.b.copy(nowB);
     const dA = nowA.clone().sub(from.at);
@@ -171,7 +215,7 @@ function createCable(route: CableRoute) {
     const p = new Vector3();
     const off = new Vector3();
     const dir = new Vector3();
-    let v = 0;
+    let v = vertexBase;
     for (let k = 0; k < STRANDS; k++) {
       for (let i = 0; i <= T; i++) {
         const t = tangents[i];
@@ -189,12 +233,6 @@ function createCable(route: CableRoute) {
         }
       }
     }
-    position.needsUpdate = true;
-    normal.needsUpdate = true;
-    geometry.computeBoundingBox();
-    geometry.computeBoundingSphere();
-    // Keep the picking BVH (added by <Bvh>) in step with the new shape.
-    (geometry as { boundsTree?: { refit: () => void } }).boundsTree?.refit();
 
     if (clips) {
       for (let c = 0; c < clipAt.length; c++) {
@@ -202,15 +240,11 @@ function createCable(route: CableRoute) {
         const t = tangents[i];
         const nn = normals[i];
         m.makeBasis(new Vector3().crossVectors(t, nn), t, nn).setPosition(pts[i]);
-        clips.setMatrixAt(c, m);
+        clips.setMatrixAt(clipBase + c, m);
       }
-      clips.instanceMatrix.needsUpdate = true;
-      clips.computeBoundingBox();
-      clips.computeBoundingSphere();
     }
+    return true;
   }
 
-  // Assembled shape up front, so bounds (shadow and culling decisions) are right on mount.
-  update(null);
-  return { geometry, clipGeometry, clipAt, style, update };
+  return { update, clipCount: clipAt.length };
 }

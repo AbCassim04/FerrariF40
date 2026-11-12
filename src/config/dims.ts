@@ -375,20 +375,105 @@ const engineParts = {
     portRadius: mm(9),
     portLength: mm(18),
   },
-  /** Dry-sump oil tank (position to be set by the F40 plan; not built yet). */
-  oilTank: {
-    radius: mm(75),
-    length: mm(280),
-    y: mm(385),
-    z: -1.55,
-    fins: 9,
-    finRadius: mm(83),
-    finThickness: mm(3),
-    neckRadius: mm(18),
-    neckHeight: mm(25),
-    capHeight: mm(12),
-    strap: { at: 0.55, width: mm(16), thickness: mm(3) },
+  /**
+   * Intake (engine coordinates, y from the crank axis): a plenum along the V, fed at its rear
+   * end by two throttle bodies (one per intercooler); short cast runners curve up into it
+   * from each intake port. F120A: Weber-Marelli multipoint injection, one injector per runner.
+   */
+  intake: {
+    plenum: {
+      halfWidth: mm(118),
+      bottom: mm(352),
+      top: mm(470),
+      /** Front end stops this far behind the block's front face (the belt cover is in front). */
+      frontGap: mm(12),
+      planRadius: mm(48),
+      edgeRound: mm(18),
+      flange: { height: mm(10), out: mm(9), bolts: 18 },
+      /** Raised ribs along the top; `spacing` between their centres. */
+      ribs: { count: 3, spacing: mm(52), width: mm(10), height: mm(5) },
+      /** Bosses on the rear face that the throttle bodies bolt to. */
+      boss: { radius: mm(36), depth: mm(12) },
+    },
+    runner: {
+      radius: mm(19),
+      /** Straight stub out of the port before it curves up. */
+      stub: mm(24),
+      /** x of each runner where it enters the plenum floor. */
+      topX: mm(60),
+      flange: [mm(52), mm(46), mm(8)] as Vec3,
+    },
+    throttleBody: {
+      x: mm(56),
+      y: mm(410),
+      radius: mm(27),
+      length: mm(58),
+      flange: { radius: mm(37), thickness: mm(8) },
+      lip: mm(4),
+      /** Cross-shaft linking both throttles, and the lever on each. */
+      shaftRadius: mm(5),
+      lever: [mm(10), mm(34), mm(12)] as Vec3,
+    },
+    fuelRail: {
+      /** Rail axis (engine x of the left bank, y), beside the runners under the plenum. */
+      x: mm(122),
+      y: mm(334),
+      radius: mm(9),
+      endInset: mm(40),
+      /** Injectors aim from the rail into the runner this far along it from the port face. */
+      aimAlong: mm(30),
+      injector: { radius: mm(6.5), length: mm(58), cap: mm(9) },
+      regulator: { radius: mm(16), length: mm(30) },
+    },
   },
+  /** (est) Distributor at the rear end of each bank's intake cam (flywheel end), cap facing back. */
+  distributor: {
+    driveRadius: mm(24),
+    driveLength: mm(30),
+    bodyRadius: mm(32),
+    bodyLength: mm(40),
+    capRadius: mm(39),
+    capLength: mm(32),
+    tower: { radius: mm(6), length: mm(18), circle: mm(22) },
+    vacuum: { radius: mm(17), length: mm(30) },
+  },
+  /** HT leads: from each distributor along the top of its cam cover to the plug caps. */
+  htLead: { radius: mm(3.6), height: mm(4), firstB: mm(24), pitchB: mm(9) },
+  /** (est) Wiring loom along each fuel rail to the injectors. */
+  loom: { x: mm(146), y: mm(336), radius: mm(6.5), clips: 5, clip: [mm(16), mm(8), mm(10)] as Vec3 },
+  /** (est) Alternator low on the left at the timing end, pulley just behind the block's front face. */
+  alternator: {
+    x: mm(200),
+    y: -mm(70),
+    radius: mm(55),
+    length: mm(105),
+    pulley: { radius: mm(32), length: mm(18), grooves: 5 },
+    fins: 12,
+    ear: [mm(30), mm(16), mm(26)] as Vec3,
+  },
+  /**
+   * (est) Dry-sump oil tank: no position found in the references. Upright finned tank behind
+   * the right bank, above the exhaust manifold, beside the bellhousing (engine coordinates).
+   */
+  oilTank: {
+    x: -mm(390),
+    bottom: mm(210),
+    height: mm(220),
+    z: -0.94,
+    radius: mm(50),
+    fins: 7,
+    finRadius: mm(56),
+    finThickness: mm(3),
+    neckRadius: mm(16),
+    neckHeight: mm(22),
+    capHeight: mm(12),
+    /** Sloping bracket from its inboard foot down to the bellhousing's top, under the distributor (behind the hoses). */
+    bracket: { y: mm(222), width: mm(30), thickness: mm(5), endY: mm(140), endX: mm(120), z: -mm(32) },
+    /** Hose fittings: scavenge return on the inboard side; feed low on the inboard-front quarter, clear of the frame rail beneath. */
+    fitting: { radius: mm(9), length: mm(16), scavengeY: mm(270), feedY: mm(225) },
+  },
+  /** Braided oil lines (dry sump): scavenge pump to tank, tank to the oil cooler. */
+  oilLine: { radius: mm(8), fitting: { radius: mm(11), length: mm(22) } },
   waterPump: {
     radius: mm(40),
     length: mm(34),
@@ -409,6 +494,76 @@ const engineParts = {
   },
   /** Bevel on cast and machined edges. */
   bevel: mm(2.2),
+};
+
+/**
+ * (est) Weber-Marelli engine control units, one per bank, high on the bay side walls ahead
+ * of the oil tank (car coordinates, left side; the right mirrors). Fixed to the car.
+ */
+const ecu = {
+  centre: [0.375, 0.58, -0.645] as Vec3,
+  size: [mm(64), mm(150), mm(185)] as Vec3,
+  fins: 9,
+  /** Brackets out to the bay wall. */
+  bracket: { width: mm(24), thickness: mm(5), z: [-mm(60), mm(60)] },
+  plug: [mm(40), mm(22), mm(60)] as Vec3,
+};
+
+/**
+ * 5-speed manual transaxle (engine coordinates: y from the crank axis, which is also the
+ * clutch axis). Flywheel and twin-plate clutch behind the block, the bellhousing round them,
+ * then the casing back over the diffuser with the limited-slip differential on the rear axle
+ * line and the gear clusters behind it (the gears overhang the axle, as on the F40).
+ * Transfer gears behind the clutch lift the drive to the primary shaft above the diff; the
+ * secondary shaft below it carries the pinion forward to the crown wheel.
+ */
+const transaxle = {
+  flywheel: { radius: mm(118), thickness: mm(24), gap: mm(4), toothDepth: mm(4), teeth: 96, bolts: 8, boltCircle: mm(38), dish: mm(6) },
+  /** Twin dry plates with an intermediate plate between them, a pressure plate and its cover. */
+  clutch: {
+    gap: mm(3),
+    plateRadius: mm(102),
+    plateHub: mm(30),
+    plateThickness: mm(8),
+    intermediate: { radius: mm(108), thickness: mm(10) },
+    pressure: { radius: mm(108), thickness: mm(14) },
+    cover: { radius: mm(114), depth: mm(26), lip: mm(6), fingers: 18 },
+    springs: 6,
+  },
+  bellhousing: { rearZ: -1.0, halfWidth: mm(160), topHalfWidth: mm(134), bottom: -mm(132), top: mm(148), radius: mm(46), flange: mm(10), bolts: 14 },
+  casing: {
+    rearZ: -1.8,
+    front: { halfWidth: mm(150), topHalfWidth: mm(118), bottom: -mm(62), top: mm(218), radius: mm(42) },
+    rear: { halfWidth: mm(118), topHalfWidth: mm(96), bottom: -mm(8), top: mm(196), radius: mm(38) },
+    /** Stiffening rings (z), how far they stand proud, their width; seam bolts on two of them. */
+    rings: [-1.05, -1.38, -1.56, -1.74],
+    ringHeight: mm(7),
+    ringWidth: mm(12),
+    seamRings: [1, 3],
+    seamBolts: 14,
+    xRib: mm(5),
+    /** Rear cover and its bolts. */
+    endCover: { depth: mm(14), bolts: 10 },
+  },
+  /** Gear train inside the casing: transfer pair, primary (input) and secondary (output) shafts. */
+  gears: {
+    transferZ: -1.03,
+    primaryY: mm(128),
+    secondaryY: mm(36),
+    shaftRadius: mm(16),
+    /** Five forward pairs and reverse, front to back over the clusters' length; pinion forward. */
+    clusterZ: [-1.40, -1.74],
+    ratios: [3.1, 2.0, 1.45, 1.1, 0.88],
+    pitchSum: mm(92),
+    width: mm(20),
+    pinionZ: -1.15,
+  },
+  /** Limited-slip differential on the rear axle line: housing, output flanges to the driveshafts. */
+  diff: { y: model.wheelCentreY.rear - engine.crankHeight, radius: mm(92), halfLength: mm(150), outX: mm(178), flangeRadius: mm(52), flangeLength: mm(14), coverBolts: 10, coverBoltCircle: mm(70) },
+  /** (ref: left side) Gearbox oil cooler, finned, with two short hoses to the casing. */
+  oilCooler: { centre: [mm(300), mm(24), -1.65] as Vec3, size: [mm(110), mm(60), mm(140)] as Vec3, fins: 12 },
+  /** Gear selector on the casing's right front: boss, shaft and lever. */
+  selector: { at: [-mm(150), -mm(28), -1.07] as Vec3, bossRadius: mm(22), lever: mm(60) },
 };
 
 /** Cables, hoses and looms that re-curve as their ends move (src/parts/cables). */
@@ -562,6 +717,8 @@ export const DIMS = {
     /** Swept volume in cc, from bore and stroke (checks against the 2936 cc reference). */
     displacementCc: (Math.PI / 4) * engine.bore ** 2 * engine.stroke * engine.cylinders * 1e6,
   },
+  ecu,
+  transaxle,
   cable,
 } as const;
 
@@ -578,8 +735,6 @@ export const EXPLODE = {
    */
   rearClamOpen: deg(70),
   rearClamLift: [0, 0.55, -0.55] as Vec3,
-  /** The wing comes off the opened clam, outward from its top surface. */
-  rearWingOff: [0, 0.16, -0.42] as Vec3,
   /** Windscreen and fixed glass lift off the cabin, and forward, clear of the rising engine. */
   glass: [0, 0.75, 0.3] as Vec3,
   wheelOut: 0.75,
@@ -614,5 +769,12 @@ export const EXPLODE = {
     mount: 0.14, // outboard
     oilFilter: 0.11, // outboard
     oilCooler: [-0.1, -0.1, 0] as Vec3, // down and out
+    plenum: 0.5, // up, first: everything in the V is under it
+    fuelRail: 0.2, // back out along the injector axis
+    runners: 0.3, // up, once the injectors are out of their bosses
+    throttleBodies: [0, 0.36, -0.1] as Vec3, // up behind the plenum, and back off its bosses
+    distributor: 0.12, // back off the cam drive
+    alternator: 0.15, // outboard
+    oilTank: [-0.25, -0.2, 0] as Vec3, // outboard and down, below the HT leads as the right head lifts
   },
 } as const;

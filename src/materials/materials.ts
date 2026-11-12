@@ -37,6 +37,12 @@ export type MaterialKey =
   | 'headerTint'
   | 'tipSteel'
   | 'loom'
+  | 'anodised'
+  | 'braided'
+  | 'castIron'
+  | 'intercooler'
+  | 'silicone'
+  | 'heatShield'
   | 'reference';
 
 export const PALETTE = {
@@ -65,6 +71,15 @@ export const PALETTE = {
   headerSteel: '#a9a39a',
   tipSteel: '#d4d6da',
   loom: '#121314',
+  /** Anodised hose fittings (dry-sump and turbo oil lines). */
+  anodised: '#2747b0',
+  braided: '#8b8e94',
+  /** Cast-iron turbine housings and exhaust manifolds: dark, faintly heat-tinted. */
+  castIron: '#4a4441',
+  intercooler: '#a3a8ae',
+  /** Silicone charge-pipe couplers. */
+  silicone: '#1f2c5c',
+  heatShield: '#cbc7bf',
   reference: '#5fd0ff',
 } as const;
 
@@ -198,6 +213,18 @@ const factories: Record<MaterialKey, () => Material> = {
   /** Header primaries: the tint comes from vertex colours (heat oxide, blue/purple to gold). */
   headerTint: () => new MeshStandardMaterial({ color: '#ffffff', vertexColors: true, metalness: 1, roughness: 0.36 }),
   tipSteel: () => new MeshStandardMaterial({ color: PALETTE.tipSteel, metalness: 1, roughness: 0.18 }),
+  anodised: () => new MeshStandardMaterial({ color: PALETTE.anodised, metalness: 0.9, roughness: 0.3 }),
+  /** Stainless braid over the oil hoses: a dull, rough metal at this scale. */
+  braided: () => new MeshStandardMaterial({ color: PALETTE.braided, metalness: 0.85, roughness: 0.62, bumpMap: castNoiseTexture(40, 90, 170), bumpScale: 0.3 }),
+  castIron: () => {
+    const grain = castNoiseTexture(24, 120, 190);
+    return new MeshStandardMaterial({ color: PALETTE.castIron, metalness: 0.75, roughness: 0.8, roughnessMap: grain, bumpMap: grain, bumpScale: 0.25 });
+  },
+  /** Intercooler cores and end tanks: bare aluminium, finely finned (brushed roughness reads as fins). */
+  intercooler: () =>
+    new MeshPhysicalMaterial({ color: PALETTE.intercooler, metalness: 1, roughness: 0.5, roughnessMap: brushedRoughnessTexture(8), anisotropy: 0.8 }),
+  silicone: () => new MeshStandardMaterial({ color: PALETTE.silicone, metalness: 0, roughness: 0.6 }),
+  heatShield: () => new MeshStandardMaterial({ color: PALETTE.heatShield, metalness: 1, roughness: 0.34, bumpMap: castNoiseTexture(60, 100, 160), bumpScale: 0.5 }),
   /** Braided loom sleeve: matte black. */
   loom: () => new MeshStandardMaterial({ color: PALETTE.loom, metalness: 0, roughness: 0.85 }),
   /** Thin lines for wireframe reference geometry. */

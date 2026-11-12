@@ -273,15 +273,23 @@ export function ignitionMeshes(s: Side): MeshSpec[] {
   return E.ignition === 'coil-on-plug' ? coilPackMeshes(s) : plugCapMeshes(s);
 }
 
+const capPose = (s: Side, i: number) => compose(bankPoint(s, coverTopA, 0, E.boreZ[s][i]), bankQuat(s));
+
+/** Tip of plug cap (s, i)'s lead stub (engine coordinates) and the way the HT lead leaves it: back, toward the distributor. */
+export function plugLeadEnd(s: Side, i: number) {
+  const C = E.plugCap;
+  return { at: new Vector3(0, C.height * 0.7, -C.leadLength).applyMatrix4(capPose(s, i)), dir: new Vector3(0, 0, -1) };
+}
+
 function plugCapMeshes(s: Side): MeshSpec[] {
   const C = E.plugCap;
   const boot = cylinderY(C.radius * 0.75, plugTopA - coverTopA, 0, SEGMENTS.small * 2);
   const cap = cylinderY(C.radius, 0, C.height, SEGMENTS.small * 2);
-  // The lead leaves the cap toward the timing end (instances are rotated, not mirrored, so it stays fore-aft).
+  // The lead leaves the cap toward the flywheel end, where the distributors are (instances are rotated, not mirrored, so it stays fore-aft).
   const lead = cylinderY(C.leadRadius, 0, C.leadLength, SEGMENTS.small);
-  lead.rotateX(Math.PI / 2);
+  lead.rotateX(-Math.PI / 2);
   lead.translate(0, C.height * 0.7, 0);
-  const poses = E.boreZ[s].map((z) => compose(bankPoint(s, coverTopA, 0, z), bankQuat(s)));
+  const poses = CYLINDERS.map((i) => capPose(s, i));
   return [{ geometry: merge([boot, cap, lead]), material: 'satinBlack', instances: poses }];
 }
 
