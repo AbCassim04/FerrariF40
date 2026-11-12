@@ -2,6 +2,7 @@ import { Stats } from '@react-three/drei';
 import { Suspense } from 'react';
 import { BodyModelSetup, EngineBayGhost } from '../body/BodyModel';
 import { SCENE } from '../config/scene';
+import { DevApi } from '../dev/DevApi';
 import { ExplodeController } from '../explode/ExplodeController';
 import { useAppStore } from '../state/store';
 import { CameraRig } from './CameraRig';
@@ -45,6 +46,7 @@ export function Experience() {
         {DEV && showGhost && <EngineBayGhost />}
       </Suspense>
       <CameraRig />
+      {DEV && <DevApi />}
       <PostEffects />
       {DEV && showGuides && <Guides />}
       {DEV && <Stats className="stats" />}

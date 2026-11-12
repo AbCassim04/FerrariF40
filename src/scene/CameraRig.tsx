@@ -14,6 +14,8 @@ type View = (typeof SCENE.views)[ViewName];
 const CAR = boxCorners(new Box3(new Vector3(-DIMS.body.halfWidth, 0, DIMS.body.rearZ), new Vector3(DIMS.body.halfWidth, DIMS.body.height, DIMS.body.frontZ)));
 /** Dev: `?snap=1` makes camera framing instant (review shots render too slowly for the ease). */
 const SNAP = import.meta.env.DEV && new URLSearchParams(location.search).get('snap') === '1';
+/** Whether framing moves ease; the dev API turns it off while it drives the camera. */
+export const cameraEase = { on: !SNAP };
 
 /**
  * A preset as a camera pose. Car presets keep their direction and frame the whole car in
@@ -101,7 +103,7 @@ export function CameraRig() {
     if (!view || !c) return;
     const area = freeArea(useAppStore.getState().selectedId !== null, size.width, size.height);
     // The very first request (from the URL) snaps; later ones ease.
-    pose(c, presetPose(SCENE.views[view.name], camera as PerspectiveCamera, area), view.seq > 0);
+    pose(c, presetPose(SCENE.views[view.name], camera as PerspectiveCamera, area), view.seq > 0 && cameraEase.on);
   }, [view]);
 
   useEffect(() => {
@@ -123,7 +125,7 @@ export function CameraRig() {
       saved.current.inspect = null;
     }
     const centreIn = (position: Vector3, target: Vector3) => centreOffset(position, target, cam, area);
-    const frame = (position: Vector3, target: Vector3, offset: Vector3) => pose(c, { position, target, offset }, !SNAP);
+    const frame = (position: Vector3, target: Vector3, offset: Vector3) => pose(c, { position, target, offset }, cameraEase.on);
     if (!fit.points) {
       // Back to the view from before this slot's first fit, exactly unless the panel is
       // (still) open; with none saved, stay and re-centre.

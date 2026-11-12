@@ -37,6 +37,8 @@ export function ExplodeController() {
     // Only real changes: StrictMode re-runs this effect on mount, which must not count as a click.
     if (!tl || shown.current === exploded) return;
     shown.current = exploded;
+    // Already there (the dev API posed the timeline directly): nothing to play or frame.
+    if (tl.progress() === (exploded ? 1 : 0) && !tl.isActive()) return;
     if (exploded) tl.play();
     else tl.reverse();
     const { requestCameraFit } = useAppStore.getState();

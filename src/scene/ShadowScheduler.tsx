@@ -16,8 +16,13 @@ const ALWAYS_LIVE = import.meta.env.DEV && new URLSearchParams(location.search).
  */
 export const useContactShadowTick = create<{ tick: number }>(() => ({ tick: 0 }));
 
-/** Dev readout: whether a shadow pass ran this frame. */
-export const shadowState = { live: false };
+/** Whether a shadow pass ran this frame (dev readout), and frames still to re-render. */
+export const shadowState = { live: false, pending: TAIL_FRAMES * 3 };
+
+/** Re-render the shadows for a few frames (after a pose change the timeline didn't animate). */
+export function refreshShadows() {
+  shadowState.pending = Math.max(shadowState.pending, TAIL_FRAMES);
+}
 
 type State = ReturnType<typeof useAppStore.getState>;
 /** Store keys that can't change the shadows; any other change re-renders them (an inspect ghosts the other parts, which then cast none). */
@@ -32,7 +37,6 @@ const INERT = (Object.keys(useAppStore.getState()) as (keyof State)[]).filter((k
  */
 export function ShadowScheduler() {
   const gl = useThree((s) => s.gl);
-  const pending = useRef(TAIL_FRAMES * 3); // first frames after everything has mounted
   const frame = useRef(0);
 
   useEffect(() => {
@@ -41,7 +45,7 @@ export function ShadowScheduler() {
     const unsubscribe = useAppStore.subscribe((now, prev) => {
       // Pointer and camera state (hover, framing) don't change what casts shadows.
       if (INERT.every((k) => now[k] === prev[k])) return;
-      pending.current = Math.max(pending.current, TAIL_FRAMES);
+      refreshShadows();
     });
     return () => {
       unsubscribe();
@@ -50,10 +54,10 @@ export function ShadowScheduler() {
   }, [gl]);
 
   useFrame(() => {
-    if (ALWAYS_LIVE || explodeTimeline.current?.isActive()) pending.current = Math.max(pending.current, TAIL_FRAMES);
-    shadowState.live = pending.current > 0;
+    if (ALWAYS_LIVE || explodeTimeline.current?.isActive()) refreshShadows();
+    shadowState.live = shadowState.pending > 0;
     if (!shadowState.live) return;
-    pending.current--;
+    shadowState.pending--;
     if (frame.current++ % 2 === 0) gl.shadowMap.needsUpdate = true;
     else useContactShadowTick.setState((s) => ({ tick: s.tick + 1 }));
   });

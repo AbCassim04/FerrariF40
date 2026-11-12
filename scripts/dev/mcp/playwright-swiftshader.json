@@ -1,0 +1,12 @@
+{
+  "browser": {
+    "browserName": "chromium",
+    "launchOptions": {
+      "executablePath": "/home/abcassim/.cache/ms-playwright/chromium_headless_shell-1234/chrome-headless-shell-linux64/chrome-headless-shell",
+      "headless": true,
+      "args": ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"]
+    },
+    "contextOptions": { "viewport": { "width": 1440, "height": 900 } }
+  },
+  "outputDir": "/home/abcassim/projects/ferrari-f40/docs/review"
+}
