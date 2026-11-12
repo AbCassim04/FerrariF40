@@ -18,7 +18,6 @@ export type MaterialKey =
   | 'rubber'
   | 'glass'
   | 'paint'
-  | 'hvOrange'
   | 'ceramic'
   | 'caliper'
   | 'radiator'
@@ -48,7 +47,6 @@ export const PALETTE = {
   steel: '#8d9096',
   rubber: '#121315',
   glass: '#0e1418',
-  hvOrange: '#ff6a00',
   ceramic: '#3a3c40',
   caliper: '#c8ccd2',
   radiator: '#2b2e33',
@@ -71,28 +69,47 @@ export const PALETTE = {
 } as const;
 
 /**
- * The engine-cover glass comes from the body model (a near-black, mirror-like tint). It is
- * retuned to a clear, faintly tinted pane so the engine reads through it.
- */
-/**
  * Body glass as reflection-only panes: `opacity` is how much of the view behind the pane
  * is absorbed; reflections are added on top at full strength (see tuneMaterials).
+ * The model's Lexan engine cover is an opaque near-black; it is retuned to a clear, faintly
+ * tinted pane so the engine reads through it and its louvres.
  */
-export const ENGINE_COVER_GLASS = { opacity: 0.12, roughness: 0.05, envMapIntensity: 0.25 } as const;
-/** Canopy and door glass: dark tint with reflections (no transmission pass). */
+export const ENGINE_COVER_GLASS = { opacity: 0.14, roughness: 0.06, envMapIntensity: 0.3 } as const;
+/** Windscreen and side windows: dark tint with reflections (no transmission pass). */
 export const CABIN_GLASS = { opacity: 0.62, roughness: 0.04, envMapIntensity: 1 } as const;
-/** Tail-light lenses: keep the model's red, plain alpha. */
-export const LAMP_GLASS = { opacity: 0.55 } as const;
+/** Clear lamp covers in the nose: nearly clear, so the lamps behind them read. */
+export const LAMP_COVER = { opacity: 0.2, roughness: 0.03, envMapIntensity: 0.8 } as const;
+/** Model glass materials by name: which pane each becomes. */
+export const MODEL_GLASS: Record<string, { opacity: number; roughness: number; envMapIntensity: number }> = {
+  'F40_Glass.001': ENGINE_COVER_GLASS,
+  F40_Window: CABIN_GLASS,
+  F40_Glass: CABIN_GLASS,
+  'F40_Window.001': LAMP_COVER,
+  F40_Headlights: LAMP_COVER,
+};
 /**
- * Body paint: the model's paints have no clear coat (one glossy layer, so reflections
- * stayed weak and the body read flat). A satin base coat under a near-mirror clear coat,
- * keyed by the model's material names. The red is a deep rosso with a weak base-coat
- * sheen: the model's brighter red, lit from above, went coral (ACES pushes very bright
- * reds toward orange, and the sheen added white).
+ * Finishes for model materials that leave out `metallicFactor` (glTF then defaults to 1)
+ * with roughness 0: perfect mirrors that show the studio HDRI as white. Keyed by name.
+ */
+export const MODEL_FINISH: Record<string, { metalness: number; roughness: number }> = {
+  F40_Mechanics: { metalness: 0.35, roughness: 0.55 },
+  F40_Tappetini: { metalness: 0, roughness: 0.9 },
+  F40_Carbon: { metalness: 0.2, roughness: 0.45 },
+  F40_Display: { metalness: 0.1, roughness: 0.5 },
+  F40_Estra: { metalness: 0.2, roughness: 0.6 },
+  F40_Grid: { metalness: 0.3, roughness: 0.6 },
+  F40_GridD: { metalness: 0.3, roughness: 0.6 },
+  F40_Brake: { metalness: 0.9, roughness: 0.45 },
+  F40_Rrims: { metalness: 1, roughness: 0.3 },
+};
+
+/**
+ * Body paint: a satin base coat under a near-mirror clear coat, keyed by the model's
+ * material name (its red is called "material"). Deep rosso with a weak base-coat sheen:
+ * brighter reds lit from above go coral under ACES.
  */
 export const BODY_PAINT: Record<string, { colour?: string; roughness: number; metalness: number; specularIntensity?: number; clearcoatRoughness: number }> = {
-  uv1MAT_Carpaint_Red1: { colour: '#b4000c', roughness: 0.4, metalness: 0.05, specularIntensity: 0.4, clearcoatRoughness: 0.03 },
-  uv1MAT_Car_Paint_Black1: { roughness: 0.28, metalness: 0.2, clearcoatRoughness: 0.03 },
+  material: { colour: '#b4000c', roughness: 0.4, metalness: 0.05, specularIntensity: 0.4, clearcoatRoughness: 0.03 },
 };
 
 const factories: Record<MaterialKey, () => Material> = {
@@ -136,7 +153,6 @@ const factories: Record<MaterialKey, () => Material> = {
       clearcoat: 1,
       clearcoatRoughness: 0.05,
     }),
-  hvOrange: () => new MeshStandardMaterial({ color: PALETTE.hvOrange, metalness: 0, roughness: 0.55 }),
   ceramic: () => new MeshStandardMaterial({ color: PALETTE.ceramic, metalness: 0.2, roughness: 0.75 }),
   caliper: () => new MeshStandardMaterial({ color: PALETTE.caliper, metalness: 0.3, roughness: 0.35 }),
   radiator: () => new MeshStandardMaterial({ color: PALETTE.radiator, metalness: 0.6, roughness: 0.5 }),
@@ -164,7 +180,7 @@ const factories: Record<MaterialKey, () => Material> = {
   gasket: () => new MeshStandardMaterial({ color: PALETTE.gasket, metalness: 0.85, roughness: 0.5 }),
   insulator: () => new MeshStandardMaterial({ color: PALETTE.insulator, metalness: 0, roughness: 0.35 }),
   satinBlack: () => new MeshStandardMaterial({ color: PALETTE.satinBlack, metalness: 0.3, roughness: 0.5 }),
-  /** Show carbon (plenum cover, airboxes): visible twill under a deep clearcoat. */
+  /** Show carbon: visible twill under a deep clearcoat. */
   carbonGloss: () => {
     const { map, roughness } = carbonWeaveTextures(6);
     return new MeshPhysicalMaterial({

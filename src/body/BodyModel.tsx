@@ -3,7 +3,7 @@ import { useEffect, useMemo } from 'react';
 import { Box3, Color, CustomBlending, DoubleSide, MeshBasicMaterial, MeshStandardMaterial, OneFactor, OneMinusSrcAlphaFactor, Vector3, type Mesh, type MeshPhysicalMaterial, type Object3D } from 'three';
 import { DIMS } from '../config/dims';
 import { asset } from '../lib/asset';
-import { BODY_PAINT, CABIN_GLASS, ENGINE_COVER_GLASS, LAMP_GLASS, modelEnvLevels } from '../materials/materials';
+import { BODY_PAINT, MODEL_FINISH, MODEL_GLASS, modelEnvLevels } from '../materials/materials';
 import { useAppStore } from '../state/store';
 
 /**
@@ -62,11 +62,14 @@ function tuneMaterials(nodes: Record<string, Object3D>) {
     node.traverse((o) => {
       for (const m of [(o as Mesh).material ?? []].flat() as MeshPhysicalMaterial[]) {
         if (done.has(m)) continue;
-        // Engine cover: clear, so the engine reads through it; cabin: dark tinted.
-        if (m.name === 'EngineCoverGlass') pane(m, ENGINE_COVER_GLASS);
-        else if (m.name === 'uv1MAT_Glass1') pane(m, CABIN_GLASS);
-        else if (m.name === 'red_glass') m.opacity = LAMP_GLASS.opacity;
-        else if (BODY_PAINT[m.name]) {
+        // Lexan engine cover: clear, so the engine reads through it; cabin glass: dark tinted.
+        if (MODEL_GLASS[m.name]) pane(m, MODEL_GLASS[m.name]);
+        else if (MODEL_FINISH[m.name]) {
+          Object.assign(m, MODEL_FINISH[m.name]);
+          done.add(m);
+          m.needsUpdate = true;
+          continue;
+        } else if (BODY_PAINT[m.name]) {
           const { colour, ...finish } = BODY_PAINT[m.name];
           Object.assign(m, finish, { clearcoat: 1 });
           if (colour) m.color.set(colour);
@@ -113,14 +116,14 @@ function logDiagnostics(nodes: Record<string, Object3D>, scene: Object3D) {
   console.table(rows);
 }
 
-// ─── Dev: the original engine-bay dressing as a placement guide (key B) ───────
+// ─── Dev: the model's stand-in powertrain as a placement guide (key B) ────────
 
-/** Name of the hidden node holding the model's stand-in engine-bay geometry. */
+/** Name of the hidden node holding the model's stand-in engine and powertrain. */
 const ENGINE_BAY_NODE = 'model-engine-bay';
 
 const GHOST_MATERIAL = new MeshBasicMaterial({ color: '#5fd0ff', transparent: true, opacity: 0.16, depthWrite: false, side: DoubleSide });
 
-/** Dev only: the original car's engine-bay dressing as a faint ghost, fixed in the bay. */
+/** Dev only: the model's stand-in engine and powertrain as a faint ghost, fixed in the bay. */
 export function EngineBayGhost() {
   const { nodes } = useBody();
   const object = useMemo(() => {

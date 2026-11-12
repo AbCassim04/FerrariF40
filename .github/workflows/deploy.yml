@@ -1,5 +1,5 @@
 # Builds the site and publishes it to GitHub Pages:
-# https://abcassim04.github.io/LaFerrari/ (the Pages source must be "GitHub Actions").
+# https://abcassim04.github.io/FerrariF40/ (the Pages source must be "GitHub Actions").
 name: Deploy to GitHub Pages
 
 on:

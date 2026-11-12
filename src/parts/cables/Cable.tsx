@@ -32,33 +32,16 @@ export interface CableStyle {
   clips: (length: number) => number[];
 }
 
-const H = DIMS.hvCable;
-
-/** Three orange strands twisted round each other, black clips every `clipSpacing`. */
-export const HV_STYLE: CableStyle = {
-  strands: 3,
-  strandRadius: H.strandRadius,
-  offset: H.bundleOffset,
-  twist: H.twist,
-  material: 'hvOrange',
-  clipMaterial: 'satinBlack',
-  clipWidth: H.clip[1],
-  clips: (length) => {
-    const n = Math.max(1, Math.floor(length / H.clipSpacing));
-    return Array.from({ length: n }, (_, c) => (c + 0.5) / n);
-  },
-};
-
 export interface CableRoute {
   id: string;
-  style?: CableStyle;
+  style: CableStyle;
   from: CableEnd;
   to: CableEnd;
   /** Assembled route between the ends (car coordinates). */
   via: readonly Vector3[];
   /**
    * How far the middle of the cable bows out (car axes) once its ends have separated by
-   * `slackGrowth` more than when assembled: keeps it outside the exploded parts.
+   * DIMS.cable.slackGrowth more than when assembled: keeps it outside the exploded parts.
    */
   slack: Vector3;
   /** Where along the cable (0…1) the slack peaks; default the middle. */
@@ -71,9 +54,9 @@ const R = SEGMENTS.cableRadial;
 const LEAD = 0.05;
 
 /**
- * Build for a cable or hose (by default an HV bundle: 3 orange strands twisted round each
- * other, with clips) that re-curves every frame between its two ends. Each assembled waypoint is carried along
- * by a blend of the two ends' displacements (by its position along the route), so the
+ * Build for a cable, hose or loom (one or more strands, with clips or clamps) that
+ * re-curves every frame between its two ends. Each assembled waypoint is carried along by
+ * a blend of the two ends' displacements (by its position along the route), so the
  * assembled route is exact and the cable follows its ends smoothly as they separate.
  */
 export function cableBuild(route: CableRoute) {
@@ -99,13 +82,13 @@ export function cableBuild(route: CableRoute) {
       </>
     );
   }
-  Build.displayName = `HvCable(${route.id})`;
+  Build.displayName = `Cable(${route.id})`;
   return Build;
 }
 
 function createCable(route: CableRoute) {
   const { from, to } = route;
-  const style = route.style ?? HV_STYLE;
+  const style = route.style;
   const STRANDS = style.strands;
   const leadA = from.at.clone().addScaledVector(from.dir, LEAD);
   const leadB = to.at.clone().addScaledVector(to.dir, LEAD);
@@ -170,7 +153,7 @@ function createCable(route: CableRoute) {
     last.b.copy(nowB);
     const dA = nowA.clone().sub(from.at);
     const dB = nowB.clone().sub(to.at);
-    const grown = MathUtils.clamp((nowA.distanceTo(nowB) - span) / DIMS.hvCable.slackGrowth, 0, 1);
+    const grown = MathUtils.clamp((nowA.distanceTo(nowB) - span) / DIMS.cable.slackGrowth, 0, 1);
     const points = assembled.map((p, i) =>
       p.clone().add(dA.clone().lerp(dB, share[i])).addScaledVector(route.slack, grown * Math.sin(Math.PI * share[i] ** slackPower)),
     );

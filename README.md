@@ -1,27 +1,28 @@
-# Exploded Hypercar
+# F40 Teardown
 
-An interactive 3D exploded view of a hybrid V12 hypercar in the browser: one click takes
-the car apart, layer by layer, down to the pistons.
+An interactive 3D exploded view of the Ferrari F40 in the browser: one click opens the rear
+clam like the real car and takes the twin-turbo V8 apart, layer by layer, down to the pistons.
 
-**Live:** https://abcassim04.github.io/LaFerrari/
-
-![Demo](docs/demo.gif)
+**Live:** https://abcassim04.github.io/FerrariF40/
 
 ## How it works
 - **Parts registry.** Every part is one entry in `src/parts/registry.ts`: its geometry,
-  assembled position, explode stage and offset, and the copy for its info panel. All
-  sizes live in one file (`src/config/dims.ts`), so nothing is a magic number.
-- **Procedural V12.** The engine is generated in code from the real figures: 65° bank
-  angle, 94 mm bore and 75.2 mm stroke (6262 cc). Crank throws, pistons at their real
-  phases, heads, valvetrain, intake and exhaust are all built from those, not modelled
-  by hand. The hybrid system, gearbox and cables are built the same way.
-- **Staged GSAP explode.** One timeline in five stages (about 5 s): the body panels lift
-  away, the wheels and suspension slide out, the powertrain rises out of the bay, the
-  engine comes apart outside-in, and the hybrid parts separate. Click again to reverse
-  it, even mid-way.
+  assembled position, explode stage and offset, and the copy for its info panel. All sizes
+  live in one file (`src/config/dims.ts`), so nothing is a magic number.
+- **Parametric engine.** The engine is generated in code from its figures: cylinder count,
+  bank angle, bore and stroke, crank layout (flat-plane or cross-plane), firing order, cam
+  drive and head proportions. Here it is the F40's 90° V8, 82 × 69.5 mm (2936 cc), with a
+  flat-plane crank firing 1-5-3-7-4-8-2-6; crank throws, pistons at their real phases, valve
+  lifts and every part's position are derived from those numbers.
+- **Staged GSAP explode.** One timeline in stages: the rear clam swings up about its tail
+  hinge to reveal the engine, the panels come away, the wheels slide out, the powertrain
+  rises out of the bay and the engine comes apart outside-in. Click again to reverse it, even
+  mid-way.
+- **Body pipeline.** A licensed body model is normalised to true scale and segmented into
+  parts by rules (cutting welded panels exactly along their shut lines); free space in the
+  engine bay is measured with BVH voxels.
 - **Clash checks.** A dev check tests real triangles (BVH-accelerated): every part against
-  the body model when assembled, every pair of parts at full explode, and sweeps at
-  chosen times mid-explode. Each part lists the contacts it's allowed.
+  the body when assembled, every pair of parts at full explode, and sweeps mid-explode.
 - Click any part for an info panel; X-ray turns the body into ghost shells.
 
 ## Tech stack
@@ -41,12 +42,12 @@ npm run build
 ```
 
 ## Credits & licences
-- **Car body model:** ["2014 Ferrari LaFerrari"](https://sketchfab.com/3d-models/2014-ferrari-laferrari-8b46fa49718647de846387ef4c1e95b3)
-  by [Ddiaz Design](https://sketchfab.com/ddiaz-design) (Sketchfab),
-  [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/), modified
-  (segmented into parts, rescaled, compressed). See `public/models/LICENSE.md`.
+- **Car body model:** ["Ferrari f40"](https://sketchfab.com/3d-models/ferrari-f40-52a66c41cfcd4f999fb1b1c49bf24d70)
+  by [Black Snow](https://sketchfab.com/BlackSnow02) (Sketchfab),
+  [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), modified (segmented into
+  parts, rescaled, compressed). See `public/models/LICENSE.md`.
 - **Studio lighting:** ["Studio Small 09"](https://polyhaven.com/a/studio_small_09) by
   Sergej Majboroda (Poly Haven), CC0.
-- Independent fan project. Not affiliated with or endorsed by Ferrari S.p.A. Ferrari and
-  LaFerrari are trademarks of Ferrari S.p.A.
+- Independent fan project. Not affiliated with or endorsed by Ferrari S.p.A. Ferrari and F40
+  are trademarks of Ferrari S.p.A.
 - **Code:** all rights reserved, see [LICENSE](LICENSE).

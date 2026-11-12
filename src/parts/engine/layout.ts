@@ -15,7 +15,7 @@ export type Side = 'l' | 'r';
 export const SIDES: readonly Side[] = ['l', 'r'];
 export const sideSign = (s: Side) => (s === 'l' ? 1 : -1);
 export const sideName = (s: Side) => (s === 'l' ? 'left' : 'right');
-export const PER_BANK = E.cylinders / 2;
+export const PER_BANK = E.perBank;
 export const CYLINDERS = Array.from({ length: PER_BANK }, (_, i) => i);
 
 /** Bank axis angle from vertical, positive toward +x (the car's left). */
@@ -106,11 +106,41 @@ export function rodMatrix(s: Side, i: number) {
 const CYCLE = Math.PI * 4;
 const wrap = (v: number, m: number) => ((v % m) + m) % m;
 
-/** Crank angle of cylinder i's firing TDC (within the 720° cycle). */
+/** Cylinder number of bank s, index i (counted from the timing end). */
+export const cylinderNumber = (s: Side, i: number) => E.firstCylinder[s] + i;
+
+/** Crank angle at which cylinder (s, i) is at TDC: its throw points up its bank axis. */
+const tdcAngle = (s: Side, i: number) => bankTilt(s) - E.throwAngles[i];
+
+/**
+ * Crank angle of each cylinder's firing TDC within the 720° cycle, from the engine-wide
+ * firing order: each cylinder fires at its first TDC after the previous one in the order.
+ * Works for any crank layout and bank angle (even or uneven firing).
+ */
+const FIRING: ReadonlyMap<string, number> = (() => {
+  const numbers = SIDES.flatMap((s) => CYLINDERS.map((i) => ({ s, i, n: cylinderNumber(s, i) })));
+  const order = E.firingOrder;
+  if (order.length !== numbers.length || numbers.some(({ n }) => order.filter((m) => m === n).length !== 1)) {
+    throw new Error(`engine: firing order ${order.join('-')} doesn't list cylinders ${numbers.map((c) => c.n).join(', ')} once each`);
+  }
+  const out = new Map<string, number>();
+  let first = NaN;
+  let prev = -Infinity;
+  for (const n of order) {
+    const { s, i } = numbers.find((c) => c.n === n)!;
+    let a = wrap(tdcAngle(s, i), Math.PI * 2);
+    while (a <= prev + 1e-9) a += Math.PI * 2;
+    out.set(`${s}${i}`, a);
+    if (Number.isNaN(first)) first = a;
+    prev = a;
+  }
+  if (prev - first >= CYCLE) throw new Error(`engine: firing order ${order.join('-')} doesn't fit one 720° cycle for this crank`);
+  return out;
+})();
+
+/** Crank angle of cylinder (s, i)'s firing TDC (within the 720° cycle). */
 export function firingAngle(s: Side, i: number) {
-  const order = E.bankFiringOrder;
-  const p = order.indexOf(i + 1);
-  return bankTilt(s) - E.throwAngles[order[0] - 1] + p * (CYCLE / PER_BANK);
+  return FIRING.get(`${s}${i}`)!;
 }
 
 export type ValveKind = 'intake' | 'exhaust';

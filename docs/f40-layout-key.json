@@ -1,0 +1,1090 @@
+[
+ {
+  "n": 1,
+  "fig": 1,
+  "id": "engine-block",
+  "group": "built",
+  "mirror": false,
+  "x": [
+   -0.135,
+   0.135
+  ],
+  "y": [
+   0.194,
+   0.4458928118201537
+  ],
+  "z": [
+   -0.8580000000000001,
+   -0.462
+  ],
+  "via": "",
+  "hits": [],
+  "contacts": [],
+  "standin": false
+ },
+ {
+  "n": 2,
+  "fig": 1,
+  "id": "heads + cam covers",
+  "group": "built",
+  "mirror": false,
+  "x": [
+   -0.31123304973925886,
+   0.31123304973925886
+  ],
+  "y": [
+   0.3278059793620003,
+   0.5812330497392589
+  ],
+  "z": [
+   -0.8580000000000001,
+   -0.462
+  ],
+  "via": "",
+  "hits": [],
+  "contacts": [],
+  "standin": false
+ },
+ {
+  "n": 3,
+  "fig": 1,
+  "id": "belt cover + belts",
+  "group": "built",
+  "mirror": false,
+  "x": [
+   -0.31123304973925886,
+   0.31123304973925886
+  ],
+  "y": [
+   0.21000000000000002,
+   0.5812330497392589
+  ],
+  "z": [
+   -0.462,
+   -0.4
+  ],
+  "via": "",
+  "hits": [],
+  "contacts": [],
+  "standin": false
+ },
+ {
+  "n": 4,
+  "fig": 1,
+  "id": "dry-sump-pan",
+  "group": "built",
+  "mirror": false,
+  "x": [
+   -0.145,
+   0.145
+  ],
+  "y": [
+   0.15400000000000003,
+   0.194
+  ],
+  "z": [
+   -0.8580000000000001,
+   -0.462
+  ],
+  "via": "",
+  "hits": [],
+  "contacts": [],
+  "standin": false
+ },
+ {
+  "n": 5,
+  "fig": 1,
+  "id": "intake-plenum",
+  "group": "intake",
+  "mirror": false,
+  "x": [
+   -0.12,
+   0.12
+  ],
+  "y": [
+   0.58,
+   0.74
+  ],
+  "z": [
+   -0.86,
+   -0.47
+  ],
+  "via": "in the V, under the shelf (0.79) and the Lexan",
+  "hits": [],
+  "contacts": [],
+  "standin": false
+ },
+ {
+  "n": 6,
+  "fig": 1,
+  "id": "intake-runners",
+  "group": "intake",
+  "mirror": true,
+  "x": [
+   0.02,
+   0.13
+  ],
+  "y": [
+   0.42,
+   0.62
+  ],
+  "z": [
+   -0.83,
+   -0.5
+  ],
+  "via": "one per port, into the plenum",
+  "hits": [],
+  "contacts": [],
+  "standin": false
+ },
+ {
+  "n": 7,
+  "fig": 1,
+  "id": "throttle-bodies",
+  "group": "intake",
+  "mirror": false,
+  "x": [
+   -0.1,
+   0.1
+  ],
+  "y": [
+   0.6,
+   0.72
+  ],
+  "z": [
+   -0.95,
+   -0.86
+  ],
+  "via": "rear of the plenum, fed by the intercooler pipes",
+  "hits": [],
+  "contacts": [],
+  "standin": false
+ },
+ {
+  "n": 8,
+  "fig": 1,
+  "id": "fuel-rail",
+  "group": "intake",
+  "mirror": true,
+  "x": [
+   0.04,
+   0.12
+  ],
+  "y": [
+   0.46,
+   0.54
+  ],
+  "z": [
+   -0.84,
+   -0.5
+  ],
+  "via": "",
+  "hits": [],
+  "contacts": [],
+  "standin": false
+ },
+ {
+  "n": 9,
+  "fig": 1,
+  "id": "distributor",
+  "group": "engine",
+  "mirror": true,
+  "x": [
+   0.06,
+   0.16
+  ],
+  "y": [
+   0.62,
+   0.72
+  ],
+  "z": [
+   -0.92,
+   -0.84
+  ],
+  "via": "est: driven off each bank’s cam at the flywheel end",
+  "hits": [],
+  "contacts": [],
+  "standin": false
+ },
+ {
+  "n": 10,
+  "fig": 1,
+  "id": "alternator",
+  "group": "engine",
+  "mirror": false,
+  "x": [
+   0.12,
+   0.26
+  ],
+  "y": [
+   0.14,
+   0.27
+  ],
+  "z": [
+   -0.47,
+   -0.4
+  ],
+  "via": "belt-driven at the timing end, low on the left",
+  "hits": [],
+  "contacts": [],
+  "standin": false
+ },
+ {
+  "n": 11,
+  "fig": 1,
+  "id": "oil-tank",
+  "group": "engine",
+  "mirror": false,
+  "x": [
+   0.34,
+   0.44
+  ],
+  "y": [
+   0.47,
+   0.72
+  ],
+  "z": [
+   -1.08,
+   -0.8
+  ],
+  "via": "open question: position not found; proposed beside the left bank, above the manifold",
+  "hits": [],
+  "contacts": [],
+  "standin": false
+ },
+ {
+  "n": 12,
+  "fig": 1,
+  "id": "exhaust-manifold",
+  "group": "exhaust",
+  "mirror": true,
+  "x": [
+   0.22,
+   0.4
+  ],
+  "y": [
+   0.2,
+   0.45
+  ],
+  "z": [
+   -1.2,
+   -0.47
+  ],
+  "via": "4-into-1, outboard and below each bank, back to its turbo",
+  "hits": [],
+  "contacts": [],
+  "standin": true
+ },
+ {
+  "n": 13,
+  "fig": 1,
+  "id": "turbocharger",
+  "group": "turbo",
+  "mirror": true,
+  "x": [
+   0.24,
+   0.46
+  ],
+  "y": [
+   0.36,
+   0.6
+  ],
+  "z": [
+   -1.42,
+   -1.18
+  ],
+  "via": "ghost turbos, moved inboard of the rear coilovers",
+  "hits": [],
+  "contacts": [],
+  "standin": true
+ },
+ {
+  "n": 14,
+  "fig": 1,
+  "id": "wastegate",
+  "group": "turbo",
+  "mirror": true,
+  "x": [
+   0.2,
+   0.28
+  ],
+  "y": [
+   0.36,
+   0.48
+  ],
+  "z": [
+   -1.56,
+   -1.44
+  ],
+  "via": "one per turbo (mitorosso says one valve: open question)",
+  "hits": [],
+  "contacts": [],
+  "standin": false
+ },
+ {
+  "n": 15,
+  "fig": 1,
+  "id": "intercooler",
+  "group": "turbo",
+  "mirror": true,
+  "x": [
+   0.2,
+   0.58
+  ],
+  "y": [
+   0.6,
+   0.78
+  ],
+  "z": [
+   -1.64,
+   -1.42
+  ],
+  "via": "ghost intercoolers, over the turbos, under the rear deck",
+  "hits": [],
+  "contacts": [],
+  "standin": false
+ },
+ {
+  "n": 16,
+  "fig": 1,
+  "id": "charge-pipes",
+  "group": "turbo",
+  "mirror": true,
+  "x": [
+   0.03,
+   0.26
+  ],
+  "y": [
+   0.52,
+   0.66
+  ],
+  "z": [
+   -1.42,
+   -0.92
+  ],
+  "via": "compressor → intercooler → throttle bodies, over the gearbox",
+  "hits": [],
+  "contacts": [],
+  "standin": true
+ },
+ {
+  "n": 17,
+  "fig": 1,
+  "id": "downpipe",
+  "group": "exhaust",
+  "mirror": true,
+  "x": [
+   0.18,
+   0.34
+  ],
+  "y": [
+   0.3,
+   0.46
+  ],
+  "z": [
+   -1.7,
+   -1.42
+  ],
+  "via": "",
+  "hits": [],
+  "contacts": [],
+  "standin": true
+ },
+ {
+  "n": 18,
+  "fig": 1,
+  "id": "silencer",
+  "group": "exhaust",
+  "mirror": false,
+  "x": [
+   -0.34,
+   0.34
+  ],
+  "y": [
+   0.46,
+   0.7
+  ],
+  "z": [
+   -1.88,
+   -1.7
+  ],
+  "via": "ghost silencer box across the tail",
+  "hits": [],
+  "contacts": [],
+  "standin": false
+ },
+ {
+  "n": 19,
+  "fig": 1,
+  "id": "tailpipes",
+  "group": "exhaust",
+  "mirror": false,
+  "x": [
+   -0.25,
+   0.25
+  ],
+  "y": [
+   0.33,
+   0.5
+  ],
+  "z": [
+   -2.1,
+   -1.84
+  ],
+  "via": "three: two from the silencer, the centre one from the wastegates",
+  "hits": [],
+  "contacts": [
+   "rear-clam"
+  ],
+  "standin": false
+ },
+ {
+  "n": 20,
+  "fig": 1,
+  "id": "flywheel+twin-plate-clutch",
+  "group": "transmission",
+  "mirror": false,
+  "x": [
+   -0.12,
+   0.12
+  ],
+  "y": [
+   0.15000000000000002,
+   0.39
+  ],
+  "z": [
+   -0.96,
+   -0.86
+  ],
+  "via": "behind the block, on the crank axis",
+  "hits": [],
+  "contacts": [],
+  "standin": false
+ },
+ {
+  "n": 21,
+  "fig": 1,
+  "id": "bellhousing",
+  "group": "transmission",
+  "mirror": false,
+  "x": [
+   -0.16,
+   0.16
+  ],
+  "y": [
+   0.14,
+   0.42
+  ],
+  "z": [
+   -1,
+   -0.86
+  ],
+  "via": "",
+  "hits": [],
+  "contacts": [],
+  "standin": false
+ },
+ {
+  "n": 22,
+  "fig": 1,
+  "id": "gearbox-casing",
+  "group": "transmission",
+  "mirror": false,
+  "x": [
+   -0.17,
+   0.17
+  ],
+  "y": [
+   0.25,
+   0.5
+  ],
+  "z": [
+   -1.8,
+   -1
+  ],
+  "via": "ghost gearbox: 5-speed, diff on the axle line; over the diffuser",
+  "hits": [],
+  "contacts": [],
+  "standin": true
+ },
+ {
+  "n": 23,
+  "fig": 1,
+  "id": "lsd",
+  "group": "transmission",
+  "mirror": false,
+  "x": [
+   -0.13,
+   0.13
+  ],
+  "y": [
+   0.2,
+   0.44
+  ],
+  "z": [
+   -1.34,
+   -1.11
+  ],
+  "via": "limited-slip diff on the rear axle line",
+  "hits": [],
+  "contacts": [],
+  "standin": false
+ },
+ {
+  "n": 24,
+  "fig": 1,
+  "id": "driveshaft",
+  "group": "transmission",
+  "mirror": true,
+  "x": [
+   0.19,
+   0.66
+  ],
+  "y": [
+   0.28,
+   0.37
+  ],
+  "z": [
+   -1.27,
+   -1.18
+  ],
+  "via": "diff flange to the hub, near horizontal (wheel centre 0.325)",
+  "hits": [],
+  "contacts": [],
+  "standin": false
+ },
+ {
+  "n": 25,
+  "fig": 1,
+  "id": "gearbox-oil-cooler",
+  "group": "transmission",
+  "mirror": false,
+  "x": [
+   0.24,
+   0.36
+  ],
+  "y": [
+   0.28,
+   0.36
+  ],
+  "z": [
+   -1.72,
+   -1.58
+  ],
+  "via": "ref: left side",
+  "hits": [],
+  "contacts": [],
+  "standin": true
+ },
+ {
+  "n": 26,
+  "fig": 1,
+  "id": "ecu",
+  "group": "engine",
+  "mirror": true,
+  "x": [
+   0.34,
+   0.41
+  ],
+  "y": [
+   0.5,
+   0.66
+  ],
+  "z": [
+   -0.74,
+   -0.55
+  ],
+  "via": "est: high on the bay walls, ahead of the oil tank",
+  "hits": [],
+  "contacts": [],
+  "standin": false
+ },
+ {
+  "n": 27,
+  "fig": 2,
+  "id": "engine-block",
+  "group": "built",
+  "mirror": false,
+  "x": [
+   -0.135,
+   0.135
+  ],
+  "y": [
+   0.194,
+   0.4458928118201537
+  ],
+  "z": [
+   -0.8580000000000001,
+   -0.462
+  ],
+  "via": "",
+  "hits": [],
+  "contacts": [],
+  "standin": false
+ },
+ {
+  "n": 28,
+  "fig": 2,
+  "id": "heads + cam covers",
+  "group": "built",
+  "mirror": false,
+  "x": [
+   -0.31123304973925886,
+   0.31123304973925886
+  ],
+  "y": [
+   0.3278059793620003,
+   0.5812330497392589
+  ],
+  "z": [
+   -0.8580000000000001,
+   -0.462
+  ],
+  "via": "",
+  "hits": [],
+  "contacts": [],
+  "standin": false
+ },
+ {
+  "n": 29,
+  "fig": 2,
+  "id": "gearbox-casing",
+  "group": "transmission",
+  "mirror": false,
+  "x": [
+   -0.17,
+   0.17
+  ],
+  "y": [
+   0.25,
+   0.5
+  ],
+  "z": [
+   -1.8,
+   -1
+  ],
+  "via": "ghost gearbox: 5-speed, diff on the axle line; over the diffuser",
+  "hits": [],
+  "contacts": [],
+  "standin": true
+ },
+ {
+  "n": 30,
+  "fig": 2,
+  "id": "driveshaft",
+  "group": "transmission",
+  "mirror": true,
+  "x": [
+   0.19,
+   0.66
+  ],
+  "y": [
+   0.28,
+   0.37
+  ],
+  "z": [
+   -1.27,
+   -1.18
+  ],
+  "via": "diff flange to the hub, near horizontal (wheel centre 0.325)",
+  "hits": [],
+  "contacts": [],
+  "standin": false
+ },
+ {
+  "n": 31,
+  "fig": 2,
+  "id": "shift-linkage",
+  "group": "transmission",
+  "mirror": false,
+  "x": [
+   0,
+   0.08
+  ],
+  "y": [
+   0.16,
+   0.26
+  ],
+  "z": [
+   -1,
+   0.25
+  ],
+  "via": "gate to selector along the tunnel",
+  "hits": [],
+  "contacts": [
+   "body-shell",
+   "interior"
+  ],
+  "standin": false
+ },
+ {
+  "n": 32,
+  "fig": 2,
+  "id": "frame-rear-lower-rail",
+  "group": "chassis",
+  "mirror": true,
+  "x": [
+   0.3,
+   0.35
+  ],
+  "y": [
+   0.12,
+   0.17
+  ],
+  "z": [
+   -2,
+   -0.32
+  ],
+  "via": "stand-in rail; runs on through the bulkhead",
+  "hits": [],
+  "contacts": [
+   "body-shell"
+  ],
+  "standin": true
+ },
+ {
+  "n": 33,
+  "fig": 2,
+  "id": "frame-rear-upper-rail",
+  "group": "chassis",
+  "mirror": true,
+  "x": [
+   0.41,
+   0.46
+  ],
+  "y": [
+   0.39,
+   0.45
+  ],
+  "z": [
+   -2,
+   -0.36
+  ],
+  "via": "stand-in rail moved outboard of the exhaust manifold; through the bulkhead",
+  "hits": [],
+  "contacts": [
+   "body-shell"
+  ],
+  "standin": true
+ },
+ {
+  "n": 34,
+  "fig": 2,
+  "id": "frame-axle-crossmember",
+  "group": "chassis",
+  "mirror": false,
+  "x": [
+   -0.42,
+   0.42
+  ],
+  "y": [
+   0.72,
+   0.76
+  ],
+  "z": [
+   -1.32,
+   -1.27
+  ],
+  "via": "stand-in crossmember over the axle",
+  "hits": [],
+  "contacts": [],
+  "standin": true
+ },
+ {
+  "n": 35,
+  "fig": 2,
+  "id": "rear-coilover",
+  "group": "suspension",
+  "mirror": true,
+  "x": [
+   0.47,
+   0.6
+  ],
+  "y": [
+   0.24,
+   0.78
+  ],
+  "z": [
+   -1.3,
+   -1.2
+  ],
+  "via": "stand-in coilover",
+  "hits": [],
+  "contacts": [],
+  "standin": true
+ },
+ {
+  "n": 36,
+  "fig": 2,
+  "id": "rear-wishbones",
+  "group": "suspension",
+  "mirror": true,
+  "x": [
+   0.3,
+   0.6
+  ],
+  "y": [
+   0.16,
+   0.5
+  ],
+  "z": [
+   -1.42,
+   -1.15
+  ],
+  "via": "behind the bay liner (ends z −1.14); ball joints inside the rim",
+  "hits": [],
+  "contacts": [],
+  "standin": true
+ },
+ {
+  "n": 37,
+  "fig": 2,
+  "id": "rear-upright",
+  "group": "suspension",
+  "mirror": true,
+  "x": [
+   0.62,
+   0.72
+  ],
+  "y": [
+   0.18,
+   0.5
+  ],
+  "z": [
+   -1.32,
+   -1.13
+  ],
+  "via": "",
+  "hits": [],
+  "contacts": [],
+  "standin": true
+ },
+ {
+  "n": 38,
+  "fig": 2,
+  "id": "brake-caliper-rear",
+  "group": "suspension",
+  "mirror": true,
+  "x": [
+   0.68,
+   0.74
+  ],
+  "y": [
+   0.36,
+   0.46
+  ],
+  "z": [
+   -1.36,
+   -1.17
+  ],
+  "via": "4-piston, straddling the disc’s upper rear",
+  "hits": [],
+  "contacts": [
+   "brake-disc-rl",
+   "brake-disc-rr"
+  ],
+  "standin": true
+ },
+ {
+  "n": 39,
+  "fig": 2,
+  "id": "frame-roll-structure",
+  "group": "chassis",
+  "mirror": false,
+  "x": [
+   -0.45,
+   0.45
+  ],
+  "y": [
+   0.15,
+   1.02
+  ],
+  "z": [
+   -0.38,
+   -0.32
+  ],
+  "via": "hoop behind the seats, inside the bulkhead",
+  "hits": [],
+  "contacts": [
+   "body-shell",
+   "interior"
+  ],
+  "standin": true
+ },
+ {
+  "n": 40,
+  "fig": 2,
+  "id": "frame-front-rail",
+  "group": "chassis",
+  "mirror": true,
+  "x": [
+   0.38,
+   0.43
+  ],
+  "y": [
+   0.13,
+   0.18
+  ],
+  "z": [
+   0.75,
+   2
+  ],
+  "via": "est: under the footwell and the front compartment",
+  "hits": [],
+  "contacts": [
+   "body-shell",
+   "interior"
+  ],
+  "standin": false
+ },
+ {
+  "n": 41,
+  "fig": 2,
+  "id": "front-wishbones",
+  "group": "suspension",
+  "mirror": true,
+  "x": [
+   0.47,
+   0.66
+  ],
+  "y": [
+   0.18,
+   0.51
+  ],
+  "z": [
+   1.15,
+   1.4
+  ],
+  "via": "stand-in wishbones, through the wheelhouse liner",
+  "hits": [],
+  "contacts": [
+   "body-shell",
+   "wheel-fl",
+   "wheel-fr"
+  ],
+  "standin": true
+ },
+ {
+  "n": 42,
+  "fig": 2,
+  "id": "front-coilover",
+  "group": "suspension",
+  "mirror": true,
+  "x": [
+   0.52,
+   0.62
+  ],
+  "y": [
+   0.26,
+   0.62
+  ],
+  "z": [
+   1.18,
+   1.27
+  ],
+  "via": "stand-in coilover, through the wheelhouse liner",
+  "hits": [],
+  "contacts": [
+   "body-shell"
+  ],
+  "standin": true
+ },
+ {
+  "n": 43,
+  "fig": 2,
+  "id": "front-upright",
+  "group": "suspension",
+  "mirror": true,
+  "x": [
+   0.64,
+   0.73
+  ],
+  "y": [
+   0.2,
+   0.47
+  ],
+  "z": [
+   1.13,
+   1.33
+  ],
+  "via": "",
+  "hits": [],
+  "contacts": [
+   "body-shell"
+  ],
+  "standin": true
+ },
+ {
+  "n": 44,
+  "fig": 2,
+  "id": "brake-caliper-front",
+  "group": "suspension",
+  "mirror": true,
+  "x": [
+   0.69,
+   0.75
+  ],
+  "y": [
+   0.36,
+   0.43
+  ],
+  "z": [
+   1.07,
+   1.26
+  ],
+  "via": "4-piston, straddling the disc",
+  "hits": [],
+  "contacts": [
+   "body-shell",
+   "brake-disc-fl",
+   "brake-disc-fr"
+  ],
+  "standin": true
+ },
+ {
+  "n": 45,
+  "fig": 2,
+  "id": "steering-rack",
+  "group": "suspension",
+  "mirror": false,
+  "x": [
+   -0.4,
+   0.4
+  ],
+  "y": [
+   0.29,
+   0.36
+  ],
+  "z": [
+   1.32,
+   1.39
+  ],
+  "via": "stand-in tie rods",
+  "hits": [],
+  "contacts": [],
+  "standin": false
+ },
+ {
+  "n": 46,
+  "fig": 2,
+  "id": "radiator",
+  "group": "cooling",
+  "mirror": false,
+  "x": [
+   -0.36,
+   0.36
+  ],
+  "y": [
+   0.22,
+   0.42
+  ],
+  "z": [
+   2,
+   2.12
+  ],
+  "via": "stand-in radiator in the nose",
+  "hits": [],
+  "contacts": [],
+  "standin": true
+ }
+]

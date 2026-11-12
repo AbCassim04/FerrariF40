@@ -14,7 +14,6 @@ export type PartGroup =
   | 'suspension'
   | 'wheels'
   | 'engine'
-  | 'hybrid'
   | 'transmission'
   | 'cooling'
   | 'exhaust';

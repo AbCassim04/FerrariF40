@@ -5,8 +5,9 @@
  * Units: metres and radians. Car coordinates: origin on the ground under the centre
  * of the wheelbase, +Z forward, +Y up, +X toward the car's LEFT.
  *
- * Inputs are tagged (ref) = real reference figure, (est) = estimate to refine.
- * Everything under "Derived" is computed from the inputs; edit the inputs instead.
+ * Inputs are tagged (ref) = real reference figure (mitorosso.com unless noted),
+ * (model) = measured from the licensed body model (docs/body-report.md), (est) = estimate
+ * to refine. Everything under "Derived" is computed from the inputs; edit the inputs instead.
  */
 
 export type Vec3 = readonly [number, number, number];
@@ -42,217 +43,265 @@ function box(x: [number, number], y: [number, number], z: [number, number]): Box
 
 // ─── Inputs ──────────────────────────────────────────────────────────────────
 
-/** (ref) Real-car figures; the body model measures slightly differently (see `model`). */
-const overall = { length: 4.702, width: 1.992, height: 1.116 };
-const groundClearance = 0.104; // (ref)
+/** (ref) Real-car figures. The body model is scaled to the wheelbase; its other measures differ a little (see `model`). */
+const reference = {
+  length: 4.43,
+  width: 1.98,
+  height: 1.13,
+  wheelbase: 2.45,
+  track: { front: 1.594, rear: 1.61 },
+  massKg: 1100,
+};
 
 /**
  * (model) Measured from the licensed body model by `npm run prep:body`; see
- * docs/body-report.md. Re-run and update these if the model changes (BodyModel also
- * warns in dev when the wheels drift from DIMS). Where the model differed from the
- * reference by < 3 cm, the model's value is adopted so our parts meet its wheels.
+ * docs/body-report.md. The model is scaled uniformly so its wheelbase is the real 2.450 m
+ * and keeps its modelled proportions. Measured values within 3 cm of the reference are
+ * adopted; the rest are logged in docs/BRIEF.md. Geometry that meets the model (suspension
+ * to its wheels, parts inside its bay) always follows the model's own measurements.
+ * Re-run the prep and update these if the model changes (BodyModel also warns in dev when
+ * the wheels drift from DIMS).
  */
 const model = {
-  /** Adopted; reference 2.650 (Δ +5 mm). */
-  wheelbase: 2.655,
-  /** Adopted, at tyre centreline; reference 1.680 / 1.610 (Δ +13 / +12 mm). */
-  track: { front: 1.6931, rear: 1.6224 },
-  /** Wheel-centre heights with the tyre contact patch on y = 0. */
-  wheelCentreY: { front: 0.3241, rear: 0.3602 },
-  /** Body extents (half width includes the mirrors). */
-  extents: { frontZ: 2.5276, rearZ: -2.1962, halfWidth: 1.0573, height: 1.1053 },
-  /** Left door hinge: door bbox centre x, top y, front z. The right door mirrors it. */
-  doorHinge: [0.5872, 1.105, 1.1797] as Vec3,
-  /** Engine-cover hinge: centre of its front (top) edge, from its bbox. */
-  engineCoverHinge: [0, 1.0391, -0.5615] as Vec3,
+  /** Exact: the scale is fitted to it. */
+  wheelbase: 2.45,
+  /** At the tyre centreline. Front Δ −28 mm (adopted); rear Δ −47 mm (not adopted: reference kept for the specs). */
+  track: { front: 1.5656, rear: 1.5627 },
+  /** Wheel-centre heights with the tyre contact patch on y = 0. The model uses one tyre size all round (Ø 650 mm). */
+  wheelCentreY: { front: 0.3249, rear: 0.3249 },
+  tyreRadius: 0.3249,
+  /** Body extents: L 4.399 (Δ −31), W 1.950 excl. mirrors (Δ −30), H 1.138 (Δ +8); half width incl. mirrors. */
+  extents: { frontZ: 2.287, rearZ: -2.1116, halfWidth: 1.0275, bodyWidth: 1.9503, height: 1.1378 },
+  /** Doors hinge on a near-vertical axis at their front edge (left door; the right mirrors it). */
+  doorHinge: [0.9, 0.55, 0.77] as Vec3,
+  /** Front clam: hinged at the nose, opens upward from the back. */
+  frontClamHinge: [0, 0.34, 2.17] as Vec3,
+  /** Rear clam: hinged at the tail, opens upward from the front (the Lexan cover with it). */
+  rearClamHinge: [0, 0.8, -2.07] as Vec3,
+  /** Top of the Lexan engine cover over the middle of the bay. */
+  lexanY: 1.04,
   /**
-   * Free space for the powertrain, as boxes with no model geometry inside (2 cm voxels).
-   * Bounded by the firewall (rearmost cabin structure spanning both seats, z −0.338),
-   * the engine-cover glass above, the floor pan below and the bay side walls. The bay
-   * narrows at the top front (roof-intake ducts), hence a tall core plus a wide lower box.
+   * Free space for the powertrain, as boxes with no fixed bodywork inside (2 cm voxels),
+   * grown from the rear-axle plane. Bounded by the bay liner's front wall (the bulkhead
+   * behind the seats), its side walls, the shelf under the cabin's rear window (y ≈ 0.80),
+   * the Lexan above and the floor. The model's stand-in frame rails and suspension are left
+   * out: our spaceframe and suspension replace them.
    */
-  firewallZ: -0.338,
-  engineBay: { halfWidth: 0.34, y: [0.13, 0.75], z: [-1.328, -0.348] } as BayInput,
-  engineBayWide: { halfWidth: 0.48, y: [0.13, 0.59], z: [-1.328, -0.588] } as BayInput,
-  /** Behind the rear-axle plane, under the rear deck and above the diffuser. */
-  transaxleBay: { halfWidth: 0.5, y: [0.21, 0.65], z: [-1.768, -1.328] } as BayInput,
-  /** Exhaust openings in the rear bodywork: tip centres (x, both sides), height, exit face, diameter. */
-  exhaustOpenings: { x: [0.643, 0.752], y: 0.324, exitZ: -2.07, diameter: 0.122 },
+  firewallZ: -0.37,
+  engineBay: { halfWidth: 0.4, y: [0.13, 0.79], z: [-1.225, -0.525] } as BayInput,
+  engineBayTall: { halfWidth: 0.4, y: [0.13, 0.97], z: [-1.225, -0.645] } as BayInput,
+  /** Behind the rear-axle plane, between the rear wheels, above the diffuser. */
+  transaxleBay: { halfWidth: 0.6, y: [0.31, 0.79], z: [-1.965, -1.225] } as BayInput,
+  /** Bay liner side walls (x) along the engine bay, and where the liner ends at the back. */
+  bayWallX: 0.5,
+  bayLinerRearZ: -1.14,
 };
-const { wheelbase, track } = model;
 
 const tyreSize = {
-  front: { widthMm: 265, aspectPct: 30, rimIn: 19 }, // (ref)
-  rear: { widthMm: 345, aspectPct: 30, rimIn: 20 }, // (ref)
+  front: { widthMm: 245, aspectPct: 40, rimIn: 17 }, // (ref)
+  rear: { widthMm: 335, aspectPct: 35, rimIn: 17 }, // (ref)
 } satisfies Record<'front' | 'rear', TyreSize>;
 
-const rimWidthIn = { front: 9.5, rear: 13 }; // (est)
-const tyreShoulderRadius = mm(22); // (est) tread-to-sidewall fillet
+const rimWidthIn = { front: 8, rear: 13 }; // (ref)
+const tyreShoulderRadius = mm(20); // (est) tread-to-sidewall fillet
 
-const brakeDiscDiameter = { front: mm(398), rear: mm(380) }; // (ref)
+/** (ref) Brembo ventilated, cross-drilled iron discs, 4-piston aluminium calipers. */
+const brakeDiscDiameter = { front: mm(330), rear: mm(330) };
 
 /**
- * The V12 at true scale: everything below is sized from bore, stroke, spacing and bank
- * angle plus estimated proportions, never shrunk to fit the bay (the clash check proves
- * the fit). Engine coordinates: x and z are car axes, y is measured from the crank
- * centreline. Bank-local coordinates: `a` runs up the bore axis from the crank centreline
- * (or from the deck where noted), `b` across the bank, positive outboard (exhaust side).
+ * The engine, at true scale: everything below is sized from bore, stroke, spacing, bank
+ * angle and crank layout plus estimated proportions, never shrunk to fit the bay (the clash
+ * check proves the fit). Change these to build a different V engine. Engine coordinates:
+ * x and z are car axes, y is measured from the crank centreline. Bank-local coordinates:
+ * `a` runs up the bore axis from the crank centreline (or from the deck where noted), `b`
+ * across the bank, positive outboard (exhaust side).
+ *
+ * F120A: twin-turbo 90° V8, 82 × 69.5 mm, 2936 cc, 4 valves per cylinder, two cams per bank
+ * driven by a toothed belt per bank, dry sump.
  */
 const engine = {
-  cylinders: 12, // (ref)
-  bankAngle: deg(65), // (ref)
-  bore: mm(94), // (ref)
-  stroke: mm(75.2), // (ref)
-  cylinderSpacing: mm(104), // (ref) bore centre to bore centre within a bank
-  rodLength: mm(140), // (est) centre to centre
-  /** (est) Rods share each crankpin side by side, so the right bank sits one rod width behind the left. */
-  bankStagger: mm(22),
-  crankHeight: 0.275, // (est) crank centreline above ground
-  /** (est) Front face of the timing cover. The timing end faces the cabin, 22 mm clear of the firewall. */
-  frontZ: -0.36,
-  /** Six-throw crank laid out like an inline six; cylinders 1–6 counted from the timing end. */
-  throwAngles: [0, 240, 120, 120, 240, 0].map(deg),
-  /** Firing order within each bank (inline-six order); throws match it 120° apart. */
-  bankFiringOrder: [1, 5, 3, 6, 2, 4],
+  cylinders: 8, // (ref)
+  bankAngle: deg(90), // (ref)
+  bore: mm(82), // (ref)
+  stroke: mm(69.5), // (ref)
+  cylinderSpacing: mm(92), // (est) bore centre to bore centre within a bank
+  rodLength: mm(125), // (est) centre to centre (rod/stroke 1.8)
+  /**
+   * Crank layout: 'flat-plane' (throws at 0/180°, each bank fires like an inline four) or
+   * 'cross-plane' (throws at 90° steps). Every source that names it gives the Ferrari V8s
+   * of this family a flat-plane crank; no primary spec sheet found (see BRIEF).
+   */
+  crankType: 'flat-plane' as 'flat-plane' | 'cross-plane',
+  /** Firing order (cylinder numbers), the one cited for Ferrari's flat-plane V8s: banks alternate, 1-3-4-2 within each. */
+  firingOrder: [1, 5, 3, 7, 4, 8, 2, 6],
+  /** (est) Cylinder numbers per bank, counted from the timing end: 1–4 on the right bank, 5–8 on the left. */
+  firstCylinder: { r: 1, l: 5 },
+  /** (est) Rods share each crankpin side by side; the leading bank sits one rod width ahead of the other. */
+  leadBank: 'r' as 'l' | 'r',
+  bankStagger: mm(20),
+  /** Valve drive: 'belt' (one toothed belt per bank, as on the F120A) or 'chain'. */
+  camDrive: 'belt' as 'belt' | 'chain',
+  /** Ignition: 'distributor' (HT leads and plug caps, as in 1987) or 'coil-on-plug'. */
+  ignition: 'distributor' as 'distributor' | 'coil-on-plug',
+  /** (est, provisional) Crank centreline above ground; set from the layout sketch (docs/F40-PLAN.md). */
+  crankHeight: 0.27,
+  /** (est, provisional) Front face of the cam-belt covers. The timing end faces the cabin, clear of the bay's front wall. */
+  frontZ: -0.4,
   /** (est) Crank angle of the assembled pose, so pistons and valves sit at varied, real phases. */
   crankPhase: deg(20),
 };
 
-/** (est) Detail sizes of the engine's parts; see the coordinate note above `engine`. */
+/**
+ * Crank throw angles per crank type and throw count (degrees, throw 1 at the timing end).
+ * Flat-plane cranks follow the even-firing inline layout of one bank.
+ */
+const CRANK_THROWS: Record<string, readonly number[]> = {
+  'flat-plane/2': [0, 180],
+  'flat-plane/3': [0, 240, 120],
+  'flat-plane/4': [0, 180, 180, 0],
+  'flat-plane/6': [0, 240, 120, 120, 240, 0],
+  'cross-plane/4': [0, 90, 270, 180],
+};
+
+/** (est) Detail sizes of the engine's parts, proportioned to the 82 mm bore; see the coordinate note above `engine`. */
 const engineParts = {
   piston: {
-    compressionHeight: mm(29), // wrist-pin centre to crown
-    height: mm(54), // crown to skirt bottom
-    crownDome: mm(2),
+    compressionHeight: mm(27), // wrist-pin centre to crown
+    height: mm(50), // crown to skirt bottom
+    crownDome: mm(1),
     ringClearance: mm(0.2), // piston to bore; rings stand this far proud of the lands
-    skirtWall: mm(4),
+    skirtWall: mm(3.5),
     chamfer: mm(0.8),
     /** Ring grooves: distance of each ring's centre below the crown, and ring height. */
     rings: [
-      { depth: mm(5.5), height: mm(1.2) },
-      { depth: mm(9.5), height: mm(1.2) },
-      { depth: mm(14), height: mm(2.5) },
+      { depth: mm(5), height: mm(1.2) },
+      { depth: mm(8.5), height: mm(1.2) },
+      { depth: mm(12.5), height: mm(2.5) },
     ],
-    pin: { radius: mm(10.5), length: mm(62) },
+    pin: { radius: mm(10), length: mm(56) },
   },
   rod: {
-    bigEndRadius: mm(35),
-    smallEndRadius: mm(14),
+    bigEndRadius: mm(32),
+    smallEndRadius: mm(13),
     clearance: mm(1), // side clearance between the two rods on a crankpin
-    boltRadius: mm(5),
-    boltHeight: mm(5),
+    boltRadius: mm(4.5),
+    boltHeight: mm(4.5),
     /** Cap-bolt heads sit this fraction of the big-end radius below the crankpin. */
     boltDrop: 0.95,
   },
   crank: {
-    mainJournalRadius: mm(30),
-    pinRadius: mm(24),
-    webThickness: mm(16),
-    webPinRadius: mm(33),
-    webHubRadius: mm(40),
-    counterweightRadius: mm(80),
-    counterweightHalfAngle: deg(62),
-    snoutRadius: mm(22),
-    flangeRadius: mm(46),
-    flangeThickness: mm(12),
+    mainJournalRadius: mm(28),
+    pinRadius: mm(23),
+    webThickness: mm(14),
+    webPinRadius: mm(30),
+    webHubRadius: mm(36),
+    counterweightRadius: mm(70),
+    counterweightHalfAngle: deg(60),
+    snoutRadius: mm(20),
+    flangeRadius: mm(42),
+    flangeThickness: mm(11),
     shellThickness: mm(1.5),
   },
   block: {
-    /** Timing-cover face to the block's front face: the depth of the timing case. */
-    timingCaseDepth: mm(45),
+    /** Timing-cover face to the block's front face: the depth of the belt case (two belts side by side). */
+    timingCaseDepth: mm(62),
     /** Block end face to the nearest bore centre. */
-    endWall: mm(64),
+    endWall: mm(50),
     /** Half width of each cylinder barrel across its bank. */
-    deckHalfWidth: mm(70),
+    deckHalfWidth: mm(62),
     /** Bores open into the crankcase this far up the bank axis (`a`). */
-    barrelBottom: mm(80),
-    skirtHalfWidth: mm(155),
+    barrelBottom: mm(70),
+    skirtHalfWidth: mm(135),
     /** Crankcase floor (y), with the main caps below it and the pan rail around them. */
-    bottomY: -mm(70),
-    panRail: { y: -mm(85), halfWidth: mm(165), width: mm(14) },
-    rib: { width: mm(12), depth: mm(7) },
-    /** Horizontal rib along each skirt (height above the crank) and cast bosses on the skirt. */
-    skirtRibY: mm(20),
-    boss: { radius: mm(16), depth: mm(9), y: -mm(28), z: [-0.58, -0.84] as const },
-    liner: { thickness: mm(3.5), proud: mm(0.6) },
-    mainCap: { width: mm(30), halfWidth: mm(112), depth: mm(10) }, // bolt heads finish flush with the pan rail
+    bottomY: -mm(62),
+    panRail: { y: -mm(76), halfWidth: mm(145), width: mm(12) },
+    rib: { width: mm(11), depth: mm(6) },
+    /** Horizontal rib along each skirt (height above the crank) and cast bosses on the skirt (z as block fractions, front to back). */
+    skirtRibY: mm(18),
+    boss: { radius: mm(14), depth: mm(8), y: -mm(25), at: [0.3, 0.75] as const },
+    liner: { thickness: mm(3.2), proud: mm(0.5) },
+    mainCap: { width: mm(26), halfWidth: mm(98), depth: mm(9) }, // bolt heads finish flush with the pan rail
     /** Main-cap bolts: x offsets of the four per cap. */
-    capBoltX: [mm(45), mm(88)],
-    bolt: { radius: mm(7.5), height: mm(5) },
+    capBoltX: [mm(40), mm(77)],
+    bolt: { radius: mm(6.5), height: mm(4.5) },
   },
   head: {
-    gasketThickness: mm(1.5),
+    gasketThickness: mm(1.4),
     /** Casting height from its deck face (`a` from the deck). */
-    height: mm(110),
-    halfWidth: mm(118),
-    topHalfWidth: mm(108),
+    height: mm(100),
+    halfWidth: mm(105),
+    topHalfWidth: mm(96),
     /** Height up to which the side walls are vertical before they taper in. */
-    wallHeight: mm(70),
-    exhaustPort: { a: mm(42), width: mm(40), height: mm(32), depth: mm(14) },
-    intakePort: { a: mm(60), width: mm(44), height: mm(34), depth: mm(16) },
+    wallHeight: mm(62),
+    exhaustPort: { a: mm(38), width: mm(36), height: mm(28), depth: mm(12) },
+    intakePort: { a: mm(54), width: mm(38), height: mm(30), depth: mm(14) },
     /** Top plate of the casting, pierced by the plug wells. */
-    topDeck: mm(12),
-    bolt: { radius: mm(7), height: mm(9), inset: mm(14) },
-    plugWell: { radius: mm(15), wall: mm(3), top: mm(190) },
+    topDeck: mm(11),
+    bolt: { radius: mm(6.5), height: mm(8), inset: mm(13) },
+    plugWell: { radius: mm(13), wall: mm(3), top: mm(172) },
   },
   valve: {
     /** Each valve leans this far from the bore axis (intake inboard, exhaust outboard). */
-    angle: deg(11),
-    pairSpacing: mm(36),
-    seatOffset: mm(20),
-    intakeHeadDiameter: mm(36),
-    exhaustHeadDiameter: mm(30),
+    angle: deg(13),
+    pairSpacing: mm(32),
+    seatOffset: mm(17),
+    intakeHeadDiameter: mm(31),
+    exhaustHeadDiameter: mm(27),
     stemDiameter: mm(6),
     faceThickness: mm(2),
-    tulipHeight: mm(10),
-    length: mm(135),
-    spring: { radius: mm(11.5), wire: mm(1.8), coils: 6, length: mm(32) },
-    retainer: { radius: mm(13), height: mm(4) },
+    tulipHeight: mm(9),
+    length: mm(118),
+    spring: { radius: mm(10), wire: mm(1.7), coils: 6, length: mm(30) },
+    retainer: { radius: mm(11.5), height: mm(4) },
     /** Valve events in crank degrees after firing TDC, and half the opening duration. */
     intakePeak: deg(470),
     exhaustPeak: deg(250),
     halfDuration: deg(120),
   },
   camshaft: {
-    shaftRadius: mm(12),
-    journalRadius: mm(16.5),
-    journalWidth: mm(16),
-    baseRadius: mm(17.5),
-    lift: mm(11),
-    lobeWidth: mm(14),
-    tower: { halfWidth: mm(18), thickness: mm(16), capHeight: mm(14) },
-    sprocket: { radius: mm(37), thickness: mm(8), teeth: 30 },
+    shaftRadius: mm(11),
+    journalRadius: mm(15),
+    journalWidth: mm(15),
+    baseRadius: mm(16),
+    lift: mm(10),
+    lobeWidth: mm(13),
+    tower: { halfWidth: mm(16), thickness: mm(14), capHeight: mm(13) },
+    /** Cam pulley (belt) or sprocket (chain). */
+    sprocket: { radius: mm(52), thickness: mm(26), teeth: 40 },
   },
   camCover: {
-    height: mm(90),
-    baseHalfWidth: mm(104), // sits inside the head's top face
-    topHalfWidth: mm(82),
-    cornerRadius: mm(26),
-    edgeRadius: mm(6),
-    flange: { halfWidth: mm(116), height: mm(8) },
-    /** Raised seats for the coil packs over each plug well. */
-    seatRadius: mm(22),
+    height: mm(78),
+    baseHalfWidth: mm(94), // sits inside the head's top face
+    topHalfWidth: mm(74),
+    cornerRadius: mm(22),
+    edgeRadius: mm(5),
+    flange: { halfWidth: mm(104), height: mm(7) },
+    /** Raised seats around each plug well. */
+    seatRadius: mm(19),
     seatHeight: mm(3),
-    boltsPerSide: 10,
-    boltEndInset: mm(20),
-    bolt: { radius: mm(5), height: mm(6) },
+    boltsPerSide: 8,
+    boltEndInset: mm(18),
+    bolt: { radius: mm(4.5), height: mm(5.5) },
   },
+  /** Coil-on-plug pack (only with `ignition: 'coil-on-plug'`). */
   coilPack: {
-    length: mm(54),
-    width: mm(30),
-    height: mm(30),
+    length: mm(50),
+    width: mm(28),
+    height: mm(28),
     yaw: deg(20),
-    bootRadius: mm(11),
-    connector: [mm(16), mm(12), mm(18)] as Vec3,
+    bootRadius: mm(10),
+    connector: [mm(15), mm(11), mm(16)] as Vec3,
   },
+  /** Plug cap and HT-lead boot (with `ignition: 'distributor'`). */
+  plugCap: { radius: mm(11), height: mm(26), leadRadius: mm(3.5), leadLength: mm(30) },
   /** Spark plug, measured up its axis from the head's deck face (`tip` is in the chamber). */
   sparkPlug: {
-    tip: mm(6),
-    top: mm(100),
+    tip: mm(5),
+    top: mm(92),
     threadRadius: mm(7),
-    hexStart: mm(20),
-    hexHeight: mm(12),
-    hexRadius: mm(9),
+    hexStart: mm(19),
+    hexHeight: mm(11),
+    hexRadius: mm(8.5),
     insulatorRadius: mm(5.5),
     insulatorTaper: mm(10),
     terminalRadius: mm(3),
@@ -260,298 +309,117 @@ const engineParts = {
   },
   timing: {
     coverThickness: mm(12),
-    /** Cover outline clearance around the sprockets it encloses. */
-    coverMargin: mm(20),
+    /** Cover outline clearance around the pulleys it encloses. */
+    coverMargin: mm(18),
     coverBolts: 16,
     coverBevel: mm(5),
-    /** The flat plate stops this far short of the cover face; the chain housings bulge forward to it. */
+    /** The flat plate stops this far short of the cover face; the belt housings bulge forward to it. */
     bulge: mm(12),
     bulgeMargin: mm(10),
     rimWidth: mm(9),
     rimHeight: mm(4),
-    /** Bosses around the water pumps and aux motor, tied back to the cover by webs. */
+    /** Bosses around the water pumps, tied back to the cover by webs. */
     bossMargin: mm(10),
     bossDepth: mm(20),
     webWidth: mm(16),
     /** Cover bolts sit this far in from the cover's edge. */
     boltInset: mm(9),
-    /** Chain planes, measured forward from the block's front face. */
-    chainOffset: { l: mm(13), r: mm(25) },
+    /** Belt/chain planes, measured forward from the block's front face. */
+    chainOffset: { l: mm(17), r: mm(45) },
     crankSprocketRadius: mm(28),
-    sprocketThickness: mm(8),
-    /** 3/8" pitch; each link drawn as a rounded plate filling most of its pitch. */
+    sprocketThickness: mm(26),
+    /** Chain: 3/8" pitch; each link drawn as a rounded plate filling most of its pitch. */
     chain: { pitch: mm(9.525), width: mm(9), height: mm(8.5), linkFill: 0.92 },
+    /** Toothed belt: width and thickness (teeth on the inside, hidden against the pulleys). */
+    belt: { width: mm(25), thickness: mm(4.5), toothDepth: mm(2) },
   },
   sump: {
-    depth: mm(45),
-    halfWidth: mm(150),
-    cornerRadius: mm(35),
-    flange: { halfWidth: mm(165), thickness: mm(6) },
-    boltsPerSide: 9,
-    /** Scavenge pick-ups along the right side, as z positions of their sump outlets. */
-    pickupZ: [-0.52, -0.76, -1.0],
-    outletRadius: mm(10),
-    outletLength: mm(14),
-    outletY: -mm(110), // engine y of the outlets
-    pickupRadius: mm(7),
+    depth: mm(40),
+    halfWidth: mm(130),
+    cornerRadius: mm(30),
+    flange: { halfWidth: mm(145), thickness: mm(6) },
+    boltsPerSide: 7,
+    /** Scavenge pick-ups along the right side (block fractions, front to back). */
+    pickupAt: [0.2, 0.5, 0.8],
+    outletRadius: mm(9),
+    outletLength: mm(12),
+    outletY: -mm(98), // engine y of the outlets
+    pickupRadius: mm(6.5),
     /** The scavenge lines run this far below the pump's underside. */
-    pickupDrop: mm(12),
-    endBoltX: [-mm(100), 0, mm(100)],
+    pickupDrop: mm(11),
+    endBoltX: [-mm(90), 0, mm(90)],
   },
-  /** Dry-sump scavenge pump, low on the right beside the sump (engine coordinates). */
+  /** Dry-sump scavenge pump, low on the right beside the sump (x, y engine coordinates; `at` block fraction). */
   oilPump: {
-    radius: mm(34),
-    length: mm(160),
-    centre: [-mm(205), -mm(72), -0.53] as Vec3,
+    radius: mm(30),
+    length: mm(140),
+    x: -mm(180),
+    y: -mm(65),
+    at: 0.2,
     capLip: mm(4),
     capThickness: mm(8),
-    driveRadius: mm(12),
-    driveLength: mm(30),
+    driveRadius: mm(11),
+    driveLength: mm(28),
   },
-  /** Vertical spin-on filter, low on the left near the bellhousing. */
-  oilFilter: { radius: mm(38), length: mm(100), top: -mm(30), x: mm(200), z: -0.98, round: mm(8), seal: mm(8), adapterHeight: mm(18) },
+  /** Vertical spin-on filter, low on the left near the bellhousing (`at` block fraction). */
+  oilFilter: { radius: mm(38), length: mm(100), top: -mm(30), x: mm(180), at: 0.85, round: mm(8), seal: mm(8), adapterHeight: mm(18) },
+  /** Oil cooler on the right of the block (ref: right side). */
   oilCooler: {
-    size: [mm(45), mm(100), mm(140)] as Vec3,
-    centre: [-mm(178), -mm(10), -0.91] as Vec3,
-    fins: 12,
+    size: [mm(40), mm(90), mm(120)] as Vec3,
+    x: -mm(158),
+    y: -mm(10),
+    at: 0.72,
+    fins: 11,
     finDepth: mm(8),
     finThickness: mm(2),
     portRadius: mm(9),
     portLength: mm(18),
   },
-  /** Dry-sump tank, on top of the gearbox between the airboxes (car z). */
+  /** Dry-sump oil tank (position to be set by the F40 plan; not built yet). */
   oilTank: {
     radius: mm(75),
-    length: mm(300),
+    length: mm(280),
     y: mm(385),
-    z: -1.62,
+    z: -1.55,
     fins: 9,
     finRadius: mm(83),
     finThickness: mm(3),
     neckRadius: mm(18),
     neckHeight: mm(25),
     capHeight: mm(12),
-    /** Straps round the tank, at this fraction of its half-length either side of centre. */
     strap: { at: 0.55, width: mm(16), thickness: mm(3) },
   },
   waterPump: {
-    radius: mm(45),
-    length: mm(38),
-    /** Centre (x, y) on the block's front face, outboard of the timing cover. */
-    centre: [mm(200), mm(60)] as const,
+    radius: mm(40),
+    length: mm(34),
+    /** Centre (x, y) on the block's front face, outboard of the belt runs. */
+    centre: [mm(175), mm(40)] as const,
     faceScale: 0.75,
     faceThickness: mm(8),
-    inlet: { radius: mm(17), length: mm(55) },
-  },
-  /** Auxiliary e-motor, low on the left at the timing end; its front sits in the timing case. */
-  auxMotor: {
-    radius: mm(50),
-    length: mm(150),
-    centre: [mm(205), -mm(75)] as const,
-    frontGap: mm(20),
-    capThickness: mm(10),
-    capScale: 0.92,
-    fins: 8,
-    finHeight: mm(4),
-    finThickness: mm(3),
-    connector: [mm(36), mm(22), mm(44)] as Vec3,
+    inlet: { radius: mm(16), length: mm(50) },
   },
   mount: {
-    bracket: [mm(60), mm(70), mm(80)] as Vec3,
-    bushRadius: mm(30),
-    bushLength: mm(60),
+    bracket: [mm(55), mm(60), mm(70)] as Vec3,
+    bushRadius: mm(27),
+    bushLength: mm(55),
     /** Fraction of the bush radius it sits outboard of the bracket's end. */
     bushOverlap: 0.6,
     y: mm(10),
-    z: -0.7,
+    at: 0.55,
   },
   /** Bevel on cast and machined edges. */
-  bevel: mm(2.5),
-
-  // ─── 2b: intake, fuel, exhaust, electronics (engine coordinates) ──────────
-  /** Carbon plenum cover: a long lofted "pillow" over the V, overhanging the coil packs. */
-  plenum: {
-    rearZ: -1.05,
-    frontGap: mm(20), // behind the timing-cover face
-    halfWidth: mm(235),
-    baseY: mm(400), // underside, clear of the coil packs
-    topY: mm(545),
-    /** Superellipse exponents: plan-view ends (higher = squarer) and cross-section shoulders. */
-    endPower: 3.2,
-    sectionPower: 2.4,
-    /** Height of the side wall below the curved crown, as a fraction of the height. */
-    skirt: 0.28,
-    flutes: { perSide: 3, depth: mm(4), width: mm(26), pitch: mm(44) },
-    centreGroove: { depth: mm(7), width: mm(30) },
-    seamRadius: mm(2.6),
-    lipHeight: mm(6),
-  },
-  /** Intake runners: one vertical trumpet per cylinder, rising from the port into the plenum. */
-  runner: { x: mm(36), bottomY: mm(300), topY: mm(440), radius: mm(19), bellRadius: mm(27), bellHeight: mm(22), flangeRadius: mm(27), flangeThickness: mm(6) },
-  throttleBody: {
-    x: mm(155),
-    y: mm(470),
-    /** Front face (against the plenum's rear end) and body length along −z. */
-    frontZ: -1.04,
-    length: mm(75),
-    radius: mm(42),
-    flange: { radius: mm(52), thickness: mm(8) },
-    actuator: [mm(48), mm(44), mm(56)] as Vec3,
-  },
-  /** Ribbed intake tubes from each throttle body back and out to its airbox. */
-  intakeTube: {
-    radius: mm(45),
-    ribDepth: mm(5),
-    ribPitch: mm(17),
-    /** Path (x, y, z) from the throttle body's rear face to the airbox mouth. */
-    path: [
-      [mm(155), mm(470), -1.115],
-      [mm(185), mm(462), -1.2],
-      [mm(240), mm(420), -1.31],
-      [mm(262), mm(385), -1.4],
-    ] as readonly Vec3[],
-    clamp: { width: mm(14), thickness: mm(4) },
-  },
-  /** Carbon airboxes beside the gearbox, each fed from its rear-deck scoop. */
-  airbox: {
-    x: [mm(170), mm(370)] as const,
-    y: [mm(225), mm(420)] as const,
-    z: [-1.78, -1.42] as const,
-    cornerRadius: mm(35),
-    /** Intake snout out of the outboard face, toward the side scoop (clear of the tub's ducting). */
-    snout: { z: -1.55, y: mm(325), length: mm(85), radius: mm(48), bell: mm(8) },
-    lid: { inset: mm(10), height: mm(8) },
-    /** Satin brackets under the inboard edge, reaching to the gearbox casing's side. */
-    bracket: { size: [mm(40), mm(6), mm(30)] as Vec3, overlap: mm(15), z: [-1.5, -1.7] as readonly number[] },
-  },
-  /** Direct-injection fuel rails along the V side of each head, injectors into the head. */
-  fuelRail: { b: -mm(132), a: mm(30), radius: mm(8), injectorRadius: mm(6), injectorLength: mm(28) },
-  exhaust: {
-    primaryRadius: mm(17),
-    /** Straight run out of each port before the primary bends. */
-    portLead: mm(35),
-    /** Rearward lanes for the front two pairs of primaries (x, y), and each pair's twist. */
-    laneA: [mm(405), -mm(35)] as const,
-    laneB: [mm(405), mm(80)] as const,
-    pairSpacing: mm(43),
-    twistA: deg(360),
-    twistB: deg(180),
-    /** Inboard path the two rear primaries drop down, before swinging into the collector. */
-    dropX: mm(290),
-    /** Collector mouth: centre (x, y), how far behind the bank's last port, ring of the six tubes. */
-    collector: { centre: [mm(360), -mm(70)] as const, behindLastPort: mm(95), ringRadius: mm(46), length: mm(70), outletRadius: mm(40) },
-    /** Convergence from the lanes onto the collector ring starts this far ahead of the mouth. */
-    converge: mm(150),
-    flange: [mm(44), mm(36), mm(8)] as Vec3,
-    catalyst: { radius: mm(58), length: mm(190), gap: mm(25) },
-    pipeRadius: mm(36),
-    /** Pipe route (left side) from the catalyst: kept inboard of the tub's rear wall, then out into the silencer's inboard face. */
-    pipeVia: [[mm(420), -mm(35), -1.55], [mm(500), mm(25), -1.72]] as readonly Vec3[],
-    pipeFlange: { radius: mm(50), thickness: mm(8) },
-    silencer: { x: [mm(585), mm(800)] as const, y: [-mm(5), mm(135)] as const, z: [-1.92, -1.74] as const, corner: mm(30) },
-    tip: { radius: mm(54), lip: mm(4), length: mm(150) },
-    o2Sensor: { radius: mm(9), length: mm(40) },
-  },
-  /**
-   * Engine ECUs against the bay side walls (left-side centre; mirrored), and the fuse/relay
-   * box ahead of the right ECU. `yaw` follows the walls, which close in toward the rear.
-   */
-  ecu: {
-    size: [mm(36), mm(150), mm(180)] as Vec3,
-    centre: [mm(563), mm(195), -0.7] as Vec3,
-    fins: 8,
-    tab: [mm(14), mm(40), mm(22)] as Vec3,
-    /** Harness route (left side; engine coordinates) from the plug toward the cam cover's outer edge. */
-    harness: [[mm(480), mm(298), -0.69], [mm(390), mm(296), -0.67], [mm(305), mm(300), -0.64]] as readonly Vec3[],
-    harnessRadius: mm(8),
-  },
-  fuseBox: { size: [mm(36), mm(110), mm(100)] as Vec3, centre: [-mm(612), mm(190), -0.53] as Vec3 },
-  bayWallYaw: deg(15.6),
-  /** Ignition loom along each cam cover's top, inboard of the coil packs (`b` across the bank). */
-  loom: { b: -mm(55), radius: mm(7), clips: 12, clip: [mm(16), mm(8), mm(10)] as Vec3 },
+  bevel: mm(2.2),
 };
 
-/**
- * 2c: transaxle, clutch and hybrid parts that ride the powertrain, in engine coordinates
- * (x, z car axes; y from the crank axis, which is also the gearbox input axis).
- * (est) proportions from the layout figures and reference photos; the DCT is a
- * 7-speed with the differential on the rear axle line and the main e-motor at the back.
- */
-const transaxleInput = {
-  flywheel: { radius: mm(115), thickness: mm(24), gap: mm(5), bolts: 8, boltCircle: mm(42), teeth: 110, toothDepth: mm(4) },
-  clutch: { radius: mm(106), length: mm(84), gap: mm(6), ribs: 9, hubRadius: mm(38), plateRadius: mm(112) },
-  /** Bellhousing: from the block's rear face back to the casing, round the flywheel and clutch. */
-  bellhousing: { rearZ: -1.22, halfWidth: mm(200), topHalfWidth: mm(170), bottom: -mm(125), top: mm(185), radius: mm(55), flange: mm(10), bolts: 16 },
-  /** DCT casing section at its front (rear section scaled in `casingRear`), with the lattice. */
-  casing: {
-    rearZ: -1.78, // the tub's rear structure is at z −1.97, behind the e-motor
-    halfWidth: mm(190),
-    topHalfWidth: mm(150),
-    bottom: -mm(95),
-    top: mm(305),
-    radius: mm(60),
-    /** Rear section: narrower and centred on the e-motor axis. */
-    rear: { halfWidth: mm(160), topHalfWidth: mm(140), bottom: -mm(60), top: mm(290) },
-    /** Rib rings (z) with seam bolts round them; X ribs on the sides and top between rings. */
-    rings: [-1.24, -1.44, -1.61, -1.765] as readonly number[],
-    seamRings: [0, 2, 3] as readonly number[],
-    ringWidth: mm(12),
-    ringHeight: mm(7),
-    xRib: mm(4.5),
-    seamBolts: 20,
-  },
-  /** Differential bosses on each side, on the rear axle line; driveshaft output flanges. */
-  diff: { radius: mm(95), y: mm(75), outX: mm(225), coverBolts: 10, coverBoltCircle: mm(78), flangeRadius: mm(48), flangeLength: mm(16) },
-  gears: { shaftRadius: mm(20), layshaftX: mm(85), layshaftY: -mm(10), thickness: mm(18) },
-  eMotor: { radius: mm(120), length: mm(155), boss: mm(10), y: mm(165), flange: mm(12), capInset: mm(8), bolts: 12, boltCircle: mm(98), ribs: 5, terminal: [mm(80), mm(40), mm(60)] as Vec3 },
-  /** Inverters on the casing top (left-side box; mirrored), X-braced lids. */
-  inverter: { x: [mm(20), mm(160)] as const, bottom: mm(318), height: mm(62), z: [-1.46, -1.24] as const, lid: mm(6), brace: mm(10), bolts: 8, foot: mm(20) },
+/** Cables, hoses and looms that re-curve as their ends move (src/parts/cables). */
+const cable = {
+  /** End separation (m) beyond the assembled one at which the full explode slack has grown in. */
+  slackGrowth: 0.6,
 };
 
-/**
- * 2c in car coordinates: battery tray, driveshafts and HV cables. Battery per the
- * approved plan: on the underbody under the cabin floor, 20 mm deep at the back stepping
- * to 42 mm at the front where the floor rises.
- */
-const hybridInput = {
-  battery: {
-    halfWidth: 0.45,
-    z: [-0.1, 0.55] as const,
-    bottomY: 0.11,
-    /** 18 mm at the back (the plan's 20 mm left no room under the floor at y 0.131), 42 mm at the front. */
-    depth: mm(18),
-    step: { z: 0.36, depth: mm(42) },
-    flange: mm(12),
-    bolts: 28,
-    /** Modules: 2 rows × 4, barely raised on the lid (the cabin floor is only a few mm above). */
-    modules: { cols: 4, rows: 2, height: mm(1.2), margin: mm(30), gap: mm(14) },
-    boltHeight: mm(1.2),
-    connector: [mm(90), mm(30), mm(50)] as Vec3,
-  },
-  driveshaft: { shaftRadius: mm(15), cvRadius: mm(46), cvLength: mm(60), bootRadius: mm(40), bootLength: mm(95), bootRibs: 6, stubRadius: mm(24), outerX: 0.7, innerCvGap: mm(4) },
-  /**
-   * HV bundles. `slackGrowth`: how much end separation (m) brings in the full explode slack;
-   * each cable's own slack (how far its middle bows out) is set with its route.
-   */
-  hvCable: { strandRadius: mm(7), bundleOffset: mm(8.5), twist: 0.6, clip: [mm(28), mm(10), mm(22)] as Vec3, clipSpacing: 0.25, slackGrowth: 0.6 },
-  /**
-   * Coolant hoses (left; mirrored) from each water pump's inlet, low and ahead of the
-   * header primaries, out through the bay wall to the side-pod radiator area (the
-   * radiators themselves are 2d). Car coordinates.
-   */
-  coolantHose: {
-    radius: mm(19),
-    clampWidth: mm(12),
-    clamps: [0.03, 0.35, 0.65, 0.97] as readonly number[],
-    radiatorEnd: [0.62, 0.26, -0.53] as Vec3,
-    via: [[0.345, 0.215, -0.395], [0.43, 0.215, -0.425], [0.52, 0.235, -0.48]] as readonly Vec3[],
-    slack: [0.2, 0.1, 0.1] as Vec3,
-  },
-};
+// ─── Derived ─────────────────────────────────────────────────────────────────
 
-// ─── Derived ─────// ─── Derived ─────────────────────────────────────────────────────────────────
-
-const axle = { frontZ: wheelbase / 2, rearZ: -wheelbase / 2 };
+const axle = { frontZ: model.wheelbase / 2, rearZ: -model.wheelbase / 2 };
 
 export interface WheelDims {
   tyre: TyreSize;
@@ -560,11 +428,11 @@ export interface WheelDims {
   rimRadius: number;
   rimWidth: number;
   shoulderRadius: number;
-  /** Tyre outer radius from the tyre size. */
+  /** Tyre outer radius from the tyre size (the model's tyres are all Ø 650 mm; see `model`). */
   radius: number;
   diameter: number;
   centreY: number;
-  /** Lateral distance from centreline to tyre centre (half track). */
+  /** Lateral distance from centreline to tyre centre: the model's half track, which our parts must meet. */
   centreX: number;
   axleZ: number;
   discDiameter: number;
@@ -593,7 +461,7 @@ function wheel(t: TyreSize, trackWidth: number, centreY: number, rimIn: number, 
 const body = {
   frontZ: model.extents.frontZ,
   rearZ: model.extents.rearZ,
-  halfWidth: overall.width / 2,
+  halfWidth: model.extents.halfWidth,
   height: model.extents.height,
 };
 
@@ -601,41 +469,52 @@ function bayBox(b: BayInput): Box {
   return box([-b.halfWidth, b.halfWidth], b.y, b.z);
 }
 
-/** Engine layout derived from the inputs: bore positions, deck, block faces, extents. */
+type Side = 'l' | 'r';
+
+/** Engine layout derived from the inputs: crank throws, bore positions, deck, block faces, extents. */
 function engineLayout() {
   const { piston, block, head, camCover, timing } = engineParts;
+  const perBank = engine.cylinders / 2;
+  const throwAngles = CRANK_THROWS[`${engine.crankType}/${perBank}`];
+  if (!throwAngles) throw new Error(`dims: no ${engine.crankType} crank layout for ${perBank} throws`);
   const crankRadius = engine.stroke / 2;
   /** Crank centreline to the block deck, along a bank axis (piston crown flush at TDC). */
   const deckHeight = crankRadius + engine.rodLength + piston.compressionHeight;
   const blockFrontZ = engine.frontZ - block.timingCaseDepth;
-  const firstBore = { l: blockFrontZ - block.endWall, r: blockFrontZ - block.endWall - engine.bankStagger };
-  const perBank = engine.cylinders / 2;
+  const lag = (s: Side) => (s === engine.leadBank ? 0 : engine.bankStagger);
+  const firstBore = { l: blockFrontZ - block.endWall - lag('l'), r: blockFrontZ - block.endWall - lag('r') };
   const boreZ = {
     l: Array.from({ length: perBank }, (_, i) => firstBore.l - i * engine.cylinderSpacing),
     r: Array.from({ length: perBank }, (_, i) => firstBore.r - i * engine.cylinderSpacing),
   };
-  const blockRearZ = boreZ.r[perBank - 1] - block.endWall;
-  /** Crank throws sit midway between their left and right bores. */
-  const throwZ = boreZ.l.map((z) => z - engine.bankStagger / 2);
+  const blockRearZ = blockFrontZ - block.endWall - engine.bankStagger - (perBank - 1) * engine.cylinderSpacing - block.endWall;
+  /** Crank throws sit midway between their two bores. */
+  const throwZ = boreZ.l.map((z, i) => (z + boreZ.r[i]) / 2);
   const halfBank = engine.bankAngle / 2;
   /** Cam-cover top, along the bank axis from the crank centreline. */
   const coverTop = deckHeight + head.gasketThickness + head.height + camCover.height;
   const cover = { a: coverTop, b: camCover.topHalfWidth };
-  /** Widest point across the heads: the cam-cover top's outboard edge. */
-  const halfWidthAcrossCovers = cover.a * Math.sin(halfBank) + cover.b * Math.cos(halfBank);
+  /** Widest point across the heads: the cam-cover top's outboard edge (or the head's outboard top corner). */
+  const headCorner = { a: deckHeight + head.gasketThickness + head.wallHeight, b: head.halfWidth };
+  const halfAcross = (p: { a: number; b: number }) => p.a * Math.sin(halfBank) + p.b * Math.cos(halfBank);
+  const blockLength = blockFrontZ - blockRearZ;
   return {
+    perBank,
+    throwAngles: throwAngles.map(deg),
     crankRadius,
     deckHeight,
     blockFrontZ,
     blockRearZ,
-    blockLength: blockFrontZ - blockRearZ,
+    blockLength,
+    /** Car z of a point along the block: fraction 0 = front face, 1 = rear face. */
+    blockZ: (f: number) => blockFrontZ - f * blockLength,
     boreZ,
     throwZ,
-    /** Chain planes (car z) of each bank's timing chain. */
+    /** Belt/chain planes (car z) of each bank's cam drive. */
     chainZ: { l: blockFrontZ + timing.chainOffset.l, r: blockFrontZ + timing.chainOffset.r },
     halfBank,
     coverTop,
-    widthAcrossCovers: 2 * halfWidthAcrossCovers,
+    widthAcrossCovers: 2 * Math.max(halfAcross(cover), halfAcross(headCorner)),
     /** Cam-cover top's inboard edge, the highest point of the heads, above the crank. */
     coverTopY: cover.a * Math.cos(halfBank) + cover.b * Math.sin(halfBank),
     sumpBottomY: block.panRail.y - engineParts.sump.depth,
@@ -644,28 +523,33 @@ function engineLayout() {
 const engineGeom = engineLayout();
 
 export const DIMS = {
-  overall,
-  wheelbase,
-  track,
-  groundClearance,
-  overhang: { front: body.frontZ - axle.frontZ, rear: axle.rearZ - body.rearZ },
-  exhaustOpenings: model.exhaustOpenings,
+  reference,
+  /** Model values within 3 cm of the reference are adopted (width Δ −30, height Δ +8 mm); length (Δ −31) keeps the reference. */
+  overall: { length: reference.length, width: model.extents.bodyWidth, height: model.extents.height },
+  wheelbase: model.wheelbase,
+  /** Front: the model's (adopted). Rear: the reference (the model's 1.563 is 47 mm narrower; geometry uses the model's wheel centres). */
+  track: { front: model.track.front, rear: reference.track.rear },
+  model,
   bays: {
     firewallZ: model.firewallZ,
     engine: bayBox(model.engineBay),
-    engineWide: bayBox(model.engineBayWide),
+    engineTall: bayBox(model.engineBayTall),
     transaxle: bayBox(model.transaxleBay),
+    wallX: model.bayWallX,
+    linerRearZ: model.bayLinerRearZ,
   },
   axle,
   body: {
     ...body,
     centreZ: (body.frontZ + body.rearZ) / 2,
     doorHinge: { l: model.doorHinge, r: [-model.doorHinge[0], model.doorHinge[1], model.doorHinge[2]] as Vec3 },
-    engineCoverHinge: model.engineCoverHinge,
+    frontClamHinge: model.frontClamHinge,
+    rearClamHinge: model.rearClamHinge,
+    lexanY: model.lexanY,
   },
   wheel: {
-    front: wheel(tyreSize.front, track.front, model.wheelCentreY.front, rimWidthIn.front, axle.frontZ, brakeDiscDiameter.front),
-    rear: wheel(tyreSize.rear, track.rear, model.wheelCentreY.rear, rimWidthIn.rear, axle.rearZ, brakeDiscDiameter.rear),
+    front: wheel(tyreSize.front, model.track.front, model.wheelCentreY.front, rimWidthIn.front, axle.frontZ, brakeDiscDiameter.front),
+    rear: wheel(tyreSize.rear, model.track.rear, model.wheelCentreY.rear, rimWidthIn.rear, axle.rearZ, brakeDiscDiameter.rear),
   },
   engine: {
     ...engine,
@@ -675,86 +559,60 @@ export const DIMS = {
     origin: [0, engine.crankHeight, 0] as Vec3,
     /** Timing-cover face to the block's rear (bellhousing) face. */
     length: engine.frontZ - engineGeom.blockRearZ,
-    /** Swept volume in cc, from bore and stroke (checks against the 6262 cc reference). */
+    /** Swept volume in cc, from bore and stroke (checks against the 2936 cc reference). */
     displacementCc: (Math.PI / 4) * engine.bore ** 2 * engine.stroke * engine.cylinders * 1e6,
   },
-  transaxle: transaxleInput,
-  ...hybridInput,
+  cable,
 } as const;
-
-const batteryClearOfBody = 0.25; // gap between exploded battery and the body side
 
 /** How far parts travel when exploded (metres / radians, car axes). */
 export const EXPLODE = {
-  door: { pitch: deg(70), roll: deg(18) },
-  /** The reveal: lifts first and highest, opening about its front hinge like the real lid. */
-  engineCoverLift: 2.4,
-  engineCoverTilt: deg(35),
-  /** Clears the swung-up doors (their tips reach ~2.5 m). */
-  canopy: [0, 1.8, 0.15] as Vec3,
-  frontClam: [0, 0.8, 0.5] as Vec3,
-  nose: [0, 0, 1.1] as Vec3,
-  /** Up and back, clear of the space the powertrain rises through. */
-  rearClam: [0, 0.9, -2.0] as Vec3,
-  /** Above the moved rear clam. */
-  rearWing: [0, 1.9, -2.0] as Vec3,
-  sideIntakeOut: 0.5,
-  diffuserBack: 0.6,
+  /** Doors swing open about their front hinge. */
+  doorOpen: deg(68),
+  /** Front clam: tips up about its nose hinge, then moves forward and up out of the way. */
+  frontClamOpen: deg(55),
+  frontClam: [0, 0.35, 0.55] as Vec3,
+  /**
+   * The reveal: the rear clam (Lexan cover included) opens about its tail hinge like the
+   * real one, then lifts up and back, clear of the powertrain's rise.
+   */
+  rearClamOpen: deg(70),
+  rearClamLift: [0, 0.55, -0.55] as Vec3,
+  /** The wing comes off the opened clam, outward from its top surface. */
+  rearWingOff: [0, 0.16, -0.42] as Vec3,
+  /** Windscreen and fixed glass lift off the cabin, and forward, clear of the rising engine. */
+  glass: [0, 0.75, 0.3] as Vec3,
   wheelOut: 0.75,
-  /** Calipers follow the wheels part of the way (they live on the uprights). */
-  caliperOut: 0.45,
+  /** Discs follow the wheels part of the way (they live on the hubs). */
+  discOut: 0.45,
+  /**
+   * The engine's front end tucks under the roof's trailing edge (z ≈ −0.69), so the
+   * powertrain first slides back (stage 2), then lifts (stage 3): 0.3 m clears the roof edge
+   * and keeps the block ahead of the frame's top crossmember over the axle (z ≈ −1.24).
+   */
+  powertrainBack: 0.3,
   powertrainLift: 1.2,
   /**
    * Stage-4 teardown. Bank parts travel along their bank axis; the comments give what
    * each distance has to clear (all relative to the part they ride on).
    */
   engine: {
-    camCover: 0.25, // clears the cams after they lift
-    coilPacks: 0.14, // boots clear of the cover top
-    sparkPlugs: 0.1, // up between the lifted cams
-    camshafts: 0.12, // lobes clear of the springs and towers
-    head: 0.47, // above the gasket
-    gasket: 0.4, // above the risen pistons' crowns
-    pistons: 0.36, // skirts above the risen rods' small ends
-    rods: 0.3, // big ends (and cap bolts) clear of the deck
-    crankDrop: 0.25,
-    /** Clears the dropped crank, but keeps the scavenge pump above the bay's top-front ducts. */
-    sumpDrop: 0.29,
-    timingCover: 0.22, // forward, toward the cabin
-    timingChains: 0.1, // forward, out of the sprockets' way as the heads lift
-    waterPump: 0.15, // forward, outboard of the timing cover
-    auxMotor: [0.02, -0.2, 0.15] as Vec3, // down and forward, under the coolant hose (beside the dropped sump)
-    mount: 0.15, // outboard
-    oilFilter: 0.12, // outboard
-    oilCooler: [-0.1, -0.12, 0] as Vec3, // down and out, under the swung headers
-    oilTank: 0.3, // up off the gearbox
-    // 2b
-    plenum: 0.55, // first and highest: the lid of the engine
-    runners: 0.3, // up out of the V, below the lifted plenum
-    throttleBody: [0, 0.35, -0.1] as Vec3,
-    intakeTube: { out: 0.15, lift: 0.4 },
-    airbox: { out: 0.2, lift: 0.45 },
-    fuelRail: 0.22, // straight up, under the lifted runners
-    headerSwing: deg(25), // about the line of exhaust ports
-    catalyst: 0.25, // outboard
-    exhaustPipe: { out: 0.3, back: 0.05 }, // back a little, off the catalyst's outlet flange
-    silencer: { out: 0.35, back: 0.1 },
-    ecu: 0.2, // outboard
-    fuseBox: 0.2, // outboard
-  },
-  /** Stage 5, the hybrid system apart. */
-  transaxle: {
-    back: 0.4, // the casing (bellhousing, gears, diff ride) slides off the engine
-    flywheel: 0.12, // back, off the crank flange
-    clutch: 0.24, // back, between the flywheel and the bellhousing
-    eMotor: 0.35, // further back than the casing
-    inverter: 0.3, // straight up off the powertrain, under the lifted intake and clear of the oil tank
-  },
-  /** Stage 2: out of the gearbox before the powertrain lifts. */
-  driveshaft: 0.35,
-  battery: {
-    /** Sits down onto the ground while sliding out past the car's left side. */
-    drop: hybridInput.battery.bottomY,
-    slideX: body.halfWidth + hybridInput.battery.halfWidth + batteryClearOfBody,
+    camCover: 0.22, // clears the cams after they lift
+    coilPacks: 0.12, // caps/packs clear of the cover top
+    sparkPlugs: 0.09, // up between the lifted cams
+    camshafts: 0.11, // lobes clear of the springs and towers
+    head: 0.42, // above the gasket
+    gasket: 0.36, // above the risen pistons' crowns
+    pistons: 0.33, // skirts above the risen rods' small ends
+    rods: 0.27, // big ends (and cap bolts) clear of the deck
+    crankDrop: 0.23,
+    sumpDrop: 0.27, // clears the dropped crank
+    timingCover: 0.2, // forward, toward the cabin
+    timingChains: 0.09, // forward, out of the pulleys' way as the heads lift
+    waterPump: 0.14, // forward, outboard of the timing cover
+    waterPumpOut: 0.1, // and outboard, clear of the belts moving forward
+    mount: 0.14, // outboard
+    oilFilter: 0.11, // outboard
+    oilCooler: [-0.1, -0.1, 0] as Vec3, // down and out
   },
 } as const;

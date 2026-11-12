@@ -21,14 +21,14 @@ import type { MeshSpec } from '../../../scene/MeshSet';
 import { camCentre, SIDES, sideSign, type Side } from '../layout';
 import { band, boltHead } from './core';
 
-/** Timing drive, lubrication, cooling pumps, mounts and the auxiliary e-motor (engine coordinates). */
+/** Cam drive (belts or chains), lubrication, cooling pumps and mounts (engine coordinates). */
 
 const E = DIMS.engine;
 const T = E.timing;
 const one = new Vector3(1, 1, 1);
 const zAxis = new Vector3(0, 0, 1);
 
-/** Pitch circles of the sprockets one bank's chain wraps: crank, intake cam, exhaust cam. */
+/** Pitch circles of the pulleys (or sprockets) one bank's belt (or chain) wraps: crank, intake cam, exhaust cam. */
 function chainCircles(s: Side) {
   const cams = (['intake', 'exhaust'] as const).map((k) => camCentre(k, s));
   return [
@@ -40,7 +40,7 @@ function chainCircles(s: Side) {
 const hullOf = (circles: { c: P2; r: number }[], grow: number) =>
   hull2d(circles.flatMap(({ c, r }) => circlePoints(c[0], c[1], r + grow, SEGMENTS.cylinder * 2)));
 
-// ─── Timing cover and chains ─────────────────────────────────────────────────
+// ─── Timing cover and cam drive ──────────────────────────────────────────────
 
 export function timingCoverMeshes(): MeshSpec[] {
   const circles = SIDES.flatMap(chainCircles);
@@ -49,7 +49,7 @@ export function timingCoverMeshes(): MeshSpec[] {
   const plateDepth = depth - T.bulge;
   const plate = extrude(polygonShape(outline), plateDepth, T.coverBevel);
   plate.translate(0, 0, E.blockFrontZ);
-  // Raised housings over each bank's chain run, and a cast rim around the edge.
+  // Raised housings over each bank's belt (or chain) run, and a cast rim around the edge.
   const bulges = SIDES.map((s) => {
     const g = extrude(polygonShape(hullOf(chainCircles(s), T.bulgeMargin)), depth - T.rimHeight, T.coverBevel);
     g.translate(0, 0, E.blockFrontZ);
@@ -60,20 +60,16 @@ export function timingCoverMeshes(): MeshSpec[] {
   rimShape.holes.push(polygonShape([...inner].reverse()));
   const rim = extrude(rimShape, plateDepth + T.rimHeight, T.coverBevel / 2);
   rim.translate(0, 0, E.blockFrontZ);
-  // Bosses where the water pumps and the aux motor bolt through, breaking the outline.
+  // Bosses where the water pumps bolt through, breaking the outline.
   const W = E.waterPump;
-  const A = E.auxMotor;
-  const bosses = [
-    ...SIDES.map((s) => ({ c: [sideSign(s) * W.centre[0], W.centre[1]] as P2, r: W.radius + T.bossMargin })),
-    { c: [A.centre[0], A.centre[1]] as P2, r: A.radius + T.bossMargin },
-  ].map(({ c, r }) => {
+  const pumps = SIDES.map((s) => [sideSign(s) * W.centre[0], W.centre[1]] as P2);
+  const bosses = pumps.map((c) => ({ c, r: W.radius + T.bossMargin })).map(({ c, r }) => {
     const g = extrude(polygonShape(circlePoints(c[0], c[1], r, SEGMENTS.cylinder)), T.bossDepth, T.coverBevel / 2);
     g.translate(0, 0, E.blockFrontZ);
     return g;
   });
   // Webs tying each boss back into the cover.
-  const webs = bosses.length ? [...SIDES.map((s) => ({ c: [sideSign(s) * W.centre[0], W.centre[1]] as P2 })), { c: [A.centre[0], A.centre[1]] as P2 }] : [];
-  const webGeoms = webs.map(({ c }) => {
+  const webGeoms = pumps.map((c) => {
     const len = Math.hypot(c[0], c[1]) * 0.55;
     const g = roundedBox(len, T.webWidth, T.bossDepth, E.bevel);
     g.rotateZ(Math.atan2(c[1], c[0]));
@@ -90,7 +86,21 @@ export function timingCoverMeshes(): MeshSpec[] {
   ];
 }
 
-export function timingChainMeshes(): MeshSpec[] {
+/** The cam drive: one toothed belt per bank (a band round its pulleys), or chains. */
+export function camDriveMeshes(): MeshSpec[] {
+  if (E.camDrive === 'chain') return chainMeshes();
+  const B = T.belt;
+  const bands = SIDES.map((s) => {
+    const shape = polygonShape(hullOf(chainCircles(s), B.thickness));
+    shape.holes.push(polygonShape([...hullOf(chainCircles(s), 0)].reverse()));
+    const g = extrude(shape, B.width, B.thickness / 4);
+    g.translate(0, 0, E.chainZ[s] - B.width / 2);
+    return g;
+  });
+  return [{ geometry: merge(bands), material: 'rubber' }];
+}
+
+function chainMeshes(): MeshSpec[] {
   const C = T.chain;
   // Plain boxes: ~300 links, only seen once the timing cover is off.
   const link = new BoxGeometry(C.pitch * C.linkFill, C.height, C.width);
@@ -118,7 +128,7 @@ export function sumpMeshes(): MeshSpec[] {
     g.rotateX(Math.PI / 2);
     g.translate(0, sumpTop, 0);
   }
-  const outlets = S.pickupZ.map((z) => {
+  const outlets = S.pickupAt.map(E.blockZ).map((z) => {
     const g = cylinderZ(S.outletRadius, -S.outletLength, 0, 0, 0, SEGMENTS.small * 2);
     g.rotateY(Math.PI / 2); // points outboard (−x) from the right-hand wall
     g.translate(-S.halfWidth, S.outletY, z);
@@ -142,10 +152,10 @@ export function sumpMeshes(): MeshSpec[] {
 }
 
 const P = E.oilPump;
-const pumpZ = [P.centre[2] + P.length / 2, P.centre[2] - P.length / 2] as const;
+const pumpZ = [E.blockZ(P.at) + P.length / 2, E.blockZ(P.at) - P.length / 2] as const;
 
 export function oilPumpMeshes(): MeshSpec[] {
-  const [x, y] = P.centre;
+  const { x, y } = P;
   const body = cylinderZ(P.radius, pumpZ[1], pumpZ[0], x, y);
   const caps = pumpZ.map((z, k) => cylinderZ(P.radius + P.capLip, z - (k ? 0 : P.capThickness), z + (k ? P.capThickness : 0), x, y));
   const drive = cylinderZ(P.driveRadius, pumpZ[0], pumpZ[0] + P.driveLength, x, y, SEGMENTS.small * 2);
@@ -154,10 +164,10 @@ export function oilPumpMeshes(): MeshSpec[] {
 
 /** Scavenge lines from the sump outlets into the bottom of the pump. */
 export function oilPickupMeshes(): MeshSpec[] {
-  const [px, py] = P.centre;
-  const tubes = S.pickupZ.map((z, k) => {
+  const { x: px, y: py } = P;
+  const tubes = S.pickupAt.map(E.blockZ).map((z, k) => {
     const out = new Vector3(-S.halfWidth - S.outletLength, S.outletY, z);
-    const inletZ = pumpZ[0] - (k + 1) * (P.length / (S.pickupZ.length + 1));
+    const inletZ = pumpZ[0] - (k + 1) * (P.length / (S.pickupAt.length + 1));
     const below = py - P.radius - S.pickupDrop;
     return tube(
       [
@@ -184,10 +194,11 @@ export function oilFilterMeshes(): MeshSpec[] {
     [r - F.round / 2, 0],
     [0, 0],
   ]);
-  can.translate(F.x, F.top, F.z);
+  const z = E.blockZ(F.at);
+  can.translate(F.x, F.top, z);
   const adapterW = F.x - E.block.skirtHalfWidth;
   const adapter = roundedBox(adapterW + r, F.adapterHeight, r * 1.6, E.bevel);
-  adapter.translate(E.block.skirtHalfWidth + (adapterW + r) / 2, F.top + F.adapterHeight / 2, F.z);
+  adapter.translate(E.block.skirtHalfWidth + (adapterW + r) / 2, F.top + F.adapterHeight / 2, z);
   return [
     { geometry: can, material: 'satinBlack' },
     { geometry: adapter, material: 'castAluminium' },
@@ -197,7 +208,8 @@ export function oilFilterMeshes(): MeshSpec[] {
 export function oilCoolerMeshes(): MeshSpec[] {
   const C = E.oilCooler;
   const [w, h, d] = C.size;
-  const [x, y, z] = C.centre;
+  const { x, y } = C;
+  const z = E.blockZ(C.at);
   const core = roundedBox(w, h, d, E.bevel);
   core.translate(x, y, z);
   const fins = Array.from({ length: C.fins }, (_, k) => {
@@ -251,7 +263,7 @@ export function oilTankMeshes(): MeshSpec[] {
   ];
 }
 
-// ─── Water pumps, mounts, auxiliary e-motor ──────────────────────────────────
+// ─── Water pumps, mounts ─────────────────────────────────────────────────────
 
 /** End of a water pump's inlet stub (engine coordinates) and the way a hose leaves it. */
 export function waterPumpInlet(s: Side) {
@@ -274,7 +286,7 @@ export function waterPumpMeshes(s: Side): MeshSpec[] {
   const body = cylinderZ(W.radius, z0, z0 + W.length, x, cy);
   const face = cylinderZ(W.radius * W.faceScale, z0 + W.length, z0 + W.length + W.faceThickness, x, cy);
   const zMid = z0 + W.length / 2;
-  // Inlet stub out and down, clear of the aux motor below the left pump.
+  // Inlet stub out and down.
   const tip = waterPumpInlet(s).at;
   const inlet = tube(
     [
@@ -293,31 +305,12 @@ export function mountMeshes(s: Side): MeshSpec[] {
   const [bw, bh, bd] = M.bracket;
   const x0 = sx * E.block.skirtHalfWidth;
   const bracket = roundedBox(bw, bh, bd, E.bevel);
-  bracket.translate(x0 + (sx * bw) / 2, M.y, M.z);
+  const z = E.blockZ(M.at);
+  bracket.translate(x0 + (sx * bw) / 2, M.y, z);
   const bush = cylinderY(M.bushRadius, M.y - M.bushLength / 2, M.y + M.bushLength / 2);
-  bush.translate(x0 + sx * (bw + M.bushRadius * M.bushOverlap), 0, M.z);
+  bush.translate(x0 + sx * (bw + M.bushRadius * M.bushOverlap), 0, z);
   return [
     { geometry: bracket, material: 'castAluminium' },
     { geometry: bush, material: 'rubber' },
-  ];
-}
-
-export function auxMotorMeshes(): MeshSpec[] {
-  const A = E.auxMotor;
-  const [x, y] = A.centre;
-  const zf = E.blockFrontZ + A.frontGap;
-  const zr = zf - A.length;
-  const housing = cylinderZ(A.radius, zr + A.capThickness, zf - A.capThickness, x, y);
-  const caps = [zf - A.capThickness, zr].map((z) => cylinderZ(A.radius * A.capScale, z, z + A.capThickness, x, y));
-  const fins = Array.from({ length: A.fins }, (_, k) => {
-    const z = zr + A.capThickness + ((k + 0.5) * (A.length - 2 * A.capThickness)) / A.fins;
-    return cylinderZ(A.radius + A.finHeight, z - A.finThickness / 2, z + A.finThickness / 2, x, y);
-  });
-  const [bw, bh, bd] = A.connector;
-  const hv = roundedBox(bw, bh, bd, E.bevel);
-  hv.translate(x, y + A.radius + bh / 2, (zf + zr) / 2);
-  return [
-    { geometry: merge([housing, ...caps, ...fins]), material: 'castAluminium' },
-    { geometry: hv, material: 'hvOrange' },
   ];
 }

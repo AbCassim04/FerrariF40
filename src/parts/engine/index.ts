@@ -5,26 +5,25 @@ import { specBuild } from '../../scene/MeshSet';
 import type { PartDef } from '../types';
 import { blockMeshes, crankMeshes, pistonMeshes, rodMeshes } from './geometry/core';
 import {
-  auxMotorMeshes,
+  camDriveMeshes,
   mountMeshes,
   oilCoolerMeshes,
   oilFilterMeshes,
   oilPickupMeshes,
   oilPumpMeshes,
-  oilTankMeshes,
   sumpMeshes,
-  timingChainMeshes,
   timingCoverMeshes,
   waterPumpMeshes,
 } from './geometry/ancillaries';
-import { camCoverMeshes, camshaftMeshes, coilPackMeshes, gasketMeshes, headMeshes, sparkPlugMeshes, valvetrainMeshes } from './geometry/head';
-import { alongBank, PER_BANK, sideName, sideSign, type Side } from './layout';
+import { camCoverMeshes, camshaftMeshes, gasketMeshes, headMeshes, ignitionMeshes, sparkPlugMeshes, valvetrainMeshes } from './geometry/head';
+import { alongBank, cylinderNumber, PER_BANK, sideName, sideSign, type Side } from './layout';
 
 /**
- * The V12 (milestone 2a): bottom end, heads and valvetrain, timing drive, lubrication,
- * water pumps, mounts and the auxiliary e-motor. Every part is modelled in engine
- * coordinates, so all share one position (DIMS.engine.origin). Stage 4 strips the engine
- * outside-in; bank parts travel along their bank axis.
+ * The engine core, built from DIMS.engine (cylinders, bank angle, bore, stroke, rod, crank
+ * layout, firing order, head sizes): bottom end, heads and valvetrain, cam drive,
+ * lubrication, water pumps and mounts. Every part is modelled in engine coordinates, so all
+ * share one position (DIMS.engine.origin). Stage 4 strips the engine outside-in; bank parts
+ * travel along their bank axis. Info copy is derived from the same figures.
  */
 
 const E = DIMS.engine;
@@ -43,10 +42,16 @@ function enginePart(p: EngineSpec): PartDef {
 
 const bySide = (s: Side, name: string) => `${name} (${sideName(s)} bank)`;
 const count = (n: number) => String(n);
+const cylinders = (s: Side) => `${cylinderNumber(s, 0)}–${cylinderNumber(s, PER_BANK - 1)}`;
+const crankName = E.crankType === 'flat-plane' ? 'Flat-plane' : 'Cross-plane';
+const throws = E.throwAngles.map((a) => Math.round((a * 180) / Math.PI));
+const mains = E.perBank + 1;
+const drive = E.camDrive === 'belt' ? 'belt' : 'chain';
 
 function bankParts(s: Side): PartDef[] {
   const head = `cylinder-head-${s}`;
   const cover = `cam-cover-${s}`;
+  const coilOnPlug = E.ignition === 'coil-on-plug';
   return [
     enginePart({
       id: `head-gasket-${s}`,
@@ -63,7 +68,7 @@ function bankParts(s: Side): PartDef[] {
       id: head,
       name: bySide(s, 'Cylinder head'),
       group: 'engine',
-      description: 'Four valves per cylinder: intake ports face into the V, exhaust ports outboard. Carries the camshafts, valvetrain and spark plugs.',
+      description: `Four valves per cylinder for cylinders ${cylinders(s)}: intake ports face into the V, exhaust ports outboard. Carries both camshafts, the valvetrain and the spark plugs.`,
       specs: {
         Valves: count(PER_BANK * 4),
         Height: fmtMm(E.head.height, 0),
@@ -93,7 +98,7 @@ function bankParts(s: Side): PartDef[] {
       name: bySide(s, 'Camshafts'),
       group: 'engine',
       parent: head,
-      description: 'Intake and exhaust camshafts, chain-driven from the crank at half its speed. Lobes are phased to the firing order.',
+      description: `Intake and exhaust camshafts, ${drive}-driven from the crank at half its speed. Lobes are phased to the firing order.`,
       specs: { Lobes: count(PER_BANK * 4), 'Valve lift': fmtMm(E.camshaft.lift) },
       build: specBuild(`Camshafts_${s}`, () => camshaftMeshes(s)),
       material: 'steel',
@@ -117,7 +122,7 @@ function bankParts(s: Side): PartDef[] {
       name: bySide(s, 'Cam cover'),
       group: 'engine',
       parent: head,
-      description: 'Red wrinkle-finish cover over the camshafts, bolted along both edges.',
+      description: 'Red crackle-finish cover over the camshafts, bolted along both edges.',
       specs: { Bolts: count(E.camCover.boltsPerSide * 2) },
       build: specBuild(`CamCover_${s}`, () => camCoverMeshes(s)),
       material: 'camCover',
@@ -125,13 +130,15 @@ function bankParts(s: Side): PartDef[] {
       delay: TEARDOWN.camCovers,
     }),
     enginePart({
-      id: `coil-packs-${s}`,
-      name: bySide(s, 'Coil packs'),
+      id: coilOnPlug ? `coil-packs-${s}` : `plug-caps-${s}`,
+      name: bySide(s, coilOnPlug ? 'Coil packs' : 'Plug caps'),
       group: 'engine',
       parent: cover,
-      description: 'One ignition coil per cylinder, its boot reaching down the plug well onto the spark plug.',
+      description: coilOnPlug
+        ? 'One ignition coil per cylinder, its boot reaching down the plug well onto the spark plug.'
+        : 'Insulated caps pushed down the plug wells onto the spark plugs, each on the end of its high-tension lead from the distributor.',
       specs: { Count: count(PER_BANK) },
-      build: specBuild(`CoilPacks_${s}`, () => coilPackMeshes(s)),
+      build: specBuild(`Ignition_${s}`, () => ignitionMeshes(s)),
       material: 'satinBlack',
       explodeOffset: alongBank(s, X.coilPacks),
       delay: TEARDOWN.coilPacks,
@@ -175,7 +182,7 @@ export const engineParts: PartDef[] = [
     id: 'engine-block',
     name: 'Engine block',
     group: 'engine',
-    description: 'Cast-aluminium 65° V12 block: two banks of six bores, deep skirts and seven main-bearing bulkheads. Everything else is stripped from it.',
+    description: `Cast-aluminium ${fmtDeg(E.bankAngle)} V${E.cylinders} block: two banks of ${PER_BANK} bores, deep skirts and ${mains} main-bearing bulkheads. Everything else is stripped from it.`,
     specs: {
       Displacement: `${Math.round(E.displacementCc)} cc`,
       'Bore × stroke': `${fmtMm(E.bore)} × ${fmtMm(E.stroke)}`,
@@ -195,12 +202,12 @@ export const engineParts: PartDef[] = [
     id: 'crankshaft',
     name: 'Crankshaft',
     group: 'engine',
-    description: `Six throws at 120°, each carrying a left and a right rod, on seven main journals. Shown at ${fmtDeg(E.crankPhase)} of crank rotation.`,
+    description: `${crankName} crank: ${PER_BANK} throws at ${throws.join('/')}°, each carrying a left and a right rod, on ${mains} main journals. Shown at ${fmtDeg(E.crankPhase)} of crank rotation.`,
     specs: {
       Stroke: fmtMm(E.stroke),
-      'Main journals': `7 × Ø${fmtMm(E.crank.mainJournalRadius * 2, 0)}`,
-      Crankpins: `6 × Ø${fmtMm(E.crank.pinRadius * 2, 0)}`,
-      'Firing order (each bank)': E.bankFiringOrder.join('-'),
+      'Main journals': `${mains} × Ø${fmtMm(E.crank.mainJournalRadius * 2, 0)}`,
+      Crankpins: `${PER_BANK} × Ø${fmtMm(E.crank.pinRadius * 2, 0)}`,
+      'Firing order': E.firingOrder.join('-'),
     },
     build: specBuild('Crankshaft', crankMeshes),
     material: 'steel',
@@ -209,9 +216,9 @@ export const engineParts: PartDef[] = [
   }),
   enginePart({
     id: 'timing-cover',
-    name: 'Timing cover',
+    name: E.camDrive === 'belt' ? 'Cam-belt cover' : 'Timing cover',
     group: 'engine',
-    description: 'Cast cover over the cam-drive chains at the front of the engine, the end nearest the cabin. The water pumps and the auxiliary e-motor bolt through it.',
+    description: `Cover over the cam-drive ${drive}s at the front of the engine, the end nearest the cabin. The water pumps bolt through it.`,
     specs: { Bolts: count(E.timing.coverBolts) },
     build: specBuild('TimingCover', timingCoverMeshes),
     material: 'castAluminium',
@@ -219,13 +226,13 @@ export const engineParts: PartDef[] = [
     delay: TEARDOWN.frontCovers,
   }),
   enginePart({
-    id: 'timing-chains',
-    name: 'Timing chains',
+    id: 'cam-drive',
+    name: E.camDrive === 'belt' ? 'Cam belts' : 'Timing chains',
     group: 'engine',
-    description: 'One chain per bank, from the crankshaft up to that bank’s two cam sprockets.',
-    specs: { Pitch: fmtMm(E.timing.chain.pitch, 3) },
-    build: specBuild('TimingChains', timingChainMeshes),
-    material: 'darkSteel',
+    description: `One ${drive} per bank, from the crankshaft up to that bank’s two cam ${E.camDrive === 'belt' ? 'pulleys' : 'sprockets'}.`,
+    specs: E.camDrive === 'belt' ? { Width: fmtMm(E.timing.belt.width, 0), Type: 'Toothed rubber' } : { Pitch: fmtMm(E.timing.chain.pitch, 3) },
+    build: specBuild('CamDrive', camDriveMeshes),
+    material: E.camDrive === 'belt' ? 'rubber' : 'darkSteel',
     explodeOffset: [0, 0, X.timingChains],
     delay: TEARDOWN.heads,
   }),
@@ -245,7 +252,7 @@ export const engineParts: PartDef[] = [
     name: 'Scavenge pump',
     group: 'engine',
     parent: 'dry-sump-pan',
-    description: 'Scavenge pump: draws oil out of the shallow sump and sends it back to the remote tank, so the crankshaft never churns through oil.',
+    description: 'Draws oil out of the shallow sump and sends it back to the remote tank, so the crankshaft never churns through oil.',
     specs: { Type: 'Scavenge (dry sump)' },
     build: specBuild('OilPump', oilPumpMeshes),
     material: 'castAluminium',
@@ -256,7 +263,7 @@ export const engineParts: PartDef[] = [
     group: 'engine',
     parent: 'dry-sump-pan',
     description: 'Pick-ups spread along the sump, so the scavenge pump keeps drawing oil under hard braking and cornering.',
-    specs: { Count: count(E.sump.pickupZ.length) },
+    specs: { Count: count(E.sump.pickupAt.length) },
     build: specBuild('OilPickups', oilPickupMeshes),
     material: 'steel',
   }),
@@ -275,39 +282,28 @@ export const engineParts: PartDef[] = [
     id: 'oil-cooler',
     name: 'Oil cooler',
     group: 'engine',
-    description: 'Oil-to-coolant heat exchanger on the right of the block: it warms the oil quickly from cold and keeps it from overheating on track.',
+    description: 'Oil-to-coolant heat exchanger on the right of the block: it warms the oil quickly from cold and keeps it from overheating under boost.',
     specs: { Size: `${fmtMm(E.oilCooler.size[2], 0)} × ${fmtMm(E.oilCooler.size[1], 0)}` },
     build: specBuild('OilCooler', oilCoolerMeshes),
     material: 'castAluminium',
     explodeOffset: X.oilCooler,
     delay: TEARDOWN.ancillaries,
   }),
-  enginePart({
-    id: 'oil-tank',
-    name: 'Oil tank',
-    group: 'engine',
-    description: 'Finned dry-sump oil reservoir on top of the gearbox, between the airboxes. The fins shed heat; the pressure pump feeds the engine from here.',
-    specs: { Length: fmtMm(E.oilTank.length, 0) },
-    build: specBuild('OilTank', oilTankMeshes),
-    material: 'castAluminium',
-    explodeOffset: [0, X.oilTank, 0],
-    delay: TEARDOWN.intake,
-  }),
   ...(['l', 'r'] as const).map((s) =>
     sidePart(s, 'water-pump', 'Water pump', {
       group: 'cooling',
-      description: `Circulates coolant through the ${sideName(s)} bank and its head, driven from the timing end. Its inlet takes the hose from the side-pod radiator.`,
+      description: `Circulates coolant through the ${sideName(s)} bank and its head, driven from the timing end. Its inlet takes the hose from the radiator.`,
       specs: { Diameter: `Ø${fmtMm(E.waterPump.radius * 2, 0)}` },
       build: specBuild(`WaterPump_${s}`, () => waterPumpMeshes(s)),
       material: 'castAluminium',
-      explodeOffset: [0, 0, X.waterPump],
+      explodeOffset: [sideSign(s) * X.waterPumpOut, 0, X.waterPump],
       delay: TEARDOWN.frontCovers,
     }),
   ),
   ...(['l', 'r'] as const).map((s) =>
     sidePart(s, 'engine-mount', 'Engine mount', {
       group: 'engine',
-      description: 'Cast bracket and rubber bush carrying the engine in the chassis; the bush soaks up vibration before it reaches the tub.',
+      description: 'Cast bracket and rubber bush carrying the engine in the frame; the bush soaks up vibration before it reaches the chassis.',
       specs: { Bush: `Ø${fmtMm(E.mount.bushRadius * 2, 0)} × ${fmtMm(E.mount.bushLength, 0)}` },
       build: specBuild(`EngineMount_${s}`, () => mountMeshes(s)),
       material: 'castAluminium',
@@ -315,15 +311,4 @@ export const engineParts: PartDef[] = [
       delay: TEARDOWN.ancillaries,
     }),
   ),
-  enginePart({
-    id: 'aux-emotor',
-    name: 'Auxiliary e-motor',
-    group: 'hybrid',
-    description: 'Second electric motor, low on the timing end of the engine. Drives the engine’s ancillaries and generates power for the battery.',
-    specs: { Diameter: fmtMm(E.auxMotor.radius * 2, 0), Length: fmtMm(E.auxMotor.length, 0) },
-    build: specBuild('AuxMotor', auxMotorMeshes),
-    material: 'castAluminium',
-    explodeOffset: X.auxMotor,
-    delay: TEARDOWN.frontCovers,
-  }),
 ];

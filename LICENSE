@@ -8,7 +8,7 @@ Third-party assets are excluded and keep their own licences (see below).
 
 Exceptions:
 
-- public/models/body.opt.glb: "2014 Ferrari LaFerrari" by Ddiaz Design,
-  CC BY-NC-SA 4.0, modified; see public/models/LICENSE.md.
+- public/models/body.opt.glb and assets-src/models/f40/body.glb: "Ferrari f40"
+  by Black Snow, CC BY 4.0, modified; see public/models/LICENSE.md.
 - public/hdri/: "Studio Small 09" by Sergej Majboroda (Poly Haven), CC0.
 - npm dependencies keep their own licences.

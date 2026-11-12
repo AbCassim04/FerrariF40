@@ -19,6 +19,7 @@ interface ModelPartSpec {
   description: string;
   specs?: Record<string, string>;
   stage: Stage;
+  parent?: string;
   explodeOffset?: Vec3;
   explodeRotation?: Vec3;
   pivot?: Vec3;
@@ -42,50 +43,36 @@ const sideSign = (s: Side) => (s === 'l' ? 1 : -1);
 const sideName = (s: Side) => (s === 'l' ? 'left' : 'right');
 
 function door(s: Side) {
-  const hinge = DIMS.body.doorHinge[s];
   return modelPart({
     id: `door-${s}`,
     name: `Door (${sideName(s)})`,
     group: 'body',
-    description: 'Butterfly door hinged at the windscreen pillar. It swings up and out and takes a slice of the roof with it, so getting in over the wide sill is easier.',
-    specs: {
-      Type: 'Butterfly',
-      Opens: `${fmtDeg(EXPLODE.door.pitch)} up, ${fmtDeg(EXPLODE.door.roll)} out`,
-    },
+    description: 'Lightweight composite door, hinged at its front edge. Inside, a pull cord takes the place of a door handle.',
+    specs: { Hinge: 'Front edge', Opens: fmtDeg(EXPLODE.doorOpen) },
     stage: 1,
-    explodeRotation: [EXPLODE.door.pitch, 0, sideSign(s) * EXPLODE.door.roll],
-    pivot: hinge,
+    // Swings its rear edge outward about the front hinge.
+    explodeRotation: [0, -sideSign(s) * EXPLODE.doorOpen, 0],
+    pivot: DIMS.body.doorHinge[s],
     delay: BODY_DELAY.doors,
-  });
-}
-
-function sideIntake(s: Side) {
-  return modelPart({
-    id: `side-intake-${s}`,
-    name: `Side intake (${sideName(s)})`,
-    group: 'cooling',
-    description: 'Grille in the scoop behind the door, feeding air to the radiator in the side pod.',
-    stage: 1,
-    explodeOffset: [sideSign(s) * EXPLODE.sideIntakeOut, 0, 0],
-    delay: BODY_DELAY.panels,
   });
 }
 
 type Corner = 'fl' | 'fr' | 'rl' | 'rr';
 const CORNERS: Corner[] = ['fl', 'fr', 'rl', 'rr'];
 const cornerName = (c: Corner) => `${c[0] === 'f' ? 'front' : 'rear'} ${sideName(c[1] as Side)}`;
+const axleOf = (c: Corner) => DIMS.wheel[c[0] === 'f' ? 'front' : 'rear'];
 
 function wheel(c: Corner) {
-  const w = DIMS.wheel[c[0] === 'f' ? 'front' : 'rear'];
+  const w = axleOf(c);
   const { widthMm, aspectPct, rimIn } = w.tyre;
   return modelPart({
     id: `wheel-${c}`,
     name: `Wheel (${cornerName(c)})`,
     group: 'wheels',
-    description: 'Forged alloy wheel and low-profile tyre. The rears are much wider, to put the hybrid’s torque down.',
+    description: 'Five-spoke alloy wheel with a single centre-lock nut, on a low-profile tyre. The rears are much wider than the fronts to put the turbo torque down.',
     specs: {
-      Tyre: `${widthMm}/${aspectPct} R${rimIn}`,
-      'Outer diameter': fmtMm(w.diameter),
+      Tyre: `${widthMm}/${aspectPct} ZR${rimIn}`,
+      Rim: `${(w.rimWidth / 0.0254).toFixed(0)} × ${rimIn} in`,
       'Centre height': fmtMm(w.centreY),
       Track: fmtM(w.centreX * 2),
     },
@@ -94,97 +81,110 @@ function wheel(c: Corner) {
   });
 }
 
-function caliper(c: Corner) {
-  const w = DIMS.wheel[c[0] === 'f' ? 'front' : 'rear'];
+function disc(c: Corner) {
   return modelPart({
-    id: `caliper-${c}`,
-    name: `Brake caliper (${cornerName(c)})`,
+    id: `brake-disc-${c}`,
+    name: `Brake disc (${cornerName(c)})`,
     group: 'suspension',
-    description: 'Monobloc brake caliper clamping a carbon-ceramic disc. Under braking the e-motor also recovers energy before the brakes do most of the work.',
-    specs: { Disc: fmtMm(w.discDiameter, 0) },
+    description: 'Ventilated iron brake disc, gripped by a four-piston aluminium caliper. The real discs are cross-drilled; the model’s are plain.',
+    specs: { Diameter: fmtMm(axleOf(c).discDiameter, 0), Type: 'Ventilated, cross-drilled' },
     stage: 2,
-    explodeOffset: [sideSign(c[1] as Side) * EXPLODE.caliperOut, 0, 0],
+    explodeOffset: [sideSign(c[1] as Side) * EXPLODE.discOut, 0, 0],
   });
 }
 
+/** Virtual hinge the rear clam swings on: opens it about the tail, then the clam lifts away. */
+const rearClamHinge: PartDef = {
+  id: 'rear-clam-hinge',
+  name: 'Rear clam hinge',
+  group: 'body',
+  description: 'The rear clam’s hinge at the tail.',
+  specs: {},
+  position: ORIGIN,
+  stage: 1,
+  explodeOffset: ORIGIN,
+  explodeRotation: [-EXPLODE.rearClamOpen, 0, 0],
+  pivot: DIMS.body.rearClamHinge,
+  delay: BODY_DELAY.rearClamOpen,
+};
+
 export const bodyParts: PartDef[] = [
   modelPart({
-    id: 'carbon-tub',
-    name: 'Carbon tub & interior',
-    group: 'chassis',
-    description: 'Carbon-fibre monocoque: the passenger cell, with the seats moulded into it, and the backbone everything else mounts to. The engine hangs off its rear bulkhead.',
-    specs: { Material: 'Carbon fibre' },
+    id: 'body-shell',
+    name: 'Roof, pillars & sills',
+    group: 'body',
+    description: 'The fixed centre of the body, bonded to the steel tube frame: roof, windscreen pillars, sills and the bulkhead behind the seats. Like every panel on the car it is carbon fibre and Kevlar.',
+    specs: { Material: 'Carbon fibre and Kevlar' },
     stage: 1,
+  }),
+  modelPart({
+    id: 'interior',
+    name: 'Cockpit',
+    group: 'body',
+    description: 'Two composite bucket seats, the instrument binnacle, steering wheel and pedals. Built for lightness: no carpets and no sound system.',
+    specs: { Seats: '2', Drive: 'Left-hand (as modelled)' },
+    stage: 1,
+  }),
+  modelPart({
+    id: 'undertray',
+    name: 'Floor & diffuser',
+    group: 'body',
+    description: 'Flat floor under the cabin and the diffuser under the tail, which together keep the air under the car fast and the car pressed down.',
+    stage: 1,
+  }),
+  modelPart({
+    id: 'model-chassis',
+    name: 'Frame & suspension (placeholder)',
+    group: 'chassis',
+    description: 'Stand-in frame rails, suspension and radiator from the body model, kept until the procedural steel tube frame and double-wishbone suspension replace them.',
+    specs: { 'Real frame': 'Steel tube, strengthened with composites' },
+    stage: 1,
+  }),
+  modelPart({
+    id: 'glass',
+    name: 'Windscreen & fixed glass',
+    group: 'body',
+    description: 'The windscreen, the small rear side windows and the pane behind the seats.',
+    stage: 1,
+    explodeOffset: EXPLODE.glass,
+    delay: BODY_DELAY.glass,
   }),
   door('l'),
   door('r'),
   modelPart({
-    id: 'canopy',
-    name: 'Roof & windscreen',
-    group: 'body',
-    description: 'Windscreen and roof, with the carbon trailing edge that carries the third brake light.',
-    stage: 1,
-    explodeOffset: EXPLODE.canopy,
-    delay: BODY_DELAY.canopy,
-  }),
-  modelPart({
     id: 'front-clam',
-    name: 'Front clam (bonnet)',
+    name: 'Front clam',
     group: 'body',
-    description: 'Front lid over the crash structure and the ducts feeding the front of the car.',
+    description: 'Bonnet, front wings and nose in one composite piece, hinged at the very front. Lifting it bares the radiator and the front suspension.',
+    specs: { Hinge: 'Nose', Material: 'Carbon fibre and Kevlar' },
     stage: 1,
+    explodeRotation: [EXPLODE.frontClamOpen, 0, 0],
+    pivot: DIMS.body.frontClamHinge,
     explodeOffset: EXPLODE.frontClam,
-    delay: BODY_DELAY.panels,
+    delay: BODY_DELAY.frontClam,
   }),
-  modelPart({
-    id: 'nose',
-    name: 'Nose & front wings',
-    group: 'body',
-    description: 'Front bumper and splitter, headlamps and front wings, shaped to feed air to the brakes and the underbody.',
-    stage: 1,
-    explodeOffset: EXPLODE.nose,
-    delay: BODY_DELAY.panels,
-  }),
-  modelPart({
-    id: 'engine-cover',
-    name: 'Engine cover',
-    group: 'body',
-    description: 'Glass engine cover with black side rails and louvres, putting the V12 on display. Hot air from the bay escapes through the louvres.',
-    stage: 1,
-    explodeOffset: [0, EXPLODE.engineCoverLift, 0],
-    explodeRotation: [EXPLODE.engineCoverTilt, 0, 0],
-    pivot: DIMS.body.engineCoverHinge,
-    delay: BODY_DELAY.engineCover,
-  }),
+  rearClamHinge,
   modelPart({
     id: 'rear-clam',
     name: 'Rear clam',
     group: 'body',
-    description: 'Rear haunches, tail lamps and rear grille in one large panel that lifts away to expose the engine and gearbox.',
+    parent: 'rear-clam-hinge',
+    description: 'The whole tail in one composite piece, hinged at the very back: rear wings, tail lamps and the louvred Lexan cover the engine is seen through. Lifted, it bares the engine, gearbox and rear suspension.',
+    specs: { Hinge: 'Tail', Opens: fmtDeg(EXPLODE.rearClamOpen), 'Engine cover': 'Louvred Lexan' },
     stage: 1,
-    explodeOffset: EXPLODE.rearClam,
-    delay: BODY_DELAY.rearClam,
+    explodeOffset: EXPLODE.rearClamLift,
+    delay: BODY_DELAY.rearClamLift,
   }),
   modelPart({
     id: 'rear-wing',
     name: 'Rear wing',
     group: 'body',
-    description: 'Active rear spoiler: it rises for downforce under braking and in corners, and lies flat on straights to cut drag.',
+    parent: 'rear-clam',
+    description: 'Full-width fixed wing on endplates that rise out of the rear wings, part of the same moulding as the clam.',
     stage: 1,
-    explodeOffset: EXPLODE.rearWing,
+    explodeOffset: EXPLODE.rearWingOff,
     delay: BODY_DELAY.rearWing,
   }),
-  sideIntake('l'),
-  sideIntake('r'),
-  modelPart({
-    id: 'undertray-diffuser',
-    name: 'Undertray & diffuser',
-    group: 'body',
-    description: 'Flat underbody and rear diffuser. The diffuser’s tunnels speed up the air under the car, pulling it down onto the road.',
-    stage: 1,
-    explodeOffset: [0, 0, -EXPLODE.diffuserBack],
-    delay: BODY_DELAY.panels,
-  }),
   ...CORNERS.map(wheel),
-  ...CORNERS.map(caliper),
+  ...CORNERS.map(disc),
 ];

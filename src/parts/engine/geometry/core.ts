@@ -91,7 +91,7 @@ export function blockMeshes(): MeshSpec[] {
     const rib = roundedBox(B.rib.depth * 2, B.rib.width, len - 2 * B.rib.width, B.rib.depth / 2);
     rib.translate(sx * B.skirtHalfWidth, B.skirtRibY, E.blockRearZ + len / 2);
     parts.push(rib);
-    for (const z of B.boss.z) {
+    for (const z of B.boss.at.map(E.blockZ)) {
       const boss = cylinderY(B.boss.radius, 0, B.boss.depth);
       boss.rotateZ(-sx * Math.PI / 2);
       boss.translate(sx * B.skirtHalfWidth, B.boss.y, z);

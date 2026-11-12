@@ -9,17 +9,18 @@ export const STAGE_DURATION: Record<Stage, number> = { 1: 1, 2: 1, 3: 1, 4: 0.8,
 export const EASE = 'power2.inOut';
 
 /**
- * Stage-1 order (s after the stage starts): the engine cover is the reveal and goes
- * first with the doors, then the roof, the other panels, and finally the rear clam
- * and wing, which must be clear before the powertrain rises in stage 3.
+ * Stage-1 order (s after the stage starts): the reveal first. The rear clam opens about its
+ * tail hinge like the real one, showing the engine through the bay, then lifts away; the
+ * wing comes off it as it rises. The doors, front clam and glass follow. Everything must be
+ * clear before the powertrain rises in stage 3.
  */
 export const BODY_DELAY = {
-  engineCover: 0,
-  doors: 0,
-  canopy: 0.2,
-  panels: 0.3,
-  rearClam: 0.4,
-  rearWing: 0.45,
+  rearClamOpen: 0,
+  rearClamLift: 0.45,
+  rearWing: 0.55,
+  doors: 0.15,
+  frontClam: 0.25,
+  glass: 0.35,
 } as const;
 
 /**
@@ -27,32 +28,14 @@ export const BODY_DELAY = {
  * the parts covering it have started moving away.
  */
 export const TEARDOWN = {
-  plenum: 0,
-  intake: 0.15,
-  runners: 0.3,
   frontCovers: 0.3,
   camCovers: 0.45,
   coilPacks: 0.55,
   camshafts: 0.6,
   sparkPlugs: 0.6,
   heads: 0.75,
-  headers: 0.9,
   sump: 1.05,
   ancillaries: 1.05,
   pistons: 1.2,
   crank: 1.35,
-} as const;
-
-/**
- * Stage-5 order (s after the stage starts): the transaxle slides off the engine and the
- * battery slides out together, then the clutch and flywheel follow out of the
- * bellhousing, and the e-motor and inverters come off the casing.
- */
-export const HYBRID_DELAY = {
-  transaxle: 0,
-  battery: 0,
-  clutch: 0.1,
-  flywheel: 0.15,
-  eMotor: 0.2,
-  inverters: 0.2,
 } as const;

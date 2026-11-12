@@ -268,7 +268,24 @@ export function camCoverMeshes(s: Side): MeshSpec[] {
 const coverTopA = headTopA + E.camCover.height + E.camCover.seatHeight;
 const plugTopA = headDeckA + E.sparkPlug.top;
 
-export function coilPackMeshes(s: Side): MeshSpec[] {
+/** What sits on each plug well: a coil pack (coil-on-plug) or a plug cap with its HT lead (distributor). */
+export function ignitionMeshes(s: Side): MeshSpec[] {
+  return E.ignition === 'coil-on-plug' ? coilPackMeshes(s) : plugCapMeshes(s);
+}
+
+function plugCapMeshes(s: Side): MeshSpec[] {
+  const C = E.plugCap;
+  const boot = cylinderY(C.radius * 0.75, plugTopA - coverTopA, 0, SEGMENTS.small * 2);
+  const cap = cylinderY(C.radius, 0, C.height, SEGMENTS.small * 2);
+  // The lead leaves the cap toward the timing end (instances are rotated, not mirrored, so it stays fore-aft).
+  const lead = cylinderY(C.leadRadius, 0, C.leadLength, SEGMENTS.small);
+  lead.rotateX(Math.PI / 2);
+  lead.translate(0, C.height * 0.7, 0);
+  const poses = E.boreZ[s].map((z) => compose(bankPoint(s, coverTopA, 0, z), bankQuat(s)));
+  return [{ geometry: merge([boot, cap, lead]), material: 'satinBlack', instances: poses }];
+}
+
+function coilPackMeshes(s: Side): MeshSpec[] {
   const K = E.coilPack;
   const body = roundedBox(K.width, K.height, K.length, E.bevel * 2);
   body.translate(0, K.height / 2, 0);

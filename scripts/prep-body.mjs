@@ -1,16 +1,18 @@
 #!/usr/bin/env node
 /**
  * Prepares the licensed body model for the app. Repeatable: `npm run prep:body`.
+ * Car-specific inputs (source, normalisation, segmentation, measurements) live in
+ * scripts/body-rules.mjs; this script is the pipeline.
  *
- *   assets-src/models/body.glb (original, never modified; kept out of public/ so it is
- *   never shipped)
- *     1. strip the unused skin/joints, bake every transform into the vertices
- *     2. normalise to car coordinates: metres, +Y up, +Z forward, +X = car's left,
- *        ground at y = 0, wheelbase centred on z = 0
- *     3. segment into registry parts: name/path rules first, then spatial rules applied
- *        per connected piece (the source names are unreliable; see docs/body-report.md)
+ *   assets-src/… (original, never modified; kept out of public/ so it is never shipped)
+ *     1. strip any skin, bake every transform into the vertices (model space: the source's
+ *        world space after its own root matrix)
+ *     2. segment into registry parts: name/material rules, spatial rules per connected piece,
+ *        or per triangle where panels are welded together (see docs/body-report.md)
+ *     3. normalise to car coordinates: metres, +Y up, +Z forward, +X = car's left, ground at
+ *        y = 0, wheelbase centred on z = 0, ONE uniform scale fitted to the real wheelbase
  *     4. join per part + material, meshopt-compress
- *     5. measure wheels, door hinges and the free engine/transaxle bays (BVH raycasts)
+ *     5. measure wheels, overall size, hinges, firewall and the free engine/transaxle bays
  *   → public/models/body.opt.glb + docs/body-report.md
  */
 import { statSync, writeFileSync } from 'node:fs';
@@ -20,11 +22,9 @@ import { compactPrimitive, dedup, flatten, join, meshopt, prune, transformMesh }
 import { MeshoptEncoder } from 'meshoptimizer';
 import { Box3, BufferAttribute, BufferGeometry, DoubleSide, Matrix4, Mesh, MeshBasicMaterial, Raycaster, Vector3 } from 'three';
 import { MeshBVH, acceleratedRaycast } from 'three-mesh-bvh';
-import { MODEL_ENGINE_BAY, RULES, classifyFallback } from './body-rules.mjs';
+import { MEASURE, MODEL_ENGINE_BAY, NORMALISE, RULES, SOURCE, TRIS, classifyFallback } from './body-rules.mjs';
 
-const SRC = 'assets-src/models/body.glb';
-const OUT = 'public/models/body.opt.glb';
-const REPORT = 'docs/body-report.md';
+const { src: SRC, out: OUT, report: REPORT } = SOURCE;
 
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ 'meshopt.encoder': MeshoptEncoder });
 await MeshoptEncoder.ready;
@@ -37,8 +37,10 @@ const say = (s = '') => {
   log.push(s);
 };
 const f3 = (v) => `(${v.map((n) => n.toFixed(4)).join(', ')})`;
+const mm = (v) => `${v >= 0 ? '+' : '−'}${Math.abs(v * 1000).toFixed(0)} mm`;
 const countPrims = () => root.listMeshes().reduce((s, m) => s + m.listPrimitives().length, 0);
 const srcPrims = countPrims();
+const srcMaterials = root.listMaterials().length;
 
 // ─── 1. Strip skin, record each mesh node's ancestry, bake transforms ────────
 
@@ -56,61 +58,23 @@ for (const mesh of root.listMeshes()) {
     }
   }
 }
-
 const ancestry = new Map();
 for (const n of root.listNodes()) {
   const names = [];
   for (let a = n; a; a = a.getParentNode()) names.unshift(a.getName());
   ancestry.set(n, names.join(' / '));
 }
+const rootMatrix = root.listScenes()[0].listChildren()[0]?.getMatrix();
 
-const rawBox = new Box3();
-for (const n of root.listNodes()) {
-  if (!n.getMesh()) continue;
-  rawBox.union(nodeWorldBox(n));
-}
-
-// ─── 2. Normalise: measure wheels in source world space ──────────────────────
-
-const WHEEL_RE = /3DWheel (Front|Rear) (L|R)$/;
-const wheels = {};
-for (const n of root.listNodes()) {
-  const m = WHEEL_RE.exec(n.getName());
-  if (m) wheels[`${m[1][0].toLowerCase()}${m[2].toLowerCase()}`] = subtreeWorldBox(n);
-}
-if (Object.keys(wheels).length !== 4) throw new Error(`expected 4 wheel nodes, found ${Object.keys(wheels)}`);
-
-// Wheel centre from its tyre: axle runs along X, so Y/Z extents are the diameter.
-const rawWheel = (b) => {
-  const r = (b.max.z - b.min.z) / 2;
-  return { centre: new Vector3((b.min.x + b.max.x) / 2, b.max.y - r, (b.min.z + b.max.z) / 2), r, minY: b.min.y };
-};
-const rw = Object.fromEntries(Object.entries(wheels).map(([k, b]) => [k, rawWheel(b)]));
-const wbRaw = (rw.fl.centre.z + rw.fr.centre.z) / 2 - (rw.rl.centre.z + rw.rr.centre.z) / 2;
-const scale = 10 ** Math.round(Math.log10(2.65 / Math.abs(wbRaw)));
-const frontIsPlusZ = wbRaw > 0;
-if (!frontIsPlusZ) throw new Error('front wheels are not at +Z; add a 180° yaw to the normalisation');
-if (rw.fl.r >= rw.rl.r) throw new Error('"Front" wheels are not smaller than "Rear" ones; check naming');
-if (rw.fl.centre.x <= 0) throw new Error('"L" wheels are not on +X; car would be mirrored');
-
-const centre = new Vector3(
-  (rw.fl.centre.x + rw.fr.centre.x + rw.rl.centre.x + rw.rr.centre.x) / 4,
-  Math.min(...Object.values(rw).map((w) => w.minY)),
-  ((rw.fl.centre.z + rw.fr.centre.z) / 2 + (rw.rl.centre.z + rw.rr.centre.z) / 2) / 2,
-);
-const N = new Matrix4().makeScale(scale, scale, scale).multiply(new Matrix4().makeTranslation(-centre.x, -centre.y, -centre.z));
-
-// Bake: every mesh node to scene root with its world transform folded into the vertices.
 await doc.transform(flatten());
 for (const n of root.listNodes()) {
   const mesh = n.getMesh();
   if (!mesh) continue;
-  const world = new Matrix4().fromArray(n.getWorldMatrix());
-  transformMesh(mesh, N.clone().multiply(world).toArray());
+  transformMesh(mesh, n.getWorldMatrix());
   n.setMatrix(new Matrix4().identity().toArray());
 }
 
-// ─── 3. Segment into parts ───────────────────────────────────────────────────
+// ─── 2. Segment into parts (model space) ─────────────────────────────────────
 
 const scene = root.listScenes()[0];
 const partNodes = new Map();
@@ -123,11 +87,8 @@ const partNode = (id) => {
   return partNodes.get(id);
 };
 const reportRows = [];
-const FIREWALL = { centroidAheadOf: -0.35, centroidBehind: 0.1, y: [0.3, 0.9], spanX: 0.4 };
-let firewallZ = Infinity;
-let firewallBy = '';
 // Debug: `--debug-region=part:x0,x1,y0,y1,z0,z1` lists that part's pieces whose centroid is
-// inside the box; `--debug-touch=...` lists every piece whose bounding box overlaps it.
+// inside the box (model space); `--debug-touch=...` lists every piece whose bounds overlap it.
 const debugArg = process.argv.find((a) => /^--debug-(region|touch)=/.test(a));
 const DEBUG_REGION = debugArg
   ? (() => {
@@ -141,40 +102,56 @@ const DEBUG_REGION = debugArg
 const debugPieces = [];
 const dropped = [];
 let unmatched = 0;
+const tyres = [];
+const mirrors = [];
+const widthBox = new Box3();
+const cutStats = [];
 
 for (const node of root.listNodes().filter((n) => n.getMesh() && !partNodes.has(n.getName()))) {
   const name = node.getName();
   const path = ancestry.get(node) ?? name;
   for (const prim of node.getMesh().listPrimitives()) {
     const material = prim.getMaterial()?.getName() ?? '';
-    const ctx = { name, path, material };
-    const rule = RULES.find((r) => r.test(ctx));
     const pieces = splitByComponents(prim);
+    const box = new Box3();
+    pieces.forEach((p) => box.union(p.box));
+    const ctx = { name, path, material, box };
+    if (NORMALISE.isTyre(ctx)) tyres.push(box.clone());
+    const rule = RULES.find((r) => r.test(ctx));
     const byPart = new Map();
+    const add = (part, via, tris) => {
+      const key = `${part}\u0000${via}`;
+      const acc = byPart.get(key) ?? { part, via, tris: [] };
+      for (const t of tris) acc.tris.push(t);
+      byPart.set(key, acc);
+    };
+    const byRegion = [];
     for (const piece of pieces) {
+      if (NORMALISE.isMirror(piece)) mirrors.push(piece.box);
+      else widthBox.union(piece.box);
       let part = rule ? (rule.split ? rule.split(piece, ctx) : rule.part(ctx)) : undefined;
       let via = rule ? rule.id : 'fallback';
+      if (part === TRIS) {
+        byRegion.push(...piece.tris);
+        continue;
+      }
       if (part === undefined) {
         part = classifyFallback(piece, ctx);
         via = rule ? `${rule.id}→fallback` : 'fallback';
       }
       if (DEBUG_REGION && part === DEBUG_REGION.part && DEBUG_REGION.inRegion(piece)) {
-        debugPieces.push({ name: shortName(name), material, part, tris: piece.triCount, box: piece.box });
+        debugPieces.push({ name, material, part, tris: piece.triCount, box: piece.box });
       }
-      // Firewall: rearmost cabin structure spanning both seats (the carbon rear bulkhead).
-      // The model has no solid firewall panel, so this is the closest physical stand-in.
-      if (part === 'carbon-tub' && piece.centroid.z > FIREWALL.centroidAheadOf && piece.centroid.z < FIREWALL.centroidBehind &&
-          piece.box.max.y > FIREWALL.y[0] && piece.box.min.y < FIREWALL.y[1] &&
-          piece.box.min.x < -FIREWALL.spanX && piece.box.max.x > FIREWALL.spanX) {
-        if (piece.box.min.z < firewallZ) {
-          firewallZ = piece.box.min.z;
-          firewallBy = `${shortName(name)} [${material}] bbox ${f3(piece.box.min.toArray())}…${f3(piece.box.max.toArray())}`;
-        }
-      }
-      const key = `${part}\u0000${via}`;
-      const acc = byPart.get(key) ?? { part, via, tris: [] };
-      acc.tris.push(...piece.tris);
-      byPart.set(key, acc);
+      add(part, via, piece.tris);
+    }
+    // Welded panels: cut their triangles along the region boundaries (new vertices on the
+    // cut), then each new triangle goes to its region. The primitive gains those vertices.
+    let source = prim;
+    if (byRegion.length) {
+      const cut = cutByRegion(prim, byRegion, (p) => rule.tri(p, ctx));
+      source = cut.prim;
+      for (const [id, tris] of cut.groups) add(id, `${rule.id}/cut`, tris);
+      cutStats.push(`${name} [${material}]: ${byRegion.length} triangles → ${cut.count} after cutting (${cut.added} vertices added)`);
     }
     for (const { part, via, tris } of byPart.values()) {
       reportRows.push({ name, material, part: part ?? '(dropped)', via, tris: tris.length });
@@ -183,38 +160,66 @@ for (const node of root.listNodes().filter((n) => n.getMesh() && !partNodes.has(
         dropped.push(`${name} [${material}] ${tris.length} tris`);
         continue;
       }
-      const sub = subPrimitive(prim, tris, part);
-      const mesh = doc.createMesh(`${part}:${shortName(name)}`).addPrimitive(sub);
-      partNode(part).addChild(doc.createNode(shortName(name)).setMesh(mesh));
+      const sub = subPrimitive(source, tris, part);
+      const mesh = doc.createMesh(`${part}:${name}`).addPrimitive(sub);
+      partNode(part).addChild(doc.createNode(name).setMesh(mesh));
     }
   }
   node.dispose();
 }
 
-await doc.transform(prune(), dedup());
-
-// The engine-cover glass gets its own material so it can be tuned without touching the
-// windscreen. Cloned after dedup(), which ignores names and would merge it straight back.
-for (const meshNode of partNode('engine-cover').listChildren()) {
-  for (const p of meshNode.getMesh().listPrimitives()) {
-    const m = p.getMaterial();
-    if (m && /Glass/i.test(m.getName())) p.setMaterial(m.clone().setName('EngineCoverGlass'));
-  }
-}
-
 if (DEBUG_REGION) {
   const f = (v) => v.toArray().map((n) => n.toFixed(3).padStart(6)).join(' ');
   debugPieces.sort((p, q) => q.tris - p.tris);
-  for (const d of debugPieces) console.log(`${d.name.padEnd(22)} ${d.material.padEnd(24)} ${String(d.tris).padStart(5)}  min ${f(d.box.min)}  max ${f(d.box.max)}`);
+  for (const d of debugPieces) console.log(`${d.name.padEnd(12)} ${d.material.padEnd(20)} ${String(d.tris).padStart(6)}  min ${f(d.box.min)}  max ${f(d.box.max)}`);
   process.exit(0);
 }
+
+// Old parent nodes (the source's hierarchy) are empty now.
+for (const n of scene.listChildren()) if (!partNodes.has(n.getName())) n.dispose();
+await doc.transform(prune(), dedup({ keepUniqueNames: true }));
+
+// ─── 3. Normalise: one uniform scale from the wheelbase ──────────────────────
+
+if (tyres.length !== 4) throw new Error(`expected 4 tyres, found ${tyres.length}`);
+const wheelOf = (b) => {
+  const r = (b.max.z - b.min.z) / 2;
+  return { centre: new Vector3((b.min.x + b.max.x) / 2, b.max.y - r, (b.min.z + b.max.z) / 2), r, minY: b.min.y };
+};
+const raw = Object.fromEntries(
+  tyres.map((b) => {
+    const w = wheelOf(b);
+    return [`${w.centre.z > 0 ? 'f' : 'r'}${w.centre.x > 0 ? 'l' : 'r'}`, w];
+  }),
+);
+if (Object.keys(raw).length !== 4) throw new Error(`tyres don't sit one per corner: ${Object.keys(raw)}`);
+const rawAxleF = (raw.fl.centre.z + raw.fr.centre.z) / 2;
+const rawAxleR = (raw.rl.centre.z + raw.rr.centre.z) / 2;
+const rawWheelbase = rawAxleF - rawAxleR;
+if (rawWheelbase <= 0) throw new Error('front wheels are not at +Z; add a 180° yaw to the normalisation');
+const scale = NORMALISE.wheelbase / rawWheelbase;
+const centre = new Vector3(
+  (raw.fl.centre.x + raw.fr.centre.x + raw.rl.centre.x + raw.rr.centre.x) / 4,
+  Math.min(...Object.values(raw).map((w) => w.minY)),
+  (rawAxleF + rawAxleR) / 2,
+);
+const N = new Matrix4().makeScale(scale, scale, scale).multiply(new Matrix4().makeTranslation(-centre.x, -centre.y, -centre.z));
+for (const node of partNodes.values()) {
+  node.traverse((n) => {
+    if (n.getMesh()) transformMesh(n.getMesh(), N.toArray());
+  });
+}
+const toCar = (v) => v.clone().applyMatrix4(N);
+const boxToCar = (b) => new Box3().setFromPoints([toCar(b.min), toCar(b.max)]);
 
 // ─── 4. Measure (car coordinates) ────────────────────────────────────────────
 
 const parts = [...partNodes.keys()].sort();
-const partBox = (id) => subtreeWorldBox(partNodes.get(id));
-const normBox = new Box3();
-for (const id of parts) normBox.union(partBox(id));
+const partBox = (id) => subtreeBox(partNodes.get(id));
+const visible = parts.filter((id) => id !== MODEL_ENGINE_BAY);
+const overall = new Box3();
+for (const id of visible) overall.union(partBox(id));
+const width = boxToCar(widthBox);
 
 const wheelM = {};
 for (const k of ['fl', 'fr', 'rl', 'rr']) {
@@ -227,21 +232,26 @@ const axleR = (wheelM.rl.centre.z + wheelM.rr.centre.z) / 2;
 const trackF = wheelM.fl.centre.x - wheelM.fr.centre.x;
 const trackR = wheelM.rl.centre.x - wheelM.rr.centre.x;
 
-const hinge = (id) => {
-  const b = partBox(id);
-  return { box: b, pivot: new Vector3((b.min.x + b.max.x) / 2, b.max.y, b.max.z) };
-};
-const doorL = hinge('door-l');
-const doorR = hinge('door-r');
-
-/** The transaxle bay may not extend behind the rear crash structure region. */
-const DIMS_BODY_REAR_LIMIT = -2.15;
-const bvh = buildBvh(parts.filter((id) => !/^(wheel|caliper)-/.test(id) && id !== MODEL_ENGINE_BAY));
-// The model has no panel below the rear bulkhead, so without the firewall limit a box
-// could slide forward under the seats.
-const engineBay = measureBay(bvh, { front: +1, from: axleR, to: firewallZ, minHeight: 0.55, label: 'engine bay (tall core)' });
-const engineBayWide = measureBay(bvh, { front: +1, from: axleR, to: firewallZ, minHalfWidth: 0.45, label: 'engine bay (wide lower)' });
-const transaxleBay = measureBay(bvh, { front: -1, from: axleR, to: DIMS_BODY_REAR_LIMIT, minHeight: 0.3, label: 'transaxle bay' });
+const bvh = buildBvh(parts.filter((id) => !MEASURE.bayIgnore(id)));
+// Firewall: the nearest surface ahead of the rear axle along the centreline (several heights).
+const F = MEASURE.firewall;
+let firewallZ = Infinity;
+let firewallBy = '';
+for (let y = F.y[0]; y <= F.y[1] + 1e-9; y += F.step) {
+  const hits = [];
+  const d = cast(bvh, new Vector3(0, y, axleR), new Vector3(0, 0, 1), hits);
+  if (axleR + d < firewallZ) {
+    firewallZ = axleR + d;
+    firewallBy = `${hits[0].label} at y ${y.toFixed(2)}`;
+  }
+}
+const bays = MEASURE.bays.map((b) =>
+  measureBay(bvh, {
+    ...b,
+    from: axleR,
+    to: b.front > 0 ? firewallZ : b.limitZ,
+  }),
+);
 
 // ─── 5. Join per part + material, compress, write ────────────────────────────
 
@@ -250,23 +260,40 @@ await io.write(OUT, doc);
 
 // ─── Report ──────────────────────────────────────────────────────────────────
 
+const ref = NORMALISE.reference;
+const len = overall.max.z - overall.min.z;
+const wid = width.max.x - width.min.x;
+const hgt = overall.max.y;
 const kb = (p) => `${(statSync(p).size / 1024 / 1024).toFixed(2)} MB`;
 say(`# Body model prep report`);
 say();
-say(`Generated by \`npm run prep:body\` (scripts/prep-body.mjs). Do not edit by hand.`);
+say(`Generated by \`npm run prep:body\` (scripts/prep-body.mjs, rules in scripts/body-rules.mjs). Do not edit by hand.`);
 say();
 say(`## Asset`);
-say(`- Source: \`${SRC}\` — ${kb(SRC)} (untouched)`);
+say(`- Source: \`${SRC}\` — ${kb(SRC)} (untouched): ${SOURCE.credit}`);
 say(`- Output: \`${OUT}\` — ${kb(OUT)}`);
-say(`- Skins removed: ${skins.length} (referenced by 0 nodes); JOINTS/WEIGHTS attributes stripped: ${strippedAttrs}`);
-say(`- Draw calls (mesh primitives): ${srcPrims} → ${countPrims()}`);
+say(`- Skins removed: ${skins.length}; JOINTS/WEIGHTS attributes stripped: ${strippedAttrs}`);
+say(`- Draw calls (mesh primitives): ${srcPrims} → ${countPrims()}; materials ${srcMaterials} → ${root.listMaterials().length}`);
 say();
 say(`## Normalisation`);
-say(`- Raw world bbox: min ${f3(rawBox.min.toArray())} max ${f3(rawBox.max.toArray())}`);
-say(`- Scale ×${scale}; translate ${f3(centre.clone().multiplyScalar(-scale).toArray())} (m, after scaling); no rotation needed`);
-say(`- Checks: front wheels at +Z ✓, smaller than rears ✓, "L" wheels at +X ✓`);
-say(`- Normalised bbox: min ${f3(normBox.min.toArray())} max ${f3(normBox.max.toArray())}`);
-say(`  → L ${(normBox.max.z - normBox.min.z).toFixed(3)} × W ${(normBox.max.x - normBox.min.x).toFixed(3)} (incl. mirrors) × H ${normBox.max.y.toFixed(3)}`);
+say(`- Source root matrix ${rootMatrix ? f3(rootMatrix) : '(none)'}: the data is Z-up with −Y forward; the root turns it to +Y up, +Z forward, +X = car's left (verified: headlamps at +Z, tail lamps at −Z, the left-hand-drive controls at +X).`);
+say(`- Model space wheelbase ${rawWheelbase.toFixed(4)} → uniform scale ×${scale.toFixed(5)} so it measures ${NORMALISE.wheelbase.toFixed(3)} m. No axis is scaled on its own.`);
+say(`- Translate ${f3(centre.clone().multiplyScalar(-1).toArray())} (model units, before scaling): wheel centres' mean x, tyre bottoms on y = 0, wheelbase centred on z = 0.`);
+say(`- Car bbox: min ${f3(overall.min.toArray())} max ${f3(overall.max.toArray())}`);
+say();
+say(`| dimension | model (scaled) | reference | difference |`);
+say(`| --- | --- | --- | --- |`);
+for (const [label, m, r] of [
+  ['wheelbase', axleF - axleR, NORMALISE.wheelbase],
+  ['length', len, ref.length],
+  ['width (excl. mirrors)', wid, ref.width],
+  ['width (incl. mirrors)', overall.max.x - overall.min.x, null],
+  ['height', hgt, ref.height],
+  ['track front', trackF, ref.trackFront],
+  ['track rear', trackR, ref.trackRear],
+]) {
+  say(`| ${label} | ${m.toFixed(4)} | ${r == null ? '—' : r.toFixed(3)} | ${r == null ? '—' : `${mm(m - r)} (${(((m - r) / r) * 100).toFixed(1)}%)`} |`);
+}
 say();
 say(`## Wheels (car coordinates)`);
 say(`| wheel | centre (x, y, z) | tyre radius | width |`);
@@ -275,22 +302,28 @@ for (const [k, w] of Object.entries(wheelM)) say(`| ${k} | ${f3(w.centre.toArray
 say(`- Axles: front z ${axleF.toFixed(4)}, rear z ${axleR.toFixed(4)} → wheelbase ${(axleF - axleR).toFixed(4)}`);
 say(`- Track: front ${trackF.toFixed(4)}, rear ${trackR.toFixed(4)}`);
 say();
-say(`## Door hinges (from each door's bounding box: centre x, top y, front z)`);
-for (const [id, d] of [['door-l', doorL], ['door-r', doorR]]) {
-  say(`- ${id}: bbox min ${f3(d.box.min.toArray())} max ${f3(d.box.max.toArray())} → pivot ${f3(d.pivot.toArray())}`);
+say(`## Panels (bounding boxes, for hinges and explode)`);
+for (const id of ['front-clam', 'rear-clam', 'rear-wing', 'door-l', 'door-r', 'glass', 'body-shell', 'interior', 'undertray', 'model-chassis']) {
+  if (!partNodes.has(id)) continue;
+  const b = partBox(id);
+  say(`- ${id}: min ${f3(b.min.toArray())} max ${f3(b.max.toArray())}`);
 }
 say();
-say(`## Free volumes (against all visible model geometry except wheels and calipers)`);
-say(`- Firewall (rearmost cabin structure spanning both seats): z ${firewallZ.toFixed(3)}, set by ${firewallBy}`);
-for (const bay of [engineBay, engineBayWide, transaxleBay]) {
+say(`## Free volumes (against the fixed bodywork, wheels and discs; not the stand-in frame/suspension)`);
+say(`- Firewall (bay front wall: nearest surface ahead of the rear axle on the centreline, y ${F.y[0]}…${F.y[1]}): z ${firewallZ.toFixed(3)}, set by ${firewallBy}`);
+for (const bay of bays) {
   say(`- ${bay.label}: x ±${bay.halfWidth.toFixed(3)}, y ${bay.bottom.toFixed(3)}…${bay.top.toFixed(3)}, z ${bay.zMin.toFixed(3)}…${bay.zMax.toFixed(3)}`);
   say(`  limits:\n    ${bay.notes}`);
 }
 say();
+say(`## Cut along region boundaries`);
+for (const line of cutStats) say(`- ${line}`);
+say();
 say(`## Hidden: ${MODEL_ENGINE_BAY}`);
-say(`The model's stand-in engine bay (plenum, airboxes, cables, ECUs, decorative plate, exhaust tips),`);
-say(`kept in the GLB as a dev reference but not rendered: our V12 and exhaust replace it.`);
-say(`${reportRows.filter((r) => r.part === MODEL_ENGINE_BAY).reduce((n, r) => n + r.tris, 0)} triangles from ${new Set(reportRows.filter((r) => r.part === MODEL_ENGINE_BAY).map((r) => r.name)).size} source meshes.`);
+say(`The model's stand-in engine (F40_Mechanics.001) and the stand-in powertrain in F40_Mechanics (gearbox,`);
+say(`turbos, intercoolers, plenum, wastegates, silencers, driveshafts), kept in the GLB as the dev key-B ghost but`);
+say(`never rendered: our procedural powertrain replaces it.`);
+say(`${reportRows.filter((r) => r.part === MODEL_ENGINE_BAY).reduce((n, r) => n + r.tris, 0)} triangles. Bounds: min ${f3(partBox(MODEL_ENGINE_BAY).min.toArray())} max ${f3(partBox(MODEL_ENGINE_BAY).max.toArray())}`);
 if (dropped.length) {
   say();
   say(`## Dropped geometry`);
@@ -302,52 +335,42 @@ say(`| part | primitives | triangles | bbox min | bbox max |`);
 say(`| --- | --- | --- | --- | --- |`);
 for (const id of parts) {
   const b = partBox(id);
-  const prims = partNodes.get(id).listChildren().reduce((s, c) => s + (c.getMesh()?.listPrimitives().length ?? 0), 0);
+  let prims = 0;
+  partNodes.get(id).traverse((c) => (prims += c.getMesh()?.listPrimitives().length ?? 0));
   const tris = reportRows.filter((r) => r.part === id).reduce((s, r) => s + r.tris, 0);
   say(`| ${id} | ${prims} | ${tris} | ${f3(b.min.toArray())} | ${f3(b.max.toArray())} |`);
 }
 say();
 say(`## Source mesh → part (${reportRows.length} rows; ${unmatched} assigned by the spatial fallback)`);
-say(`\`via\` = rule id from scripts/body-rules.mjs; "fallback" = no name rule matched (or the rule deferred).`);
+say(`\`via\` = rule id from scripts/body-rules.mjs (\`/tri\`: split per triangle); "fallback" = no rule matched (or the rule deferred).`);
 say();
 say(`| source node | material | part | via | tris |`);
 say(`| --- | --- | --- | --- | --- |`);
-for (const r of reportRows) say(`| ${shortName(r.name)} | ${r.material} | ${r.part} | ${r.via} | ${r.tris} |`);
+for (const r of reportRows) say(`| ${r.name} | ${r.material} | ${r.part} | ${r.via} | ${r.tris} |`);
 writeFileSync(REPORT, log.join('\n') + '\n');
 console.error(`\nwrote ${OUT} and ${REPORT}`);
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function shortName(n) {
-  return n
-    .replace(/^uv\d:/, '')
-    .replace(/_0000_001_SM_\w+?_0000_MAT_\w+?_(\d+)_uv\d:.*$/, '#$1')
-    .replace(/_uv\d:.*$/, '');
-}
-
-function nodeWorldBox(n) {
+function subtreeBox(n) {
   const box = new Box3();
-  const m = new Matrix4().fromArray(n.getWorldMatrix());
-  for (const p of n.getMesh().listPrimitives()) {
-    const pos = p.getAttribute('POSITION');
-    const v = new Vector3();
-    const el = [];
-    for (let i = 0; i < pos.getCount(); i++) box.expandByPoint(v.fromArray(pos.getElement(i, el)).applyMatrix4(m));
-  }
-  return box;
-}
-
-function subtreeWorldBox(n) {
-  const box = new Box3();
+  const v = new Vector3();
+  const el = [];
   n.traverse((c) => {
-    if (c.getMesh()) box.union(nodeWorldBox(c));
+    const mesh = c.getMesh();
+    if (!mesh) return;
+    const m = new Matrix4().fromArray(c.getWorldMatrix());
+    for (const p of mesh.listPrimitives()) {
+      const pos = p.getAttribute('POSITION');
+      for (let i = 0; i < pos.getCount(); i++) box.expandByPoint(v.fromArray(pos.getElement(i, el)).applyMatrix4(m));
+    }
   });
   return box;
 }
 
 /**
- * Connected pieces of a primitive. Vertices are welded by position first so UV seams
- * don't split a panel into fragments.
+ * Connected pieces of a primitive, with each triangle's centroid. Vertices are welded by
+ * position first so UV seams don't split a panel into fragments.
  */
 function splitByComponents(prim) {
   const pos = prim.getAttribute('POSITION');
@@ -383,21 +406,144 @@ function splitByComponents(prim) {
   for (let t = 0; t < triCount; t++) {
     const c = find(vi(t, 0));
     let comp = comps.get(c);
-    if (!comp) comps.set(c, (comp = { tris: [], box: new Box3(), sum: new Vector3(), n: 0 }));
+    if (!comp) comps.set(c, (comp = { tris: [], triCentroids: [], box: new Box3(), sum: new Vector3(), n: 0 }));
     comp.tris.push(t);
+    const tc = new Vector3();
     for (let k = 0; k < 3; k++) {
       v.fromArray(pos.getElement(vi(t, k), el));
       comp.box.expandByPoint(v);
       comp.sum.add(v);
+      tc.add(v);
       comp.n++;
     }
+    comp.triCentroids.push(tc.divideScalar(3));
   }
   return [...comps.values()].map((c) => ({
     tris: c.tris,
+    triCentroids: c.triCentroids,
     box: c.box,
     centroid: c.sum.divideScalar(c.n),
     triCount: c.tris.length,
   }));
+}
+
+/**
+ * Cuts a primitive's triangles (`tris`) along the boundaries between the regions
+ * `classify` assigns to points. A triangle whose corners all fall in one region keeps it;
+ * otherwise the edges that change region are bisected to the boundary and the triangle is
+ * split there (two regions), or subdivided at its edge midpoints first (three or more).
+ * Returns a clone of the primitive with the new vertices appended (all attributes
+ * interpolated) and every original triangle still in place, plus the new triangles
+ * (indices into the clone) grouped by region.
+ */
+function cutByRegion(prim, tris, classify) {
+  const idx = prim.getIndices();
+  const semantics = prim.listSemantics();
+  const src = Object.fromEntries(semantics.map((s) => [s, prim.getAttribute(s)]));
+  const size = Object.fromEntries(semantics.map((s) => [s, src[s].getElementSize()]));
+  const base = src.POSITION.getCount();
+  /** Vertex data: originals read lazily, new ones stored. */
+  const extra = Object.fromEntries(semantics.map((s) => [s, []]));
+  const el = [];
+  const read = (s, v) => (v < base ? src[s].getElement(v, []) : extra[s][v - base]);
+  const pos = (v) => new Vector3().fromArray(read('POSITION', v));
+  const classOf = new Map();
+  const cls = (v) => {
+    if (!classOf.has(v)) classOf.set(v, classify(pos(v)));
+    return classOf.get(v);
+  };
+  const lerpVertex = (a, b, t) => {
+    const v = base + extra.POSITION.length;
+    for (const s of semantics) {
+      const A = read(s, a);
+      const B = read(s, b);
+      const out = A.map((x, k) => x + (B[k] - x) * t);
+      if (s === 'NORMAL' || s === 'TANGENT') {
+        const len = Math.hypot(out[0], out[1], out[2]) || 1;
+        for (let k = 0; k < 3; k++) out[k] /= len;
+      }
+      extra[s].push(out);
+    }
+    return v;
+  };
+  const midCache = new Map();
+  const midpoint = (a, b) => {
+    const key = a < b ? `${a}/${b}` : `${b}/${a}`;
+    if (!midCache.has(key)) midCache.set(key, lerpVertex(a, b, 0.5));
+    return midCache.get(key);
+  };
+  const cutCache = new Map();
+  /** Point on edge a→b where the region changes from a's (bisection). Shared by both sides. */
+  const cutPoint = (a, b) => {
+    const key = a < b ? `${a}/${b}` : `${b}/${a}`;
+    if (cutCache.has(key)) return cutCache.get(key);
+    const pa = pos(a);
+    const pb = pos(b);
+    const ca = cls(a);
+    let lo = 0;
+    let hi = 1;
+    const p = new Vector3();
+    for (let i = 0; i < 16; i++) {
+      const m = (lo + hi) / 2;
+      if (classify(p.lerpVectors(pa, pb, m)) === ca) lo = m;
+      else hi = m;
+    }
+    const v = lerpVertex(a, b, (lo + hi) / 2);
+    cutCache.set(key, v);
+    return v;
+  };
+  const groups = new Map();
+  const emit = (id, a, b, c) => {
+    if (!groups.has(id)) groups.set(id, []);
+    groups.get(id).push([a, b, c]);
+  };
+  const split = (a, b, c, depth) => {
+    const [ca, cb, cc] = [cls(a), cls(b), cls(c)];
+    if (ca === cb && cb === cc) return emit(ca, a, b, c);
+    if (ca === cb || cb === cc || ca === cc) {
+      // Rotate (keeping the winding) so the odd corner is last.
+      const [p0, p1, p2] = ca === cb ? [a, b, c] : cb === cc ? [b, c, a] : [c, a, b];
+      const q0 = cutPoint(p0, p2);
+      const q1 = cutPoint(p1, p2);
+      emit(cls(p2), q0, q1, p2);
+      emit(cls(p0), p0, p1, q1);
+      emit(cls(p0), p0, q1, q0);
+      return;
+    }
+    if (depth >= 3) {
+      const centroid = pos(a).add(pos(b)).add(pos(c)).divideScalar(3);
+      return emit(classify(centroid), a, b, c);
+    }
+    const [ab, bc, ca2] = [midpoint(a, b), midpoint(b, c), midpoint(c, a)];
+    split(a, ab, ca2, depth + 1);
+    split(ab, b, bc, depth + 1);
+    split(ca2, bc, c, depth + 1);
+    split(ab, bc, ca2, depth + 1);
+  };
+  const vi = (t, k) => (idx ? idx.getScalar(t * 3 + k) : t * 3 + k);
+  for (const t of tris) split(vi(t, 0), vi(t, 1), vi(t, 2), 0);
+
+  // The clone: original vertices + new ones; original triangles + new ones.
+  const out = prim.clone();
+  const added = extra.POSITION.length;
+  const buffer = root.listBuffers()[0];
+  for (const s of semantics) {
+    const arr = new Float32Array((base + added) * size[s]);
+    for (let v = 0; v < base; v++) arr.set(src[s].getElement(v, el), v * size[s]);
+    extra[s].forEach((e, k) => arr.set(e, (base + k) * size[s]));
+    out.setAttribute(s, doc.createAccessor(`${s}-cut`).setType(src[s].getType()).setArray(arr).setBuffer(buffer));
+  }
+  const origCount = idx ? idx.getCount() / 3 : base / 3;
+  const all = [];
+  for (let t = 0; t < origCount; t++) all.push(vi(t, 0), vi(t, 1), vi(t, 2));
+  const result = new Map();
+  let next = origCount;
+  for (const [id, list] of groups) {
+    result.set(id, list.map(() => next++));
+    for (const tri of list) all.push(...tri);
+  }
+  out.setIndices(doc.createAccessor('indices-cut').setType('SCALAR').setArray(new Uint32Array(all)).setBuffer(buffer));
+  return { prim: out, groups: result, count: next - origCount, added };
 }
 
 /** New primitive with only the given triangles (attributes compacted). */
@@ -478,10 +624,9 @@ function limiter(hits) {
  * it. Every candidate (half width, bottom, top) is pushed as far as it will go along z,
  * using a 3D prefix sum for constant-time emptiness tests, and the largest volume wins.
  */
-function measureBay(mesh, { front, from, to, minHeight = 0, minHalfWidth = 0, label }) {
+function measureBay(mesh, { front, from, to, minHeight = 0, minHalfWidth = 0, yMax = Infinity, label }) {
   const VOXEL = 0.02;
-  // Below the engine-cover glass; between the axle plane and `to`.
-  const R = { x: [-0.8, 0.8], y: [0.05, 0.95], z: front > 0 ? [from, to] : [to, from] };
+  const R = { x: [-0.8, 0.8], y: [0.05, 1.15], z: front > 0 ? [from, to] : [to, from] };
   const n = { x: Math.round((R.x[1] - R.x[0]) / VOXEL), y: Math.round((R.y[1] - R.y[0]) / VOXEL), z: Math.round((R.z[1] - R.z[0]) / VOXEL) };
   const bvh = mesh.geometry.boundsTree;
   const identity = new Matrix4();
@@ -524,6 +669,7 @@ function measureBay(mesh, { front, from, to, minHeight = 0, minHalfWidth = 0, la
   for (let w = 1; w <= cx; w++) {
     for (let y0 = 0; y0 < n.y; y0++) {
       for (let y1 = y0 + 1; y1 <= n.y; y1++) {
+        if (R.y[0] + y1 * VOXEL > yMax + 1e-9) break;
         // Length along z, measured from the axle plane outwards.
         let len = 0;
         while (len < n.z) {
@@ -538,6 +684,7 @@ function measureBay(mesh, { front, from, to, minHeight = 0, minHalfWidth = 0, la
       }
     }
   }
+  if (!best) throw new Error(`${label}: no free box found`);
   const halfWidth = best.w * VOXEL;
   const bottom = R.y[0] + best.y0 * VOXEL;
   const top = R.y[0] + best.y1 * VOXEL;
@@ -555,7 +702,7 @@ function measureBay(mesh, { front, from, to, minHeight = 0, minHalfWidth = 0, la
     `top: ${probe(mid, new Vector3(0, 1, 0))}`,
     `bottom: ${probe(mid, new Vector3(0, -1, 0))}`,
     `side (+x): ${probe(mid, new Vector3(1, 0, 0))}`,
-    `search: voxel ${VOXEL} m, height ≥ ${minHeight} m, half width ≥ ${minHalfWidth} m, z limited to ${to.toFixed(3)}; volume ${(best.vol * VOXEL ** 3 * 1000).toFixed(0)} L`,
+    `search: voxel ${VOXEL} m, height ≥ ${minHeight} m, half width ≥ ${minHalfWidth} m${Number.isFinite(yMax) ? `, top ≤ ${yMax} m` : ''}, z limited to ${to.toFixed(3)}; volume ${(best.vol * VOXEL ** 3 * 1000).toFixed(0)} L`,
   ].join('\n    ');
   return { label, halfWidth, bottom, top, zMin, zMax, notes };
 }

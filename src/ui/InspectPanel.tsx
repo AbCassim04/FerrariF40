@@ -9,7 +9,6 @@ const GROUP_LABEL: Record<PartGroup, string> = {
   suspension: 'Brakes & suspension',
   wheels: 'Wheels',
   engine: 'Engine',
-  hybrid: 'Hybrid system',
   transmission: 'Transmission',
   cooling: 'Cooling',
   exhaust: 'Exhaust',
