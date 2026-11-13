@@ -1,17 +1,4 @@
-import {
-  BufferAttribute,
-  BufferGeometry,
-  CatmullRomCurve3,
-  CylinderGeometry,
-  ExtrudeGeometry,
-  LatheGeometry,
-  Matrix4,
-  Shape,
-  TubeGeometry,
-  Vector2,
-  Vector3,
-  type Curve,
-} from 'three';
+import { BoxGeometry, BufferAttribute, BufferGeometry, CatmullRomCurve3, type Curve, CylinderGeometry, ExtrudeGeometry, LatheGeometry, Matrix4, Shape, TubeGeometry, Vector2, Vector3 } from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { SEGMENTS } from '../config/detail';
@@ -111,6 +98,11 @@ export function roundCorners(profile: readonly P2[], r: number, steps: number = 
   }
   out.push(profile[profile.length - 1]);
   return out;
+}
+
+/** Plain box centred on the origin (12 triangles): thin instanced plates such as radiator fins. */
+export function plainBox(w: number, h: number, d: number) {
+  return normalise(new BoxGeometry(w, h, d));
 }
 
 /** Rounded box centred on the origin. */

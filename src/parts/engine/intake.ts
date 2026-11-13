@@ -106,8 +106,9 @@ function oilRoutes(): CableRoute[] {
       style: OIL_STYLE,
       from: { part: 'oil-pump', origin: ORIGIN, at: v(P.x, P.y, pumpRear), dir: new Vector3(0, 0, -1) },
       to: { part: 'oil-tank', origin: ORIGIN, at: car(tank.scavenge.at), dir: tank.scavenge.dir },
-      via: [v(-0.2, -0.088, -0.72), v(-0.205, -0.075, -0.845), v(-0.215, 0.07, -0.895), v(-0.235, 0.24, -0.93)],
-      slack: new Vector3(-0.12, -0.05, 0),
+      via: [v(-0.2, -0.088, -0.72), v(-0.205, -0.075, -0.845), v(-0.225, 0.07, -0.89), v(-0.262, 0.185, -0.9)],
+      // Bow up a little, over the right manifold where it ends up.
+      slack: new Vector3(0, 0.06, 0),
       slackPeak: 0.4,
     },
     {
@@ -115,8 +116,8 @@ function oilRoutes(): CableRoute[] {
       style: OIL_STYLE,
       from: { part: 'oil-tank', origin: ORIGIN, at: car(tank.feed.at), dir: tank.feed.dir },
       to: { part: 'oil-pump', origin: ORIGIN, at: v(P.x - P.radius - P.capLip, P.y, pumpFront), dir: new Vector3(-1, 0, 0) },
-      via: [v(-0.285, 0.12, -0.85), v(-0.27, -0.02, -0.856), v(-0.265, -0.085, -0.75), v(-0.265, -0.08, -0.6)],
-      slack: new Vector3(-0.15, -0.04, 0),
+      via: [v(-0.257, 0.1, -0.94), v(-0.25, -0.03, -0.9), v(-0.245, -0.085, -0.75), v(-0.25, -0.08, -0.6)],
+      slack: new Vector3(0, 0.06, 0),
       slackPeak: 0.3,
     },
   ];
@@ -233,7 +234,7 @@ export const intakeParts: PartDef[] = [
     specs: { Diameter: `Ø${fmtMm(E.alternator.radius * 2, 0)}` },
     build: specBuild('Alternator', alternatorMeshes),
     material: 'castAluminium',
-    explodeOffset: [X.alternator, 0, 0],
+    explodeOffset: [0, 0, X.alternator],
     delay: TEARDOWN.frontCovers,
     contacts: ['engine-block'],
   }),
@@ -247,7 +248,7 @@ export const intakeParts: PartDef[] = [
     build: specBuild('OilTank', oilTankMeshes),
     material: 'castAluminium',
     explodeOffset: X.oilTank,
-    delay: TEARDOWN.frontCovers,
+    delay: TEARDOWN.oilTank,
   }),
   cablePart({
     id: 'oil-lines',

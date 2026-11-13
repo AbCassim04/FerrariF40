@@ -6,6 +6,50 @@ Screenshots are local and git-ignored, in `docs/review/f40-phase2/` … `f40-pha
 (1440×900, GPU, one persistent page driven through `window.__dev`; the FPS meter reads
 ~1–2 because the review browser renders slowly on this machine).
 
+## Phase 3: turbos, intercoolers, exhaust
+**Built (17 parts):** exhaust manifolds ×2 (4-into-1, port flanges, heat tint);
+IHI turbochargers ×2 (cast-iron turbine volute, aluminium compressor, centre housing);
+turbo heat shields ×2; wastegates ×2 (red diaphragm cans, on the collectors); Behr
+intercoolers ×2 (instanced fins and tubes); charge pipes ×2 (compressor → intercooler →
+throttle body, silicone couplers and clamps); turbo inlets ×2 (pod filters, ribbed ducts);
+downpipes ×2 (slip joints); wastegate pipe (2-into-1 to the centre tip); silencer (two
+cans); tailpipes (three, in the rear valance's oval mouth). Also: pipes now leave and enter
+their fittings square (straight end runs), the oil tank's explode and hoses were reworked
+round the right manifold, the rear-clam hinge moved down, and more of the stand-in rear
+was hidden (see the BRIEF's unattended decisions).
+
+**Gates**
+- Typecheck and build: pass.
+- Clash check: assembled vs body **none**; full explode **none**; assembled, ours against
+  ours (info, focus on the new parts): **none** (every joint is a butt joint with a gap).
+- Mid-explode sweeps (focus on the new parts and everything they move past) at t = 0.2,
+  0.45, 0.7, 0.95, 1.2, 1.45, 1.7, 2.0, 2.3, 2.4 … 3.3 (every 0.1), 3.45, 3.6, 3.75, 3.9,
+  4.05 s: **none**; after the tailpipe fix, the rear clam, silencer, tailpipes, wastegate
+  pipe and downpipes again at t = 0.1, 0.2, 0.3, 0.45, 0.6, 0.8, 1.0, 1.2, 1.6, 2.0, 2.45, 2.6, 2.75,
+  2.9, 3.05, 3.2 s: **none** (and the turbo/charge-pipe/oil-line sweep after trimming).
+- What the sweeps caught and how it was fixed: the rear clam's tail swinging forward
+  through the silencer (hinge lowered); the manifolds' swing driving the collectors into
+  the turbos and the oil hoses (straight pull-off along the port axis); the turbos and
+  downpipes against each other (straight-out moves, downpipe re-routed with a sweeping
+  bend); throttle bodies against the charge pipes (straight up); the alternator against the
+  left manifold (forward); the oil tank and its hoses against the right manifold, the HT
+  leads and the distributor (re-timed between the manifold and the head, see the BRIEF);
+  the wastegate pipe against the silencer's balance pipe (removed).
+- **Found in review, not by the checks:** the first tailpipes sat behind the bumper,
+  invisible from behind (they were declared in contact with the rear clam, which hid it).
+  Now in the valance's oval mouth, no declared contact.
+
+**Performance:** scene 0.68 M triangles, 229 meshes. Idle 248 draw calls / 0.69 M
+triangles (assembled and exploded), 238 / 0.67 M in the Lexan view; peak with the shadow
+pass live 415 / 1.21 M (budget ~500 / ~1.5 M). (Phase 2: 191 / 0.54 M idle, 318 / 0.95 M
+peak.) Trimmed before committing, 0.79 → 0.68 M: intercooler fins and filter pleats as
+plain boxes, fewer segments along the primaries, volutes, charge pipes and inlet ducts.
+
+**Screenshots (docs/review/f40-phase3/):** 01-lexan (the judging shot: intercoolers,
+plenum and red cam covers through the Lexan), 02-turbos-closeup (left turbo on the lifted
+powertrain), 03-tailpipes-rear, 04-assembled-rear34, 05-teardown (t = 2.6 s),
+06-exploded-rear34.
+
 ## Phase 2: intake, ignition, ancillaries
 **Built (16 parts):** intake plenum (red crackle, ribbed top, cast base flange with bolts,
 throttle-body bosses); intake runners ×2 (four per bank, port flanges and bolts, injector

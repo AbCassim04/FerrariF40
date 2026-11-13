@@ -144,7 +144,7 @@ scaling), because they are read off renders of the raw model.
 Cable system: src/parts/cables/Cable.tsx — cables, hoses and looms that re-curve every frame
 between their two ends (HT leads, oil and coolant lines, brake lines in the plan).
 
-## Explode sequence (GSAP timeline, ~4.4 s now; ~5.2 s with the full plan)
+## Explode sequence (GSAP timeline, ~4.4 s now; ~5.4 s with the transaxle)
 Stage 1: body. The rear clam (with the Lexan cover and the wing, which is part of the
          rear bodywork) opens 70° about its tail hinge, then lifts up and back. Doors swing
          open about their front hinges; the front clam tips up about its nose and moves
@@ -289,6 +289,23 @@ docs/reference/f40/ would correct them (the folder is empty).
   throttle bodies and distributors (+0.2), alternator and oil tank (+0.3), runners once the
   injectors are clear (+0.5).
 
+**Phase 3 (turbos, intercoolers, exhaust)**
+- Exhaust: a 4-into-1 manifold per bank, outboard and below the bank, its collector
+  turning up into the turbine behind the bank; heat tint along the primaries.
+- Turbos (IHI): one per bank behind the head, turbine (cast iron) inboard on the collector,
+  compressor (aluminium) outboard, on the rear axle line inboard of the coilovers (decision
+  2). A heat shield over each turbine. Pod filter and ribbed duct into each compressor (est).
+- Wastegates: one per turbo on the collector just ahead of the turbine (red diaphragm can),
+  merged 2-into-1 over the gearbox and run back to the centre tailpipe (owner's decision 1).
+- Intercoolers (Behr): one per side over the turbos under the rear deck, finned cores;
+  charge pipes with silicone couplers from each compressor up into its intercooler and
+  forward over the gearbox to its throttle body.
+- Downpipes from the turbine outlets back beside the gearbox into a two-can silencer; three
+  tailpipes in the rear valance's oval mouth.
+- Teardown (stage 4): intercoolers (+0), charge pipes and turbo inlets (+0.1), turbos with
+  their heat shields, downpipes, wastegate pipe and silencer (+0.2), wastegates (+0.25),
+  manifolds (+0.35), oil tank (+0.55, moved from +0.3, see below).
+
 ### Decisions made unattended (review)
 - **Plenum finish: red crackle**, like the cam covers (no lettering). The plan's realism
   notes already said so; no reference photo to confirm it.
@@ -308,5 +325,42 @@ docs/reference/f40/ would correct them (the folder is empty).
   the lift-out path (the oil tank and HT leads hit the crossmember in the stage-3 sweep,
   and the turbos, intercoolers and gearbox would too) and the towers stand where the
   approved turbo position is. The lower rails, wishbones, uprights and dampers stay.
-- **Oil-tank explode (−0.25, −0.2, 0):** out and down, below the HT leads, which bow up as
-  the right head lifts.
+- **Oil-tank explode** (phase 2: out and down at +0.3; **phase 3: straight outboard 0.36 at
+  +0.55**). Its hoses run inside the right manifold, so the tank now waits until the
+  manifold is well on its way, and still clears out before the right head lifts out over
+  its place. The hoses bow slightly up as they stretch. The tank's bracket now runs forward
+  from its inboard side to the cam cover's rear end (the sloping one to the bellhousing
+  would have crossed the downpipe area), and both hose fittings are on its inboard side.
+- **Exhaust explode moves differ from the plan** (all to keep each move clear of the parts
+  around it, found by the mid-explode sweeps):
+  - Manifolds pull straight off their studs along the port axis, out and down 0.3
+    (plan: swing out 25° about the port line, which swung the collector up into the turbo).
+  - Turbos slide straight out 0.3 (plan: out 0.3, down 0.1: down drove the turbine into
+    the downpipe's flange). Turbo inlets go out 0.45 and up 0.05 (plan: out 0.25).
+  - Wastegates ride the manifold (they sit on its collector) and lift 0.12 (plan: ride the
+    turbo, then back). Heat shields lift 0.1 (plan 0.08).
+  - Downpipes go outboard 0.15 (plan: back 0.15, into the silencer's inlet necks); the
+    wastegate pipe lifts 0.15 out from between the silencer cans (plan: back 0.2); the
+    silencer drops 0.3 and goes back 0.1 with the tailpipes (plan: back 0.35, into the
+    lifted rear clam).
+  - Throttle bodies lift straight up 0.36 (plan: up 0.35 and back 0.1; the charge pipes
+    butt against their rear ends). The alternator goes forward 0.22 (plan: forward and out;
+    out is where the left manifold goes).
+  - Teardown re-timed: turbos +0.2 (was +0.3), wastegates +0.25, manifolds +0.35 (was
+    +0.45), oil tank +0.55.
+- **Silencer: two cans** close either side of the centreline (plan: one box across the
+  tail), so the wastegate pipe can drop between them to the centre tailpipe and lift out
+  between them in the teardown. No balance pipe (it sat in the wastegate pipe's way).
+- **Tailpipes recessed in the valance's mouth.** The model's exhaust opening is a short oval
+  tunnel in the rear clam (car y 0.282–0.363, |x| ≤ 0.125, from z −1.965 to −2.085). Its
+  floor swings up as the clam opens, so the three Ø60 tips stop just ahead of it (end at
+  z −1.955); from behind they read in the mouth, about 0.13 m in. The side tips drop from
+  necks under the cans.
+- **Rear-clam hinge lowered** to car (0, 0.32, −2.08) from (0, 0.8, −2.07): with the hinge
+  high, the tail panel below it swung forward through the silencer as the clam opened; low,
+  everything moves up and back.
+- **More of the stand-in hidden early:** the rest of its rear suspension (dampers,
+  wishbones, uprights) and the crossmember across the tail now go to the ghost too (turbos,
+  inlet ducts and silencer sit there). Only its lower rails stay.
+- **Turbo inlet filters (est):** pleated pods above and ahead of each compressor; the real
+  intake path (from the rear-clam ducts) is not in the references.

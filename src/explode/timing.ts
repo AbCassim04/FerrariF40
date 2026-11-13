@@ -27,11 +27,25 @@ export const BODY_DELAY = {
  * the parts covering it have started moving away.
  */
 export const TEARDOWN = {
-  /** The plenum lifts first: everything in the V is under it. */
+  /** Intercoolers lift first: they sit over everything behind the engine. */
+  intercoolers: 0,
+  /** Charge pipes and the turbo inlet ducts. */
+  chargePipes: 0.1,
+  /** The plenum: everything in the V is under it. */
   plenum: 0.1,
   /** Fuel rails back out along their injectors; throttle bodies and distributors come off. */
   intake: 0.2,
   frontCovers: 0.3,
+  /** Turbos slide out with their heat shields; downpipes, wastegate pipe and silencer come away. */
+  turbos: 0.2,
+  wastegates: 0.25,
+  /** Manifolds pull off their studs once the turbos are off their collectors. */
+  manifolds: 0.35,
+  /**
+   * The oil tank slides out once the right manifold is well on its way (its hoses run inside
+   * the manifold), and before the right head lifts out over the tank's place.
+   */
+  oilTank: 0.55,
   camCovers: 0.45,
   /** Runners wait until the injectors are clear of their bosses. */
   runners: 0.5,
@@ -43,4 +57,15 @@ export const TEARDOWN = {
   ancillaries: 1.05,
   pistons: 1.2,
   crank: 1.35,
+} as const;
+
+/**
+ * Stage-5 order (s after the stage starts): the transaxle slides back off the engine, its
+ * oil cooler comes off the casing on the way, then the flywheel and the clutch's plates fan
+ * out behind the block into the space it left.
+ */
+export const TRANSAXLE_DELAY = {
+  transaxle: 0,
+  oilCooler: 0.2,
+  clutch: 0.35,
 } as const;

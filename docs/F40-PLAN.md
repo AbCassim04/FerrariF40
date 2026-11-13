@@ -77,18 +77,18 @@ to start from; "new" has no predecessor.
 - [x] `ecu-l / -r` — Weber-Marelli control units high on the bay walls (#26, est); explode: S4: out 0.2 · adapt
 - [x] `wiring-loom-l / -r` — Along each bank to the injectors; instanced: clips · adapt
 
-### Phase 3 — turbos, intercoolers, exhaust (17) — new
-- [ ] `exhaust-manifold-l / -r` — 4-into-1, outboard and below each bank, back to its turbo (#12); instanced: port flanges ×4, studs ×8; explode: S4: swing out 25° about the port line · adapt (primary routing, flanges)
-- [ ] `turbo-l / -r` — IHI turbocharger: turbine housing (cast iron, heat-tinted), compressor housing (cast aluminium), centre section with oil and water lines (#13); explode: S4: out 0.3, down 0.1 · new
-- [ ] `turbo-heatshield-l / -r` — Over each turbine housing; explode: rides the turbo, lifts 0.08 · new
-- [ ] `wastegate-l / -r` — One per turbo, on the turbine inlet (#14); explode: S4: rides the turbo, then back 0.1 · new
-- [ ] `intercooler-l / -r` — Behr air-to-air cores over the turbos, under the rear deck (#15); instanced: fins; explode: S4 first: lift 0.5 · new
-- [ ] `charge-pipes-l / -r` — Compressor → intercooler → throttle body, over the gearbox (#16); instanced: silicone couplers ×3, clamps ×6; explode: S4: lift 0.38 · adapt (ribbed bellows for couplers)
-- [ ] `turbo-inlet-l / -r` — Air filter and duct to each compressor (est, from the rear-clam intakes); explode: S4: out 0.25 · new
-- [ ] `downpipe-l / -r` — Turbine outlet to the silencer (#17); explode: S4: back 0.15 · adapt
-- [ ] `wastegate-pipe` — 2-into-1 to the centre tailpipe; explode: S4: back 0.2 · new
-- [ ] `silencer` — Box across the tail (#18); explode: S4: back 0.35 · adapt
-- [ ] `tailpipes` — Three: two from the silencer, the centre one from the wastegates (#19; through the rear grille: contact); explode: rides the silencer · adapt
+### Phase 3 — turbos, intercoolers, exhaust (17) — built
+- [x] `exhaust-manifold-l / -r` — 4-into-1, outboard and below each bank, back to its turbo (#12); port flanges, heat tint; explode: S4: pulls off along the port axis 0.3
+- [x] `turbo-l / -r` — IHI turbocharger: turbine housing (cast iron), compressor housing (aluminium), centre housing (#13); explode: S4: out 0.3
+- [x] `turbo-heatshield-l / -r` — Over each turbine housing; explode: rides the turbo, lifts 0.1
+- [x] `wastegate-l / -r` — One per turbo, on the collector ahead of the turbine (#14); explode: rides the manifold, lifts 0.12
+- [x] `intercooler-l / -r` — Behr air-to-air cores over the turbos, under the rear deck (#15); instanced fins and tubes; explode: S4 first: lift 0.5
+- [x] `charge-pipes-l / -r` — Compressor → intercooler → throttle body, over the gearbox (#16); silicone couplers ×4, clamps ×8; explode: S4: lift 0.42
+- [x] `turbo-inlet-l / -r` — Pod filter and ribbed duct to each compressor (est); explode: S4: out 0.45, up 0.05
+- [x] `downpipe-l / -r` — Turbine outlet to the silencer (#17); explode: S4: out 0.15
+- [x] `wastegate-pipe` — 2-into-1 to the centre tailpipe; explode: S4: up 0.15
+- [x] `silencer` — Two cans across the tail (#18); explode: S4: down 0.3, back 0.1
+- [x] `tailpipes` — Three, in the rear valance's oval mouth (#19); explode: rides the silencer
 
 ### Phase 4 — transmission: 5-speed manual transaxle (12)
 - [ ] `transaxle` — Assembly: bellhousing, casing, gears, LSD; explode: S5: slides back 0.4 · adapt
@@ -147,18 +147,22 @@ the engine is there under it, then the whole tail lifts away.
 
 | stage | starts | what moves |
 | --- | --- | --- |
-| 1 body (built) | 0.00 | **Rear clam opens 70° about its tail hinge** (the Lexan cover with it); 0.45 s: lifts up and back; 0.55 s: the wing comes off it. 0.15 s: doors swing open about their front hinges. 0.25 s: front clam tips up about its nose and moves forward. 0.35 s: windscreen and fixed glass lift. |
+| 1 body (built) | 0.00 | **Rear clam opens 70° about its tail hinge** (the Lexan cover and the wing with it); 0.45 s: lifts up and back. 0.15 s: doors swing open about their front hinges. 0.25 s: front clam tips up about its nose and moves forward. 0.35 s: windscreen and fixed glass lift. |
 | 2 chassis (partly built) | 0.75 | Wheels out 0.75, discs and calipers follow, suspension out, driveshafts out; **powertrain slides back 0.3 m** from under the roof edge. |
 | 3 powertrain (built) | 1.45 | Engine, gearbox, turbos, intercoolers and exhaust lift 1.2 m as one unit; the frame stays. |
 | 4 engine teardown | 2.25 | Outside in, see below. |
-| 5 transmission | 4.20 | Gearbox slides back off the engine; flywheel and clutch plates fan out of the bellhousing; shift linkage drops; LSD shown in the casing. |
+| 5 transmission | 4.20 | Gearbox slides back 0.5 off the engine (its oil cooler comes off on the way); then the flywheel and the clutch's discs and plates fan out behind the block; LSD shown in the casing. |
 
 ### Stage 4 teardown (s after the stage starts)
-- +0.00: Intercoolers lift; charge pipes and their couplers
-- +0.10: Plenum lifts; turbo inlets out
-- +0.20: Throttle bodies, runners and fuel rails; distributors and HT leads
-- +0.30: Turbos swing out with their wastegates and heat shields; downpipes and silencer back; belt cover, water pumps and alternator forward
-- +0.45: Exhaust manifolds swing out 25°; cam covers with plug caps
+- +0.00: Intercoolers lift
+- +0.10: Plenum lifts; charge pipes lift; turbo inlets out
+- +0.20: Throttle bodies, fuel rails, distributors and HT leads; turbos out with their heat shields; downpipes out, wastegate pipe up, silencer down
+- +0.25: Wastegates lift off the collectors
+- +0.30: Belt cover, water pumps and alternator forward
+- +0.35: Exhaust manifolds pull off their studs
+- +0.45: Cam covers with plug caps
+- +0.50: Runners
+- +0.55: Oil tank out
 - +0.60: Camshafts; spark plugs
 - +0.75: Heads (valves ride); head gaskets float between
 - +1.05: Sump drops (pump and pick-ups ride); filter, coolers, mounts out

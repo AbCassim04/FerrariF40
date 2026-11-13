@@ -132,11 +132,14 @@ const STANDIN_POWERTRAIN = [
  */
 const STANDIN_UPPER_REAR_FRAME = { absX: [0, 0.58], y: [0.375, 1.04], z: [-2.1, -0.34] };
 /**
- * The stand-in's rear suspension towers (A-frames rising from the lower rails beside the
- * axle) and the coilovers mounted on them: the turbos sit there (F40-PLAN decision 2).
- * Hidden like the upper frame; the wishbones, uprights and lower rails stay visible.
+ * The stand-in's rear suspension: towers (A-frames rising from the lower rails beside the
+ * axle), coilovers, dampers, wishbones and uprights. The turbos, their inlet ducts and the
+ * driveshafts fill that space (F40-PLAN decision 2); the procedural double-wishbone
+ * suspension replaces it in phase 5. Hidden like the upper frame; the lower rails stay.
  */
-const STANDIN_REAR_TOWERS = { absX: [0.271, 0.641], y: [0.13, 0.891], z: [-1.474, -1.041] };
+const STANDIN_REAR_SUSPENSION = { absX: [0.209, 0.775], y: [0.13, 0.932], z: [-1.628, -0.908] };
+/** The stand-in's crossmember across the tail, where the silencer cans sit. */
+const STANDIN_TAIL_CROSSMEMBER = { absX: [0, 0.48], y: [0.3, 0.53], z: [-2.1, -1.98] };
 /** Bay walls and rear bulkhead: one big box-shaped liner in F40_Mechanics. Fixed bodywork. */
 const BAY_LINER = { minTris: 400, absX: [0, 1.0], y: [0.1, 1.16], z: [-1.16, -0.3] };
 /** Front compartment structure (behind the front clam). Fixed bodywork. */
@@ -203,7 +206,7 @@ export const RULES = [
       if (piece.triCount >= BAY_LINER.minTris && inBoxAbs(piece.box, BAY_LINER)) return 'body-shell';
       if (piece.triCount >= FRONT_TUB.minTris && inBoxAbs(piece.box, FRONT_TUB)) return 'body-shell';
       if (isFloor(piece.box) || (piece.triCount >= DIFFUSER.minTris && inBoxAbs(piece.box, DIFFUSER))) return 'undertray';
-      if (inBoxAbs(piece.box, STANDIN_UPPER_REAR_FRAME) || inBoxAbs(piece.box, STANDIN_REAR_TOWERS)) return MODEL_ENGINE_BAY;
+      if ([STANDIN_UPPER_REAR_FRAME, STANDIN_REAR_SUSPENSION, STANDIN_TAIL_CROSSMEMBER].some((r) => inBoxAbs(piece.box, r))) return MODEL_ENGINE_BAY;
       // Frame rails and crossmembers, suspension, front radiator: placeholders for the procedural spaceframe and suspension.
       return 'model-chassis';
     },

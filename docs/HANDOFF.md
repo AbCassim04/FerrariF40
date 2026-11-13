@@ -6,9 +6,20 @@ docs/BRIEF.md; read that first. The build plan: docs/F40-PLAN.md.
 ## Status (2026-11-13)
 - Phase 1 approved and merged into `main`.
 - **Phases 2–4 in progress on `wip/f40-build`** (unattended run; commit per phase, not
-  pushed). Phase 2 (intake, ignition, ancillaries) done. Next: phase 3 (turbos,
-  intercoolers, exhaust), then phase 4 (5-speed transaxle). Progress and gates per phase:
-  docs/REVIEW.md; decisions (incl. "Decisions made unattended") in docs/BRIEF.md.
+  pushed). Phase 2 (intake, ignition, ancillaries) and phase 3 (turbos, intercoolers,
+  exhaust) done and committed. Next: phase 4 (5-speed transaxle), drafted in
+  `src/parts/transaxle/` (geometry + parts) with its dims (`transaxle`, `driveshaft`,
+  `shiftLinkage`), `EXPLODE.transaxle` and `TRANSAXLE_DELAY`; register `transaxleParts` in
+  registry.ts to start. Known before the first check: the stand-in still has gearbox-mount
+  brackets inside the casing (model-chassis, |x| 0.065–0.34, car y 0.17–0.44, z −1.42…−1.56;
+  hide them in scripts/body-rules.mjs like the rest of the stand-in rear) and the gearbox
+  oil cooler's bottom touches model-chassis at (0.301, 0.266, −1.704) (raise it).
+  Progress and gates per phase: docs/REVIEW.md; decisions (incl. "Decisions made
+  unattended") in docs/BRIEF.md.
+- Exhaust layout notes: the model's exhaust mouth is a short oval tunnel in the rear clam
+  (car y 0.282–0.363, |x| ≤ 0.125, z −1.965…−2.085); its floor swings up as the clam opens,
+  so nothing of ours may reach into it. Undertray top under the silencer: car y 0.19–0.21 at
+  |x| < 0.1, 0.25–0.29 at |x| 0.2–0.35 (rising to the back).
 - Visual checks: one persistent page + `window.__dev` (below). In this session the MCP tools
   were not loaded, so the page is driven by a small Playwright script (same GPU launch).
 

@@ -232,10 +232,9 @@ export function oilTankFittings() {
   const F = K.fitting;
   const inboard = -Math.sign(K.x);
   const reach = K.finRadius + F.length;
-  const quarter = new Vector3(inboard, 0, 1).normalize();
   return {
-    scavenge: { at: new Vector3(K.x + inboard * reach, F.scavengeY, K.z), dir: new Vector3(inboard, 0, 0) },
-    feed: { at: new Vector3(K.x, F.feedY, K.z).addScaledVector(quarter, reach), dir: quarter },
+    scavenge: { at: new Vector3(K.x + inboard * reach, F.scavengeY, K.z + F.dz), dir: new Vector3(inboard, 0, 0) },
+    feed: { at: new Vector3(K.x + inboard * reach, F.feedY, K.z - F.dz), dir: new Vector3(inboard, 0, 0) },
   };
 }
 
@@ -268,14 +267,14 @@ export function oilTankMeshes(): MeshSpec[] {
     g.applyMatrix4(new Matrix4().compose(at, new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), dir.clone().negate()), one));
     return g;
   });
-  // Flat bar sloping from the tank's inboard foot down onto the bellhousing's top.
+  // Flat bar from the tank's inboard side, high up, forward to the cam cover's rear end (stops just short of it).
   const B = K.bracket;
   const inboard = -Math.sign(K.x);
-  const p0 = new Vector3(K.x + inboard * (r - K.finThickness), B.y, K.z + B.z);
-  const p1 = new Vector3(Math.sign(K.x) * B.endX, B.endY, K.z + B.z);
-  const bracket = roundedBox(p0.distanceTo(p1), B.thickness, B.width, B.thickness / 2);
-  bracket.rotateZ(Math.atan2(p1.y - p0.y, p1.x - p0.x));
-  bracket.translate((p0.x + p1.x) / 2, (p0.y + p1.y) / 2, p0.z);
+  const x0 = K.x + inboard * (r - K.finThickness);
+  const zTo = E.boreZ[K.x < 0 ? 'r' : 'l'][E.perBank - 1] - E.block.endWall - 0.006;
+  const reach = zTo - (K.z + r * 0.4);
+  const bracket = roundedBox(B.width, B.thickness, reach, B.thickness / 2);
+  bracket.translate(x0 + inboard * B.width * 0.3, B.y, K.z + r * 0.4 + reach / 2);
   return [
     { geometry: body, material: 'castAluminium' },
     { geometry: merge([cap, bracket]), material: 'satinBlack' },

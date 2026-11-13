@@ -76,8 +76,12 @@ const model = {
   doorHinge: [0.9, 0.55, 0.77] as Vec3,
   /** Front clam: hinged at the nose, opens upward from the back. */
   frontClamHinge: [0, 0.34, 2.17] as Vec3,
-  /** Rear clam: hinged at the tail, opens upward from the front (the Lexan cover with it). */
-  rearClamHinge: [0, 0.8, -2.07] as Vec3,
+  /**
+   * Rear clam: hinged low at the tail, opens upward from the front (the Lexan cover and the
+   * wing with it). Low, so the tail panel below the hinge doesn't swing forward into the
+   * silencer and tailpipes as it opens (it moves back and away from them).
+   */
+  rearClamHinge: [0, 0.32, -2.08] as Vec3,
   /** Top of the Lexan engine cover over the middle of the bay. */
   lexanY: 1.04,
   /**
@@ -467,11 +471,104 @@ const engineParts = {
     neckRadius: mm(16),
     neckHeight: mm(22),
     capHeight: mm(12),
-    /** Sloping bracket from its inboard foot down to the bellhousing's top, under the distributor (behind the hoses). */
-    bracket: { y: mm(222), width: mm(30), thickness: mm(5), endY: mm(140), endX: mm(120), z: -mm(32) },
-    /** Hose fittings: scavenge return on the inboard side; feed low on the inboard-front quarter, clear of the frame rail beneath. */
-    fitting: { radius: mm(9), length: mm(16), scavengeY: mm(270), feedY: mm(225) },
+    /** Bracket from its inboard side, high up, forward to the right cam cover's rear end. */
+    bracket: { y: mm(400), width: mm(28), thickness: mm(5) },
+    /** Hose fittings, both on the inboard side (behind the head): scavenge return higher and forward, feed lower and back. */
+    fitting: { radius: mm(9), length: mm(16), scavengeY: mm(250), feedY: mm(225), dz: mm(25) },
   },
+  /**
+   * Exhaust manifolds (engine coordinates, left bank; the right mirrors): four primaries per
+   * bank out of the ports (outboard and down), back in a 2×2 bundle to a 4-into-1 merge,
+   * then the collector pipe up to the turbine inlet. Later ports take the bundle lanes nearer
+   * the head, so no primary crosses another.
+   */
+  exhaust: {
+    primaryRadius: mm(19),
+    stub: mm(28),
+    /** Lane (x, y) of the primaries from cylinders 1–4 of the bank (front to back). */
+    lanes: [[mm(355), mm(20)], [mm(355), mm(65)], [mm(310), mm(20)], [mm(310), mm(65)]] as readonly (readonly [number, number])[],
+    mergeZ: -0.985,
+    merge: [mm(333), mm(43)] as const,
+    collector: { length: mm(60), radius: mm(28) },
+    /** Port flange plate: across the port, thickness, along z; and the flange at the turbine inlet. */
+    flange: [mm(46), mm(10), mm(52)] as Vec3,
+    inletFlange: [mm(72), mm(62), mm(9)] as Vec3,
+  },
+  /**
+   * (ref: 2 IHI) Turbochargers, axis across the car, one behind each bank above the
+   * driveshaft and inboard of the rear suspension: the turbine inboard, fed from the front
+   * by the collector (axial outlet inboard to the downpipe); the compressor outboard (axial
+   * inlet from the filter above it, outlet up the back to the intercooler). x of the left one.
+   */
+  turbo: {
+    y: mm(240),
+    z: -1.255,
+    turbine: {
+      x: mm(300),
+      halfWidth: mm(28),
+      bodyRadius: mm(50),
+      R: [mm(45), mm(55)] as const,
+      r: [mm(12), mm(27)] as const,
+      sweep: deg(320),
+      /** Straight run out of the volute, clear of its own small (tongue) end. */
+      exit: mm(55),
+      outlet: { x: mm(250), radius: mm(34), flangeRadius: mm(45), flange: mm(8) },
+    },
+    centreHousing: { x: [mm(328), mm(372)] as const, radius: mm(30) },
+    compressor: {
+      x: mm(398),
+      backX: mm(372),
+      backRadius: mm(58),
+      coverX: mm(432),
+      coverRadius: mm(36),
+      R: [mm(42), mm(50)] as const,
+      r: [mm(11), mm(25)] as const,
+      sweep: deg(330),
+      exit: mm(70),
+      inlet: { radius: mm(34), lipX: mm(446) },
+    },
+  },
+  /** Heat shield over the top and outboard side of each turbine housing. */
+  heatShield: { radius: mm(96), thickness: mm(2), halfWidth: mm(40), from: deg(40), span: deg(160) },
+  /** (owner: two) Wastegate on the inboard side of each collector, just ahead of the turbine; outlet inboard. */
+  wastegate: { x: mm(255), y: mm(190), z: -1.14, bodyRadius: mm(22), bodyHeight: mm(46), canRadius: mm(35), canHeight: mm(40), outletX: mm(226), outletY: mm(178) },
+  /** Wastegate pipes: both outlets inboard and up over the gearbox to a Y, then one pipe back between the silencer cans to the centre tailpipe. */
+  wastegatePipe: { radius: mm(18), mergeZ: -1.185, y: mm(262), downZ: -1.82, tipY: mm(52) },
+  /** (ref: 2 Behr) Air-to-air intercoolers behind and above the turbos, under the rear deck. */
+  intercooler: {
+    x: [mm(210), mm(560)] as const,
+    core: [mm(255), mm(515)] as const,
+    y: [mm(360), mm(462)] as const,
+    coreY: [mm(372), mm(450)] as const,
+    z: [-1.63, -1.43] as const,
+    fins: 56,
+    finThickness: mm(1.2),
+    /** A flat charge-air tube every this many fins. */
+    tubeEvery: 7,
+    /** Spigots on the tanks' front faces: outboard (from the compressor) and inboard (to the throttle body). */
+    spigot: { radius: mm(30), length: mm(30) },
+    outboardX: mm(537),
+    inboardX: mm(232),
+    portY: mm(410),
+    bracket: [mm(30), mm(70), mm(5)] as Vec3,
+  },
+  chargePipe: { radius: mm(27), gap: mm(3), coupler: { length: mm(46), thickness: mm(4) }, clamp: { width: mm(9), thickness: mm(2.5) } },
+  /** Ribbed duct from each compressor inlet up to a pod filter above the compressor. */
+  turboInlet: { radius: mm(32), ribPitch: mm(10), ribDepth: mm(2.5), filter: { x: mm(398), y: [mm(352), mm(462)] as const, z: -1.14, radius: mm(43), pleats: 40 } },
+  downpipe: { radius: mm(30), x: mm(215) },
+  /**
+   * Silencer: two cans across the tail, close either side of the centreline (the wastegate
+   * pipe drops between them). Each feeds its side tailpipe from a neck under its inboard
+   * edge; the downpipes enter the front faces.
+   */
+  silencer: { x: [mm(45), mm(245)] as const, y: [mm(120), mm(330)] as const, z: [-1.975, -1.835] as const, corner: mm(20), inletX: mm(190), outlet: { x: mm(100), z: -1.885 } },
+  /**
+   * Three tailpipes in a row, centred in the oval exhaust mouth of the rear valance (car y
+   * 0.282–0.363, |x| ≤ 0.125): two from the silencer, the centre one from the wastegates.
+   * They stop just ahead of the mouth (its floor starts at z ≈ −1.965): the mouth is part of
+   * the rear clam, and its floor swings up as the clam opens.
+   */
+  tailpipe: { radius: mm(30), lip: mm(3), y: mm(52), sideX: mm(75), exitZ: -1.955, length: mm(40) },
   /** Braided oil lines (dry sump): scavenge pump to tank, tank to the oil cooler. */
   oilLine: { radius: mm(8), fitting: { radius: mm(11), length: mm(22) } },
   waterPump: {
@@ -548,22 +645,51 @@ const transaxle = {
   /** Gear train inside the casing: transfer pair, primary (input) and secondary (output) shafts. */
   gears: {
     transferZ: -1.03,
-    primaryY: mm(128),
-    secondaryY: mm(36),
+    /** Transfer gear on the input shaft (the primary's is the rest of the 125 mm drop). */
+    transferInput: mm(55),
+    primaryY: mm(125),
+    secondaryY: mm(40),
     shaftRadius: mm(16),
-    /** Five forward pairs and reverse, front to back over the clusters' length; pinion forward. */
+    /** Reverse and five forward pairs, front to back over the clusters' length (behind the axle). */
     clusterZ: [-1.40, -1.74],
     ratios: [3.1, 2.0, 1.45, 1.1, 0.88],
-    pitchSum: mm(92),
+    reverse: 3.4,
     width: mm(20),
-    pinionZ: -1.15,
+    /** Pinion's rear face (on the secondary shaft's front end), just ahead of the crown wheel. */
+    pinionZ: -1.17,
+    crownRadius: mm(50),
   },
   /** Limited-slip differential on the rear axle line: housing, output flanges to the driveshafts. */
   diff: { y: model.wheelCentreY.rear - engine.crankHeight, radius: mm(92), halfLength: mm(150), outX: mm(178), flangeRadius: mm(52), flangeLength: mm(14), coverBolts: 10, coverBoltCircle: mm(70) },
   /** (ref: left side) Gearbox oil cooler, finned, with two short hoses to the casing. */
   oilCooler: { centre: [mm(300), mm(24), -1.65] as Vec3, size: [mm(110), mm(60), mm(140)] as Vec3, fins: 12 },
-  /** Gear selector on the casing's right front: boss, shaft and lever. */
-  selector: { at: [-mm(150), -mm(28), -1.07] as Vec3, bossRadius: mm(22), lever: mm(60) },
+  /** Gear selector on the casing's right front: boss on the side wall, shaft out, lever angled down and outboard. */
+  selector: { at: [-mm(150), -mm(28), -1.07] as Vec3, bossRadius: mm(22), bossLength: mm(20), shaftRadius: mm(8), shaftOut: mm(34), lever: mm(70), leverAngle: deg(35), leverWidth: mm(14), leverThickness: mm(6) },
+  /** Splined input shaft from the casing's front forward through the clutch hubs (stops short of the flywheel). */
+  inputShaft: { radius: mm(14) },
+};
+
+/**
+ * Driveshafts (car coordinates): diff output flange to the rear hub, an inner and outer CV
+ * joint with rubber boots, solid bar between. Outer end at the model's hub face.
+ */
+const driveshaft = { shaftRadius: mm(15), cvRadius: mm(46), cvLength: mm(60), bootRadius: mm(40), bootLength: mm(95), bootRibs: 6, stubRadius: mm(24), stubLength: mm(50), outerX: 0.66, innerCvGap: mm(4) };
+
+/**
+ * Gearshift linkage (car coordinates): a rod from the tunnel, through the bulkhead behind the
+ * seats and back along the right of the sump to the selector lever on the gearbox. The gated
+ * lever itself is the model's, in the cabin.
+ */
+const shiftLinkage = {
+  rodRadius: mm(8),
+  /** Rod line: forward end inside the tunnel, the bulkhead, the run beside the sump. */
+  frontZ: -0.2,
+  bulkheadZ: -0.37,
+  run: { x: -0.28, y: 0.145 },
+  bush: { radius: mm(15), length: mm(28) },
+  /** Guide bushes along the run (z), with a bracket down to the floor. */
+  bushZ: [-0.37, -0.7] as const,
+  rodEnd: { radius: mm(12) },
 };
 
 /** Cables, hoses and looms that re-curve as their ends move (src/parts/cables). */
@@ -719,6 +845,8 @@ export const DIMS = {
   },
   ecu,
   transaxle,
+  driveshaft,
+  shiftLinkage,
   cable,
 } as const;
 
@@ -772,9 +900,31 @@ export const EXPLODE = {
     plenum: 0.5, // up, first: everything in the V is under it
     fuelRail: 0.2, // back out along the injector axis
     runners: 0.3, // up, once the injectors are out of their bosses
-    throttleBodies: [0, 0.36, -0.1] as Vec3, // up behind the plenum, and back off its bosses
+    throttleBodies: [0, 0.36, 0] as Vec3, // straight up behind the plenum (the charge pipes butt against their rear ends)
     distributor: 0.12, // back off the cam drive
-    alternator: 0.15, // outboard
-    oilTank: [-0.25, -0.2, 0] as Vec3, // outboard and down, below the HT leads as the right head lifts
+    alternator: 0.22, // forward, off the front of the block (outboard is where the left manifold goes)
+    oilTank: [-0.36, 0, 0] as Vec3, // straight outboard (its hoses drop under the pulled-off right manifold)
+    intercooler: 0.5, // up, first: they sit over everything behind the engine
+    chargePipes: 0.42, // up, behind the intercoolers and ahead of the throttle bodies
+    turboInlet: [0.45, 0.05, 0] as Vec3, // outboard (left; mirrored), well ahead of the turbo
+    turbo: [0.3, 0, 0] as Vec3, // straight outboard (left; mirrored), off the collector and downpipe
+    heatShield: 0.1, // up off the turbine
+    wastegate: 0.12, // up off the collector
+    downpipe: [0.15, 0, -0.03] as Vec3, // outboard (left; mirrored), off the silencer's inlet necks
+    wastegatePipe: [0, 0.15, -0.03] as Vec3, // up out from between the silencer cans
+    silencer: [0, -0.3, -0.1] as Vec3, // down, the tailpipes with it (back would run into the lifted rear clam)
+    manifold: 0.3, // straight off the studs along the port axis (outboard and down)
   },
+  /**
+   * Stage 5: the transaxle slides back off the engine, then the flywheel and the clutch's
+   * plates fan out behind the block, each a step further back than the one in front.
+   */
+  transaxle: {
+    back: 0.5, // the bellhousing's front ends up behind the fanned clutch
+    flywheel: 0.04,
+    clutchStep: 0.06, // each further plate goes this much further back
+    oilCooler: 0.2, // outboard (left)
+  },
+  /** Driveshafts: out of the diff, toward the wheels (stage 2, before the powertrain slides back). */
+  driveshaft: 0.35,
 } as const;
