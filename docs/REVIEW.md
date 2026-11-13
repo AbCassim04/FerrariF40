@@ -6,6 +6,102 @@ Screenshots are local and git-ignored, in `docs/review/f40-phase2/` … `f40-pha
 (1440×900, GPU, one persistent page driven through `window.__dev`; the FPS meter reads
 ~1–2 because the review browser renders slowly on this machine).
 
+## Summary (unattended run, phases 2–4)
+**Built:** phase 2, intake, ignition and ancillaries (16 parts); phase 3, turbos,
+intercoolers and exhaust (17); phase 4, the 5-speed manual transaxle with its twin-plate
+clutch, driveshafts and shift linkage (14). One checkpoint commit per phase on
+`wip/f40-build`; not pushed, `main` untouched.
+
+**Figures**
+
+| after | scene triangles | meshes | idle calls / triangles | peak calls / triangles |
+| --- | --- | --- | --- | --- |
+| phase 1 | 0.46 M | – | 150 / 0.46 M | 255 / 0.80 M |
+| phase 2 | 0.54 M | 172 | 191 / 0.54 M | 318 / 0.95 M |
+| phase 3 | 0.68 M | 229 | 248 / 0.69 M | 415 / 1.21 M |
+| phase 4 | 0.76 M | 262 | 281 / 0.76 M | 471 / 1.36 M |
+
+Budget ~500 draw calls / ~1.5 M triangles at peak. Clash checks clean at every phase:
+assembled, fully exploded, and through the mid-explode sweeps (details per phase below).
+The explode now runs ~4.9 s (stage starts 0 / 0.75 / 1.70 / 2.50 / 3.75 s).
+
+**Decisions made unattended:** all logged in docs/BRIEF.md under "Decisions made unattended
+(review)". The ones most worth a look:
+1. Tailpipes recessed ~0.13 m in the rear valance's oval mouth (the mouth's floor is part of
+   the rear clam and swings up as it opens).
+2. Rear-clam hinge lowered to car y 0.32, so its tail swings up and back, away from the
+   exhaust.
+3. Exhaust explode moves changed from the plan (straight pulls instead of swings; silencer
+   down, wastegate pipe up) so each one clears its neighbours.
+4. Timeline re-timed: the powertrain's slide waits 0.25 s for the driveshafts, and stage 5
+   starts just before the crank drops.
+5. Two silencer cans (plan: one box), no balance pipe.
+6. Oil tank on the right (est), moving out after the right manifold.
+7. Shift linkage stays with the car (plan: drops in stage 5); the gated lever is the model's.
+8. Clutch as five parts so it fans out; bellhousing open at the front.
+9. More of the model's stand-in rear hidden: upper frame, suspension, tail crossmember,
+   gearbox mounts.
+
+**Blocked:** none.
+
+**Not done / known:** no turbo and intercooler polish beyond the phase-3 trim (the run ran
+out of time first; phase 5 not started, as asked). Estimated positions remain estimates:
+oil tank, distributors, turbo inlet filters, gearbox internals (docs/reference/f40/ is
+empty). Draw calls at 471 of ~500 at peak: phase 5 (chassis, suspension, brakes, ≈30 parts)
+will need instancing or merging to stay in budget. The model's stand-in lower frame rails
+are still visible and still constrain where parts can go.
+
+**What's next:**
+1. Review the screenshots in docs/review/f40-phase2/ … f40-phase4/ and the unattended
+   decisions in the BRIEF.
+2. Push `wip/f40-build` and merge, or ask for changes.
+3. Phase 5 (spaceframe, suspension, brakes) replaces the stand-in's remaining frame; budget
+   draw calls first.
+
+## Phase 4: 5-speed manual transaxle
+**Built (14 parts):** `transaxle` (virtual assembly); flywheel (starter ring gear, crank
+bolts); twin-plate clutch as four parts (front disc, intermediate plate, rear disc,
+pressure plate with diaphragm-spring cover); bellhousing (open front, bolting flange);
+gearbox casing (lofted, stiffening rings, X-ribs, seam and end-cover bolts, selector on the
+right front); gear clusters (input shaft, transfer gears, primary and secondary shafts,
+5 + reverse pairs, pinion; hidden inside); limited-slip differential (side bosses and output
+flanges on the axle line, crown wheel); gearbox oil cooler (left, finned, two hoses);
+driveshafts ×2 (CV joints, boots, stub axles); gearshift linkage (rod, guide bushes, ball
+joint). Stage 5: the transaxle slides back 0.5, the oil cooler comes off, then the flywheel
+and the four clutch parts fan out behind the block (0.04, 0.10, 0.16, 0.22, 0.28).
+
+**Gates**
+- Typecheck and build: pass.
+- Clash check: assembled vs body **none**; full explode **none**; assembled, ours against
+  ours (info): only the designed joins inside the transaxle (bellhousing on the casing, the
+  input shaft through the casing's front, the diff bosses in the casing wall).
+- Mid-explode sweep over the whole re-timed timeline, every phase 2–4 part in focus (and
+  the rear clam and wing), at t = 0.2, 0.45, 0.7, 0.9, 1.05, 1.2, 1.35, 1.5, 1.65, 1.8, 2.0,
+  2.2, 2.4, 2.6 … 3.3 (every 0.1), 3.45, 3.6, 3.75, 3.85, 3.95, 4.1, 4.25, 4.4, 4.55, 4.7,
+  4.85 s: **none**, after the last fix below (the shift rod's ball joint, re-swept at 1.2–1.95 s).
+- What the sweeps caught and how it was fixed:
+  - the gearbox sliding back into the exploded silencer and wastegate pipe (the silencer
+    now drops 0.45, the wastegate pipe lifts 0.32);
+  - the stand-in's gearbox mounts inside the casing (hidden, cut along a region) and two of
+    its struts against the oil cooler (cooler moved);
+  - the driveshafts against the exhaust collectors as the powertrain slides back (slide
+    delayed 0.25 s);
+  - the shift rod against the oil feed hose during the slide (lever points down, the rod
+    passes under the hose);
+  - the crank's rear flange dropping through the bellhousing's mouth (stage 5 starts
+    before the crank drops);
+  - the bellhousing's front against the crank flange and the left head gasket, and its
+    taper against the clutch cover (open front, round shoulders, full-size round the clutch).
+
+**Performance:** scene 0.76 M triangles, 262 meshes. Idle 281 draw calls / 0.76 M
+triangles (assembled and exploded), 271 / 0.75 M in the Lexan view; peak with the shadow
+pass live 471 / 1.36 M (budget ~500 / ~1.5 M). Draw calls are now the tighter limit.
+
+**Screenshots (docs/review/f40-phase4/):** 01-transaxle-xray (in the car, X-ray),
+02-transmission-solo (transmission group solo, assembled), 03-clutch-fan (end of stage 5:
+flywheel, discs and plates fanned between the block and the bellhousing),
+04-stage5-mid (t = 4.25 s), 05-exploded-rear34.
+
 ## Phase 3: turbos, intercoolers, exhaust
 **Built (17 parts):** exhaust manifolds ×2 (4-into-1, port flanges, heat tint);
 IHI turbochargers ×2 (cast-iron turbine volute, aluminium compressor, centre housing);

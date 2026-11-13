@@ -48,7 +48,8 @@ to start from; "new" has no predecessor.
 9. **Explode.** The rear clam is the reveal (built in phase 1, see "Explode choreography").
    Stage 2 slides the powertrain 0.3 m back from under the roof edge before stage 3 lifts it.
    The turbo and exhaust teardown fits inside stage 4's 1.35 s of delays and the transmission
-   fills stage 5 (4.2 s), so the explode stays ≈ 5.2 s.
+   fills stage 5 (built: stages re-timed to 0 / 0.75 / 1.70 / 2.50 / 3.75 s; the explode
+   ends at ≈ 4.9 s).
 10. **Clash check.** Each new part lists its contacts (through the bulkhead, caliper on its
     disc, tailpipes through the grille, suspension through the wheelhouse liners). Full
     explode and mid-explode sweeps (`clashAt`) must stay clean, as for phase 1.
@@ -86,21 +87,21 @@ to start from; "new" has no predecessor.
 - [x] `charge-pipes-l / -r` — Compressor → intercooler → throttle body, over the gearbox (#16); silicone couplers ×4, clamps ×8; explode: S4: lift 0.42
 - [x] `turbo-inlet-l / -r` — Pod filter and ribbed duct to each compressor (est); explode: S4: out 0.45, up 0.05
 - [x] `downpipe-l / -r` — Turbine outlet to the silencer (#17); explode: S4: out 0.15
-- [x] `wastegate-pipe` — 2-into-1 to the centre tailpipe; explode: S4: up 0.15
-- [x] `silencer` — Two cans across the tail (#18); explode: S4: down 0.3, back 0.1
+- [x] `wastegate-pipe` — 2-into-1 to the centre tailpipe; explode: S4: up 0.32
+- [x] `silencer` — Two cans across the tail (#18); explode: S4: down 0.45, back 0.1
 - [x] `tailpipes` — Three, in the rear valance's oval mouth (#19); explode: rides the silencer
 
-### Phase 4 — transmission: 5-speed manual transaxle (12)
-- [ ] `transaxle` — Assembly: bellhousing, casing, gears, LSD; explode: S5: slides back 0.4 · adapt
-- [ ] `flywheel` — Light steel flywheel with starter ring gear (#20); instanced: bolts ×8; explode: S5: back 0.1 · adapt
-- [ ] `twin-plate-clutch` — Twin-disc dry clutch: two plates, intermediate plate, pressure plate (#20); explode: S5: plates fan back 0.06 apart · adapt (clutch drum → plate stack)
-- [ ] `bellhousing` (#21) · adapt
-- [ ] `gearbox-casing` — 5-speed + reverse, ribbed, over the diffuser (#22); instanced: seam bolts; explode: rides the transaxle · adapt (lofted casing)
-- [ ] `gear-clusters` — Input and output shafts, 5 + reverse gear pairs; explode: rides (seen when the cutaway arrives) · adapt
-- [ ] `lsd` — Limited-slip diff on the axle line (#23); explode: rides · adapt
-- [ ] `gearbox-oil-cooler` — Left side (ref; #25); explode: S5: out 0.2 · new
-- [ ] `driveshaft-l / -r` — (#24); instanced: CV joints ×2, boots ×2; explode: S2: out 0.35 · adapt
-- [ ] `shift-linkage` — Gated lever in the cabin, rod along the tunnel through the bulkhead, to the selector on the gearbox (fig. 2 #31; contacts: tunnel, bulkhead); instanced: rod ends, guide bushes; explode: S5: drops 0.15 · new
+### Phase 4 — transmission: 5-speed manual transaxle (12) — built
+- [x] `transaxle` — Assembly: bellhousing, casing, gears, LSD, oil cooler; explode: S5: slides back 0.5
+- [x] `flywheel` — Light steel flywheel with starter ring gear (#20); instanced: bolts ×8; explode: S5: back 0.04
+- [x] `clutch-disc-front`, `clutch-intermediate`, `clutch-disc-rear`, `clutch-pressure` — Twin-disc dry clutch (#20); explode: S5: fan back 0.10 / 0.16 / 0.22 / 0.28
+- [x] `bellhousing` (#21)
+- [x] `gearbox-casing` — 5-speed + reverse, ribbed, over the diffuser, selector on the right front (#22); instanced: seam and cover bolts; explode: rides the transaxle
+- [x] `gear-clusters` — Input, transfer gears, primary and secondary shafts, 5 + reverse pairs, pinion; explode: rides (seen when the cutaway arrives)
+- [x] `lsd` — Limited-slip diff on the axle line (#23); explode: rides
+- [x] `gearbox-oil-cooler` — Left side (ref; #25); explode: S5: out 0.2
+- [x] `driveshaft-l / -r` — (#24); instanced: CV joints ×2, boots ×2; explode: S2: out 0.35
+- [x] `shift-linkage` — Rod from the tunnel through the bulkhead to the selector lever (fig. 2 #31); guide bushes; explode: stays with the car
 
 ### Phase 5 — chassis, suspension, brakes (≈30)
 - [ ] `spaceframe` — Steel tube frame in sub-parts so it reads in the teardown: `frame-front` (#40), `frame-cabin` with the roll structure behind the seats (#39), `frame-rear` (lower rails #32, upper rails #33 outboard of the manifolds, crossmember over the axle #34), instanced node gussets and bonded-composite plates; explode: stays (the reference everything else leaves) · new
@@ -148,10 +149,10 @@ the engine is there under it, then the whole tail lifts away.
 | stage | starts | what moves |
 | --- | --- | --- |
 | 1 body (built) | 0.00 | **Rear clam opens 70° about its tail hinge** (the Lexan cover and the wing with it); 0.45 s: lifts up and back. 0.15 s: doors swing open about their front hinges. 0.25 s: front clam tips up about its nose and moves forward. 0.35 s: windscreen and fixed glass lift. |
-| 2 chassis (partly built) | 0.75 | Wheels out 0.75, discs and calipers follow, suspension out, driveshafts out; **powertrain slides back 0.3 m** from under the roof edge. |
-| 3 powertrain (built) | 1.45 | Engine, gearbox, turbos, intercoolers and exhaust lift 1.2 m as one unit; the frame stays. |
-| 4 engine teardown | 2.25 | Outside in, see below. |
-| 5 transmission | 4.20 | Gearbox slides back 0.5 off the engine (its oil cooler comes off on the way); then the flywheel and the clutch's discs and plates fan out behind the block; LSD shown in the casing. |
+| 2 chassis (partly built) | 0.75 | Wheels out 0.75, discs and calipers follow, suspension out, driveshafts out; 0.25 s: **powertrain slides back 0.3 m** from under the roof edge (once the driveshafts are clear of the exhaust collectors). |
+| 3 powertrain (built) | 1.70 | Engine, gearbox, turbos, intercoolers and exhaust lift 1.2 m as one unit; the frame stays. |
+| 4 engine teardown | 2.50 | Outside in, see below. |
+| 5 transmission (built) | 3.75 | Starts before the crank drops (the crank's rear flange sits in the bellhousing's mouth). Gearbox slides back 0.5 off the engine (its oil cooler comes off on the way); then the flywheel and the clutch's discs and plates fan out behind the block; LSD shown in the casing. |
 
 ### Stage 4 teardown (s after the stage starts)
 - +0.00: Intercoolers lift

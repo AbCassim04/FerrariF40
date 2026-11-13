@@ -144,16 +144,20 @@ scaling), because they are read off renders of the raw model.
 Cable system: src/parts/cables/Cable.tsx — cables, hoses and looms that re-curve every frame
 between their two ends (HT leads, oil and coolant lines, brake lines in the plan).
 
-## Explode sequence (GSAP timeline, ~4.4 s now; ~5.4 s with the transaxle)
+## Explode sequence (GSAP timeline, ~4.9 s)
 Stage 1: body. The rear clam (with the Lexan cover and the wing, which is part of the
          rear bodywork) opens 70° about its tail hinge, then lifts up and back. Doors swing
          open about their front hinges; the front clam tips up about its nose and moves
          forward; the glass lifts.
-Stage 2: wheels and discs slide outward; the powertrain slides 0.3 m back from under the
-         roof's trailing edge.
+Stage 2: wheels, discs and driveshafts slide outward; 0.25 s later the powertrain slides
+         0.3 m back from under the roof's trailing edge.
 Stage 3: the powertrain rises 1.2 m out of the bay.
 Stage 4: engine teardown, outside in.
-Stage 5: transmission (planned).
+Stage 5: transmission (starts at 3.75 s, as the crank is about to drop: its rear flange sits
+         in the bellhousing's mouth). The transaxle slides 0.5 m back off the engine (its oil cooler comes
+         off the casing on the way), then the flywheel, the two clutch discs, the
+         intermediate plate and the pressure plate fan out behind the block, each 0.06 m
+         further back than the one in front.
 Second click: reverse timeline. Allow interruption mid-animation.
 
 ## Interaction & UI
@@ -306,6 +310,20 @@ docs/reference/f40/ would correct them (the folder is empty).
   their heat shields, downpipes, wastegate pipe and silencer (+0.2), wastegates (+0.25),
   manifolds (+0.35), oil tank (+0.55, moved from +0.3, see below).
 
+**Phase 4 (5-speed manual transaxle)**
+- Transaxle behind the engine: flywheel (starter ring gear) and twin-plate dry clutch
+  (two discs, intermediate plate, pressure plate with diaphragm spring and cover) in the
+  bellhousing; ribbed casing back over the diffuser with the limited-slip differential on
+  the rear axle line and the gears behind it (5 + reverse; input, transfer gears, primary
+  and secondary shafts, pinion and crown wheel, hidden inside); selector on the right front;
+  finned gearbox oil cooler on the left (ref).
+- Driveshafts from the diff's output flanges to the rear hubs (CV joints, boots); they stay
+  with the car and move out 0.35 in stage 2, before the powertrain slides back.
+- Gearshift rod from the tunnel through the bulkhead and along the right of the sump to the
+  selector lever; it stays with the car.
+- Stage 5: the transaxle slides back 0.5 (+0), its oil cooler goes out 0.2 (+0.2), then the
+  flywheel (0.04) and the clutch's four elements (0.10, 0.16, 0.22, 0.28) fan back (+0.35).
+
 ### Decisions made unattended (review)
 - **Plenum finish: red crackle**, like the cam covers (no lettering). The plan's realism
   notes already said so; no reference photo to confirm it.
@@ -340,9 +358,10 @@ docs/reference/f40/ would correct them (the folder is empty).
   - Wastegates ride the manifold (they sit on its collector) and lift 0.12 (plan: ride the
     turbo, then back). Heat shields lift 0.1 (plan 0.08).
   - Downpipes go outboard 0.15 (plan: back 0.15, into the silencer's inlet necks); the
-    wastegate pipe lifts 0.15 out from between the silencer cans (plan: back 0.2); the
-    silencer drops 0.3 and goes back 0.1 with the tailpipes (plan: back 0.35, into the
-    lifted rear clam).
+    wastegate pipe lifts 0.32 out from between the silencer cans (plan: back 0.2); the
+    silencer drops 0.45 and goes back 0.1 with the tailpipes (plan: back 0.35, into the
+    lifted rear clam). Both distances grew in phase 4, to leave the gearbox's slide path
+    clear in stage 5.
   - Throttle bodies lift straight up 0.36 (plan: up 0.35 and back 0.1; the charge pipes
     butt against their rear ends). The alternator goes forward 0.22 (plan: forward and out;
     out is where the left manifold goes).
@@ -364,3 +383,25 @@ docs/reference/f40/ would correct them (the folder is empty).
   inlet ducts and silencer sit there). Only its lower rails stay.
 - **Turbo inlet filters (est):** pleated pods above and ahead of each compressor; the real
   intake path (from the rear-clam ducts) is not in the references.
+- **Shift linkage stays put** (plan: drops 0.15 in stage 5). It belongs to the car and is
+  left behind when the powertrain comes out; dropping it would push it through the floor.
+  The gated lever itself is the model's, in the cabin; ours starts in the tunnel.
+- **Clutch as five parts.** The flywheel and each clutch element are separate parts so they
+  fan out one by one (the plan's single `twin-plate-clutch`). The cover is a drum from the
+  flywheel face back over the whole stack, so the discs sit inside it and slide out of it.
+- **Bellhousing open at the front**, round-shouldered (the heads overhang the block's rear
+  face at the top corners) and held full-size round the clutch before it blends into the
+  casing.
+- **Gear layout (est):** transfer gears behind the clutch lift the drive 125 mm to the
+  primary shaft, which runs back over the crown wheel to the clusters behind the axle;
+  reverse at the front of the clusters, where the casing is deepest.
+- **Gearbox oil cooler** raised to engine y 0.13 and moved to x 0.29 (two struts of the
+  model's stand-in lower frame run there); still on the left (ref).
+- **More stand-in hidden:** its gearbox mounts and braces round the casing, cut along a
+  region (they are welded to its lower frame, which stays).
+- **Timeline re-timed for the transaxle** (stage starts 0 / 0.75 / 1.70 / 2.50 / 3.75 s, was
+  0 / 0.75 / 1.45 / 2.25 / 4.2; ends at ~4.9 s). The powertrain's slide waits 0.25 s in
+  stage 2 so the driveshafts are out before the exhaust collectors slide back onto them;
+  stages 3 and 4 move with it. Stage 5 starts before stage 4 ends because the crank's rear
+  flange stands 9 mm proud of the block, inside the bellhousing's mouth: the transaxle has
+  to be on its way back before the crank drops.

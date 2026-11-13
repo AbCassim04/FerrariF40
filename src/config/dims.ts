@@ -627,7 +627,8 @@ const transaxle = {
     cover: { radius: mm(114), depth: mm(26), lip: mm(6), fingers: 18 },
     springs: 6,
   },
-  bellhousing: { rearZ: -1.0, halfWidth: mm(160), topHalfWidth: mm(134), bottom: -mm(132), top: mm(148), radius: mm(46), flange: mm(10), bolts: 14 },
+  /** Front section held round the clutch, then blending into the casing's front. Round-shouldered (large corner radius) to clear the heads at the block's rear face. */
+  bellhousing: { rearZ: -1.0, halfWidth: mm(160), topHalfWidth: mm(134), bottom: -mm(132), top: mm(148), radius: mm(90), flange: mm(10), bolts: 14 },
   casing: {
     rearZ: -1.8,
     front: { halfWidth: mm(150), topHalfWidth: mm(118), bottom: -mm(62), top: mm(218), radius: mm(42) },
@@ -662,9 +663,9 @@ const transaxle = {
   /** Limited-slip differential on the rear axle line: housing, output flanges to the driveshafts. */
   diff: { y: model.wheelCentreY.rear - engine.crankHeight, radius: mm(92), halfLength: mm(150), outX: mm(178), flangeRadius: mm(52), flangeLength: mm(14), coverBolts: 10, coverBoltCircle: mm(70) },
   /** (ref: left side) Gearbox oil cooler, finned, with two short hoses to the casing. */
-  oilCooler: { centre: [mm(300), mm(24), -1.65] as Vec3, size: [mm(110), mm(60), mm(140)] as Vec3, fins: 12 },
-  /** Gear selector on the casing's right front: boss on the side wall, shaft out, lever angled down and outboard. */
-  selector: { at: [-mm(150), -mm(28), -1.07] as Vec3, bossRadius: mm(22), bossLength: mm(20), shaftRadius: mm(8), shaftOut: mm(34), lever: mm(70), leverAngle: deg(35), leverWidth: mm(14), leverThickness: mm(6) },
+  oilCooler: { centre: [mm(230), mm(130), -1.65] as Vec3, size: [mm(100), mm(60), mm(140)] as Vec3, fins: 12 },
+  /** Gear selector on the casing's right front: boss on the side wall, shaft out, lever straight down (the rod meets it below the oil hoses). */
+  selector: { at: [-mm(150), -mm(28), -1.07] as Vec3, bossRadius: mm(22), bossLength: mm(20), shaftRadius: mm(8), shaftOut: mm(34), lever: mm(90), leverAngle: 0, leverWidth: mm(14), leverThickness: mm(6) },
   /** Splined input shaft from the casing's front forward through the clutch hubs (stops short of the flywheel). */
   inputShaft: { radius: mm(14) },
 };
@@ -911,8 +912,8 @@ export const EXPLODE = {
     heatShield: 0.1, // up off the turbine
     wastegate: 0.12, // up off the collector
     downpipe: [0.15, 0, -0.03] as Vec3, // outboard (left; mirrored), off the silencer's inlet necks
-    wastegatePipe: [0, 0.15, -0.03] as Vec3, // up out from between the silencer cans
-    silencer: [0, -0.3, -0.1] as Vec3, // down, the tailpipes with it (back would run into the lifted rear clam)
+    wastegatePipe: [0, 0.32, -0.03] as Vec3, // up out from between the silencer cans, above the gearbox's slide (stage 5)
+    silencer: [0, -0.45, -0.1] as Vec3, // down, the tailpipes with it, below the gearbox's slide (back would run into the lifted rear clam)
     manifold: 0.3, // straight off the studs along the port axis (outboard and down)
   },
   /**

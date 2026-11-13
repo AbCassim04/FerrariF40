@@ -5,21 +5,20 @@ docs/BRIEF.md; read that first. The build plan: docs/F40-PLAN.md.
 
 ## Status (2026-11-13)
 - Phase 1 approved and merged into `main`.
-- **Phases 2–4 in progress on `wip/f40-build`** (unattended run; commit per phase, not
-  pushed). Phase 2 (intake, ignition, ancillaries) and phase 3 (turbos, intercoolers,
-  exhaust) done and committed. Next: phase 4 (5-speed transaxle), drafted in
-  `src/parts/transaxle/` (geometry + parts) with its dims (`transaxle`, `driveshaft`,
-  `shiftLinkage`), `EXPLODE.transaxle` and `TRANSAXLE_DELAY`; register `transaxleParts` in
-  registry.ts to start. Known before the first check: the stand-in still has gearbox-mount
-  brackets inside the casing (model-chassis, |x| 0.065–0.34, car y 0.17–0.44, z −1.42…−1.56;
-  hide them in scripts/body-rules.mjs like the rest of the stand-in rear) and the gearbox
-  oil cooler's bottom touches model-chassis at (0.301, 0.266, −1.704) (raise it).
-  Progress and gates per phase: docs/REVIEW.md; decisions (incl. "Decisions made
-  unattended") in docs/BRIEF.md.
+- **Phases 2–4 done on `wip/f40-build`** (unattended run; one checkpoint commit per phase,
+  not pushed): intake, ignition and ancillaries; turbos, intercoolers and exhaust; the
+  5-speed transaxle with clutch, driveshafts and shift linkage. Summary, figures and gates:
+  docs/REVIEW.md; decisions (incl. "Decisions made unattended") in docs/BRIEF.md. Next:
+  owner review, then phase 5 (spaceframe, suspension, brakes); draw calls are at 471 of
+  ~500 at peak, so phase 5 has to instance or merge.
 - Exhaust layout notes: the model's exhaust mouth is a short oval tunnel in the rear clam
   (car y 0.282–0.363, |x| ≤ 0.125, z −1.965…−2.085); its floor swings up as the clam opens,
   so nothing of ours may reach into it. Undertray top under the silencer: car y 0.19–0.21 at
-  |x| < 0.1, 0.25–0.29 at |x| 0.2–0.35 (rising to the back).
+  |x| < 0.1, 0.25–0.29 at |x| 0.2–0.35 (rising to the back). The model's stand-in lower frame
+  has a rail at x ≈ ±0.30–0.34 rising from car y 0.26 (z −1.6) to 0.39 (z −1.9) and struts at
+  x ±0.35–0.38 near z −1.63: keep clear of them, including during the stage-2 slide.
+- Timeline: stage starts 0 / 0.75 / 1.70 / 2.50 / 3.75 s (`STAGE_START`), the slide waits
+  `POWERTRAIN_SLIDE_DELAY` (0.25 s), ~4.9 s in all; `setProgress(t)` takes t / 4.9.
 - Visual checks: one persistent page + `window.__dev` (below). In this session the MCP tools
   were not loaded, so the page is driven by a small Playwright script (same GPU launch).
 
@@ -121,7 +120,7 @@ claude mcp add -s local playwright-swiftshader \
 Every call is instant (no camera eases, no timeline playback) and returns a promise.
 ```
 await __dev.setCamera([x, y, z], [tx, ty, tz])   // __dev.getCamera() → { position, target, offset }
-await __dev.setProgress(t)        // explode timeline at t (0…1), posed directly (×4.4 s total now)
+await __dev.setProgress(t)        // explode timeline at t (0…1), posed directly (×4.9 s total now)
 await __dev.select('crankshaft')  // inspect a part; __dev.clearSelection()
 await __dev.setXray(true); await __dev.setSolo('engine' | null); await __dev.setLabels(true)
 await __dev.setGhost(true); await __dev.setSegments(true)   // key B / key K

@@ -1,9 +1,17 @@
 import type { Stage } from '../parts/types';
 
 /** Start time (s) of each explode stage. Stages overlap slightly so the motion flows. */
-export const STAGE_START: Record<Stage, number> = { 1: 0, 2: 0.75, 3: 1.45, 4: 2.25, 5: 4.2 };
+export const STAGE_START: Record<Stage, number> = { 1: 0, 2: 0.75, 3: 1.7, 4: 2.5, 5: 3.75 };
 
-/** Duration (s) of each part's move per stage; the teardown's moves are quicker. The last ends at ~5.2 s. */
+/**
+ * Stage 2: the powertrain waits this long before it slides back, so the driveshafts are out
+ * of the way of the exhaust collectors behind them. Stage 5 starts before stage 4 ends: the
+ * crank's rear flange sits inside the bellhousing's mouth, so the transaxle has to be moving
+ * back before the crank drops (+1.35 in stage 4).
+ */
+export const POWERTRAIN_SLIDE_DELAY = 0.25;
+
+/** Duration (s) of each part's move per stage; the teardown's moves are quicker. The last ends at ~4.9 s. */
 export const STAGE_DURATION: Record<Stage, number> = { 1: 1, 2: 1, 3: 1, 4: 0.8, 5: 0.8 };
 
 export const EASE = 'power2.inOut';

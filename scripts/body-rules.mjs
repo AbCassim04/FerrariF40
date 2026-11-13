@@ -140,6 +140,17 @@ const STANDIN_UPPER_REAR_FRAME = { absX: [0, 0.58], y: [0.375, 1.04], z: [-2.1, 
 const STANDIN_REAR_SUSPENSION = { absX: [0.209, 0.775], y: [0.13, 0.932], z: [-1.628, -0.908] };
 /** The stand-in's crossmember across the tail, where the silencer cans sit. */
 const STANDIN_TAIL_CROSSMEMBER = { absX: [0, 0.48], y: [0.3, 0.53], z: [-2.1, -1.98] };
+/**
+ * The stand-in's gearbox mounts and braces round where the gearbox casing sits (phase 4).
+ * They are welded to its lower frame, so pieces crossing this region are cut along it.
+ */
+const STANDIN_GEARBOX_MOUNTS = { absX: [0, 0.4], y: [0.26, 0.45], z: [-1.66, -1.41] };
+const overlapsAbs = (b, r) => {
+  const lo = b.min.x < 0 && b.max.x > 0 ? 0 : Math.min(Math.abs(b.min.x), Math.abs(b.max.x));
+  const hi = Math.max(Math.abs(b.min.x), Math.abs(b.max.x));
+  return lo <= r.absX[1] && hi >= r.absX[0] && b.min.y <= r.y[1] && b.max.y >= r.y[0] && b.min.z <= r.z[1] && b.max.z >= r.z[0];
+};
+const inRegionAbs = (p, r) => within(Math.abs(p.x), r.absX) && within(p.y, r.y) && within(p.z, r.z);
 /** Bay walls and rear bulkhead: one big box-shaped liner in F40_Mechanics. Fixed bodywork. */
 const BAY_LINER = { minTris: 400, absX: [0, 1.0], y: [0.1, 1.16], z: [-1.16, -0.3] };
 /** Front compartment structure (behind the front clam). Fixed bodywork. */
@@ -207,9 +218,11 @@ export const RULES = [
       if (piece.triCount >= FRONT_TUB.minTris && inBoxAbs(piece.box, FRONT_TUB)) return 'body-shell';
       if (isFloor(piece.box) || (piece.triCount >= DIFFUSER.minTris && inBoxAbs(piece.box, DIFFUSER))) return 'undertray';
       if ([STANDIN_UPPER_REAR_FRAME, STANDIN_REAR_SUSPENSION, STANDIN_TAIL_CROSSMEMBER].some((r) => inBoxAbs(piece.box, r))) return MODEL_ENGINE_BAY;
+      if (overlapsAbs(piece.box, STANDIN_GEARBOX_MOUNTS)) return TRIS;
       // Frame rails and crossmembers, suspension, front radiator: placeholders for the procedural spaceframe and suspension.
       return 'model-chassis';
     },
+    tri: (p) => (inRegionAbs(p, STANDIN_GEARBOX_MOUNTS) ? MODEL_ENGINE_BAY : 'model-chassis'),
   },
 
   // ── Glass ───────────────────────────────────────────────────────────────────

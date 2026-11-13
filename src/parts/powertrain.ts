@@ -1,4 +1,5 @@
 import { DIMS, EXPLODE } from '../config/dims';
+import { POWERTRAIN_SLIDE_DELAY } from '../explode/timing';
 import { fmtDeg } from '../lib/format';
 import type { PartDef } from './types';
 
@@ -14,6 +15,7 @@ export const powertrainCarrier: PartDef = {
   position: E.origin,
   stage: 2,
   explodeOffset: [0, 0, -EXPLODE.powertrainBack],
+  delay: POWERTRAIN_SLIDE_DELAY,
 };
 
 /** Virtual assembly the engine (and later the gearbox and turbos) hangs from: lifts out as one unit in stage 3. */
