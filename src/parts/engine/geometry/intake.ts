@@ -3,7 +3,8 @@ import { DIMS } from '../../../config/dims';
 import { SEGMENTS } from '../../../config/detail';
 import { cylinderY, cylinderZ, extrude, lathe, merge, roundedBox, roundedRectShape, tubeAlong, type P2 } from '../../../geometry/build';
 import type { MeshSpec } from '../../../scene/MeshSet';
-import { bankAxis, bankOutboard, bankPoint, bankQuat, camCentre, compose, CYLINDERS, headDeckA, headZ, sideSign, SIDES, type Side } from '../layout';
+import type { Motion } from '../../../engine/motion';
+import { bankAxis, bankOutboard, bankPoint, bankQuat, camCentre, compose, CYLINDERS, firingAngle, headDeckA, headZ, sideSign, SIDES, type Side } from '../layout';
 import { band, boltHead } from './core';
 
 /** Intake, injection and ignition on top of the engine (engine coordinates: y from the crank axis). */
@@ -256,14 +257,31 @@ export function distributorAxis(s: Side) {
   return { x: c.x, y: c.y, z0: headZ(s)[0] };
 }
 
-/** Tip of each HT tower on a distributor cap (four plug leads; the centre one takes the coil lead). */
+/**
+ * Rotor angle (about +z) at crank angle `crank`: it turns with the intake cam at half crank
+ * speed, and points at cylinder i's tower when cylinder i fires.
+ */
+export const rotorAngle = (s: Side, crank: number) => Math.PI / 4 - (crank - firingAngle(s, 0)) / 2;
+
+/**
+ * Tip of each HT tower on a distributor cap (four plug leads; the centre one takes the coil
+ * lead). The towers go round the cap in the bank's firing order, each where the rotor points
+ * as its cylinder fires.
+ */
 export function distributorTowers(s: Side) {
   const { x, y, z0 } = distributorAxis(s);
   const zCap = z0 - D.driveLength - D.bodyLength - D.capLength;
   return CYLINDERS.map((i) => {
-    const a = Math.PI / 4 + (i * Math.PI) / 2;
+    const a = rotorAngle(s, firingAngle(s, i));
     return { at: new Vector3(x + D.tower.circle * Math.cos(a), y + D.tower.circle * Math.sin(a), zCap - D.tower.length), dir: new Vector3(0, 0, -1) };
   });
+}
+
+/** Tip of a distributor's centre tower, where the coil lead plugs in (pointing back). */
+export function distributorCentreTower(s: Side) {
+  const { x, y, z0 } = distributorAxis(s);
+  const zCap = z0 - D.driveLength - D.bodyLength - D.capLength;
+  return { at: new Vector3(x, y, zCap - D.tower.length), dir: new Vector3(0, 0, -1) };
 }
 
 /** Distributor along −z from the head's rear face: drive housing, body with its vacuum unit, cap and towers. */
@@ -302,10 +320,20 @@ export function distributorMeshes(s: Side): MeshSpec[] {
     ...distributorTowers(s).map(({ at }) => along(new Vector3(at.x, at.y, capRear + E.bevel), new Vector3(0, 0, -1))),
     along(new Vector3(x, y, capRear + E.bevel), new Vector3(0, 0, -1)),
   ];
+  // Rotor inside the cap: hub on the shaft and an arm out toward the towers, turning with the cam.
+  const R = E.rotor;
+  const rz = z0 - zCap - R.inset;
+  const hub = cylinderZ(R.hubRadius, rz - R.thickness, rz + R.thickness * 0.6, x, y, SEGMENTS.small * 2);
+  const arm = roundedBox(R.length, R.width, R.thickness, R.thickness / 3);
+  arm.translate(R.length / 2, 0, 0);
+  arm.rotateZ(rotorAngle(s, E.crankPhase));
+  arm.translate(x, y, rz);
+  const rotor: Motion = { kind: 'spin', centre: new Vector3(x, y, 0), axis: new Vector3(0, 0, 1), ratio: 0.5 };
   return [
     { geometry: merge([body, vac]), material: 'castAluminium' },
-    { geometry: cap, material: 'satinBlack' },
-    { geometry: tower, material: 'satinBlack', instances: towers },
+    { geometry: cap, material: 'satinBlack', shell: true },
+    { geometry: tower, material: 'satinBlack', instances: towers, shell: true },
+    { geometry: merge([hub, arm]), material: 'redAccent', motion: rotor },
   ];
 }
 

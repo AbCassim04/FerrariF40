@@ -160,7 +160,7 @@ export const turboParts: PartDef[] = [
     build: specBuild('WastegatePipe', wastegatePipeMeshes),
     material: 'headerSteel',
     explodeOffset: X.wastegatePipe,
-    delay: TEARDOWN.turbos,
+    delay: TEARDOWN.wastegatePipe,
   }),
   part({
     id: 'silencer',

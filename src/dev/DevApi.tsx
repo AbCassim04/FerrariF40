@@ -8,6 +8,7 @@ import { explodeTimeline, partCorners } from '../explode/buildTimeline';
 import { PARTS_BY_ID } from '../parts/registry';
 import type { PartGroup } from '../parts/types';
 import { cameraEase } from '../scene/CameraRig';
+import { runClashCheck, type ClashOptions } from '../scene/ClashCheck';
 import { fitView } from '../scene/fitView';
 import { refreshShadows, shadowState } from '../scene/ShadowScheduler';
 import { useAppStore } from '../state/store';
@@ -26,6 +27,7 @@ import { useAppStore } from '../state/store';
  *   await __dev.screenshotReady()           resolves once nothing moves and shadows and
  *                                           post-processing have settled
  *   __dev.state()                           selection, X-ray, solo, progress, perf
+ *   await __dev.clash({ at, focus, pairs }) clash check now (see ClashCheck.tsx)
  */
 export interface DevApi {
   setCamera(position: Vec3, target: Vec3): Promise<void>;
@@ -35,6 +37,8 @@ export interface DevApi {
   clearSelection(): Promise<void>;
   setXray(on: boolean): Promise<void>;
   setSolo(group: PartGroup | null): Promise<void>;
+  /** Show only these parts (and their children); null shows everything. */
+  setSoloParts(ids: string[] | null): Promise<void>;
   setLabels(on: boolean): Promise<void>;
   setGhost(on: boolean): Promise<void>;
   setSegments(on: boolean): Promise<void>;
@@ -42,6 +46,8 @@ export interface DevApi {
   fit(): Promise<void>;
   screenshotReady(options?: { timeout?: number; settleFrames?: number }): Promise<{ frames: number; ms: number }>;
   state(): Record<string, unknown>;
+  /** Clash check in the current pose, without a reload: `{ at, focus, allPairs, skipBody, pairs, progress }`. */
+  clash(options?: Omit<ClashOptions, 'paint'>): Promise<string>;
 }
 
 const nextFrame = () => new Promise<void>((r) => requestAnimationFrame(() => r()));
@@ -99,6 +105,7 @@ export function DevApi() {
       clearSelection: () => instant(() => store.getState().select(null)),
       setXray: (on) => instant(() => store.setState({ xray: on })),
       setSolo: (group) => instant(() => store.setState({ soloGroup: group })),
+      setSoloParts: (ids) => instant(() => store.setState({ solo: ids?.join(',') ?? null })),
       setLabels: (on) => instant(() => store.setState({ showLabels: on })),
       setGhost: (on) => instant(() => store.setState({ showGhost: on })),
       setSegments: (on) => instant(() => store.setState({ showSegments: on })),
@@ -133,6 +140,7 @@ export function DevApi() {
         }
         return { frames: count, ms: Math.round(performance.now() - t0) };
       },
+      clash: (options) => runClashCheck(options),
       state() {
         const { selectedId, xray, soloGroup, exploded, showLabels, showGhost } = store.getState();
         const w = window as unknown as { __perf?: object };

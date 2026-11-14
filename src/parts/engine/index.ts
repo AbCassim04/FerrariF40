@@ -5,13 +5,17 @@ import { specBuild } from '../../scene/MeshSet';
 import type { PartDef } from '../types';
 import { blockMeshes, crankMeshes, pistonMeshes, rodMeshes } from './geometry/core';
 import {
+  accessoryBeltMeshes,
+  ALTERNATOR_RATIO,
   camDriveMeshes,
+  crankDamperMeshes,
   mountMeshes,
   oilCoolerMeshes,
   oilFilterMeshes,
   oilPickupMeshes,
   oilPumpMeshes,
   sumpMeshes,
+  tensionerMeshes,
   timingCoverMeshes,
   waterPumpMeshes,
 } from './geometry/ancillaries';
@@ -224,6 +228,8 @@ export const engineParts: PartDef[] = [
     material: 'castAluminium',
     explodeOffset: [0, 0, X.timingCover],
     delay: TEARDOWN.frontCovers,
+    // Bolted over the block's front face; drawn solid, so it encloses the belts, pulleys and tensioners.
+    contacts: ['engine-block', 'head-gasket-l', 'head-gasket-r', 'cylinder-head-l', 'cylinder-head-r', 'cam-cover-l', 'cam-cover-r', 'camshafts-l', 'camshafts-r', 'crankshaft', 'cam-drive', 'belt-tensioners', 'water-pump-l', 'water-pump-r'],
   }),
   enginePart({
     id: 'cam-drive',
@@ -234,7 +240,42 @@ export const engineParts: PartDef[] = [
     build: specBuild('CamDrive', camDriveMeshes),
     material: E.camDrive === 'belt' ? 'rubber' : 'darkSteel',
     explodeOffset: [0, 0, X.timingChains],
-    delay: TEARDOWN.heads,
+    delay: TEARDOWN.camBelts,
+  }),
+  enginePart({
+    id: 'belt-tensioners',
+    name: E.camDrive === 'belt' ? 'Cam-belt tensioners' : 'Chain tensioners',
+    group: 'engine',
+    description: `One per ${drive}: a smooth idler on its back, sprung against the run that leaves the crank pulley (the slack side), so the ${drive} keeps its teeth in the pulleys at every speed. On the left bank that is the inboard run, on the right the outboard one, because both belts are driven the same way round.`,
+    specs: { Pulley: `Ø${fmtMm(E.timing.tensioner.radius * 2, 0)}`, Position: 'Slack run (est)' },
+    build: specBuild('BeltTensioners', tensionerMeshes),
+    material: 'steel',
+    explodeOffset: [0, 0, X.timingChains],
+    delay: TEARDOWN.camBelts,
+    contacts: ['timing-cover', 'engine-block'],
+  }),
+  enginePart({
+    id: 'crank-damper',
+    name: 'Crank damper and pulley',
+    group: 'engine',
+    description:
+      'Harmonic damper on the nose of the crankshaft, just in front of the cam-belt cover: an inertia ring on a rubber layer soaks up the crank’s torsional vibration. Its rim carries the grooves for the alternator belt.',
+    specs: { Diameter: `Ø${fmtMm(E.crankDamper.radius * 2, 0)}`, Grooves: String(E.crankDamper.grooves), Mount: 'Crank nose (est)' },
+    build: specBuild('CrankDamper', crankDamperMeshes),
+    material: 'darkSteel',
+    explodeOffset: [0, 0, X.crankDamper],
+    delay: TEARDOWN.crankDamper,
+  }),
+  enginePart({
+    id: 'accessory-belt',
+    name: 'Alternator belt',
+    group: 'engine',
+    description: `Poly-V belt from the crank pulley to the alternator, in front of the cam-belt cover; the alternator turns ${ALTERNATOR_RATIO.toFixed(1)} times for each turn of the crank. The water pumps are not on it: they sit beside the cam belts, behind the cover.`,
+    specs: { Width: fmtMm(E.accessoryBelt.width, 0), Type: 'Poly-V', 'Alternator ratio': `${ALTERNATOR_RATIO.toFixed(2)} : 1` },
+    build: specBuild('AccessoryBelt', accessoryBeltMeshes),
+    material: 'rubber',
+    explodeOffset: [0, 0, X.accessoryBelt],
+    delay: TEARDOWN.accessoryBelt,
   }),
   enginePart({
     id: 'dry-sump-pan',
@@ -298,6 +339,7 @@ export const engineParts: PartDef[] = [
       material: 'castAluminium',
       explodeOffset: [sideSign(s) * X.waterPumpOut, 0, X.waterPump],
       delay: TEARDOWN.frontCovers,
+      contacts: ['engine-block', `cylinder-head-${s}`],
     }),
   ),
   ...(['l', 'r'] as const).map((s) =>

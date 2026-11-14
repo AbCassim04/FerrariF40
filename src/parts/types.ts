@@ -16,7 +16,8 @@ export type PartGroup =
   | 'engine'
   | 'transmission'
   | 'cooling'
-  | 'exhaust';
+  | 'exhaust'
+  | 'electrics';
 
 export type Stage = 1 | 2 | 3 | 4 | 5;
 

@@ -46,6 +46,15 @@ export interface CableRoute {
   slack: Vector3;
   /** Where along the cable (0…1) the slack peaks; default the middle. */
   slackPeak?: number;
+  /** Straight run out of each end before the cable may bend (from, to); default LEAD each. */
+  lead?: readonly [number, number];
+  /**
+   * Via points that move rigidly with one end instead of the blend (e.g. a lead that has to
+   * drop out between its neighbours right at a connector, whatever the other end does).
+   */
+  viaPin?: readonly ('from' | 'to' | undefined)[];
+  /** The straight run out of each connector moves rigidly with its end (default: blended like the rest). */
+  rigidLeads?: boolean;
 }
 
 const T = SEGMENTS.cable;
@@ -157,9 +166,11 @@ function createCable(route: CableRoute, position: BufferAttribute, normal: Buffe
   const { from, to } = route;
   const style = route.style;
   const STRANDS = style.strands;
-  const leadA = from.at.clone().addScaledVector(from.dir, LEAD);
-  const leadB = to.at.clone().addScaledVector(to.dir, LEAD);
+  const leadA = from.at.clone().addScaledVector(from.dir, route.lead?.[0] ?? LEAD);
+  const leadB = to.at.clone().addScaledVector(to.dir, route.lead?.[1] ?? LEAD);
   const assembled = [from.at, leadA, ...route.via, leadB, to.at];
+  const lead = (end: 'from' | 'to') => (route.rigidLeads ? end : undefined);
+  const pins = [undefined, lead('from'), ...route.via.map((_, i) => route.viaPin?.[i]), lead('to'), undefined];
   // Position of each control point along the assembled route (0…1), for the blend.
   const cum = [0];
   for (let i = 1; i < assembled.length; i++) cum.push(cum[i - 1] + assembled[i].distanceTo(assembled[i - 1]));
@@ -199,7 +210,10 @@ function createCable(route: CableRoute, position: BufferAttribute, normal: Buffe
     const dB = nowB.clone().sub(to.at);
     const grown = MathUtils.clamp((nowA.distanceTo(nowB) - span) / DIMS.cable.slackGrowth, 0, 1);
     const points = assembled.map((p, i) =>
-      p.clone().add(dA.clone().lerp(dB, share[i])).addScaledVector(route.slack, grown * Math.sin(Math.PI * share[i] ** slackPower)),
+      p
+        .clone()
+        .add(pins[i] === 'from' ? dA : pins[i] === 'to' ? dB : dA.clone().lerp(dB, share[i]))
+        .addScaledVector(route.slack, pins[i] ? 0 : grown * Math.sin(Math.PI * share[i] ** slackPower)),
     );
     const pts = new CatmullRomCurve3(points, false, 'centripetal').getSpacedPoints(T);
 

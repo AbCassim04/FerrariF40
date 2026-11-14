@@ -13,10 +13,10 @@ export type GhostKind = keyof typeof SCENE.ghosts;
 /** X-ray: body panels and the tub; wheels and brakes stay solid. */
 const isXrayPart = (def: PartDef) => def.source === 'model' && def.group !== 'wheels' && def.group !== 'suspension';
 
-/** The ghost a part wears, if any. Inspecting outranks X-ray. */
-function ghostFor(def: PartDef, xray: boolean, selectedId: string | null): GhostKind | null {
+/** The ghost a mesh wears, if any. Inspecting outranks X-ray. While the engine runs, X-ray also sees through its casings. */
+function ghostFor(def: PartDef, mesh: Mesh, xray: boolean, selectedId: string | null, running: boolean): GhostKind | null {
   if (selectedId) return def.id === selectedId ? null : 'isolate';
-  return xray && isXrayPart(def) ? 'xray' : null;
+  return xray && (isXrayPart(def) || (running && mesh.userData.xrayShell)) ? 'xray' : null;
 }
 
 const COOL = new Color(SCENE.ghosts.xray.cool);
@@ -27,18 +27,26 @@ const COOL = new Color(SCENE.ghosts.xray.cool);
  * piling up into an opaque tint. Tinted with the surface's own colour mixed toward a
  * cool white, so dark parts still show.
  */
-function ghostMaterial(colour: Color, kind: GhostKind) {
+function ghostMaterial(colour: Color, kind: GhostKind, vertexColors: boolean) {
   const style = SCENE.ghosts[kind];
   return new ShaderMaterial({
     uniforms: {
       tint: { value: colour.clone().lerp(COOL, style.tintMix) },
+      cool: { value: COOL },
+      tintMix: { value: style.tintMix },
       base: { value: style.base },
       rim: { value: style.rim },
     },
+    // Merged model meshes carry their colours per vertex: tint each vertex as its own material would.
+    vertexColors,
     vertexShader: /* glsl */ `
       #include <common>
+      uniform vec3 tint;
+      uniform vec3 cool;
+      uniform float tintMix;
       varying vec3 vNormal;
       varying vec3 vView;
+      varying vec3 vTint;
       void main() {
         #include <beginnormal_vertex>
         #include <defaultnormal_vertex>
@@ -46,16 +54,21 @@ function ghostMaterial(colour: Color, kind: GhostKind) {
         #include <project_vertex>
         vNormal = normalize(transformedNormal);
         vView = normalize(-mvPosition.xyz);
+        #ifdef USE_COLOR
+          vTint = mix(color, cool, tintMix);
+        #else
+          vTint = tint;
+        #endif
       }`,
     fragmentShader: /* glsl */ `
-      uniform vec3 tint;
       uniform float base;
       uniform float rim;
       varying vec3 vNormal;
       varying vec3 vView;
+      varying vec3 vTint;
       void main() {
         float f = 1.0 - abs(dot(normalize(vNormal), normalize(vView)));
-        gl_FragColor = vec4(tint * (base + rim * f * f * f), 1.0);
+        gl_FragColor = vec4(vTint * (base + rim * f * f * f), 1.0);
       }`,
     transparent: true,
     // Not drawn with it (the shader writes its own colour); marks the ghost as see-through
@@ -76,16 +89,16 @@ const originals = new Map<Mesh, { material: Material | Material[]; castShadow: b
 function ghostOf(m: Material, kind: GhostKind) {
   const byKind = ghosts.get(m) ?? {};
   ghosts.set(m, byKind);
-  return (byKind[kind] ??= ghostMaterial((m as MeshStandardMaterial).color ?? COOL, kind));
+  return (byKind[kind] ??= ghostMaterial((m as MeshStandardMaterial).color ?? COOL, kind, !!m.userData.ghostVertexColors));
 }
 
 /** Puts every part in the right state: solid, an X-ray ghost or an isolation ghost. */
-export function applyGhosts(xray: boolean, selectedId: string | null) {
+export function applyGhosts(xray: boolean, selectedId: string | null, running = false) {
   for (const def of PARTS) {
-    const kind = ghostFor(def, xray, selectedId);
     partObjects.get(def.id)?.content.traverse((o) => {
       const mesh = o as Mesh;
       if (!mesh.isMesh) return;
+      const kind = ghostFor(def, mesh, xray, selectedId, running);
       let original = originals.get(mesh);
       if (!kind) {
         if (original) {

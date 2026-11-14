@@ -127,7 +127,7 @@ src/parts/registry.ts — the single source of truth for parts. Each part:
 - `source: 'model'`: geometry comes from the body model (with its own materials).
 - `contacts`: parts this one is designed to touch (skipped by the clash check).
 Groups: "body", "chassis", "suspension", "wheels", "engine", "transmission", "cooling",
-"exhaust".
+"exhaust", "electrics" (car-fixed electrics; the ECUs so far).
 
 Each part is its own mesh/group so it can move independently.
 Use InstancedMesh for repeated parts (pistons, valves, bolts).
@@ -150,7 +150,7 @@ Stage 1: body. The rear clam (with the Lexan cover and the wing, which is part o
          open about their front hinges; the front clam tips up about its nose and moves
          forward; the glass lifts.
 Stage 2: wheels, discs and driveshafts slide outward; 0.25 s later the powertrain slides
-         0.3 m back from under the roof's trailing edge.
+         0.37 m back from under the roof's trailing edge (0.3 until phase 8).
 Stage 3: the powertrain rises 1.2 m out of the bay.
 Stage 4: engine teardown, outside in.
 Stage 5: transmission (starts at 3.75 s, as the crank is about to drop: its rear flange sits
@@ -405,3 +405,79 @@ docs/reference/f40/ would correct them (the folder is empty).
   stages 3 and 4 move with it. Stage 5 starts before stage 4 ends because the crank's rear
   flange stands 9 mm proud of the block, inside the bellhousing's mouth: the transaxle has
   to be on its way back before the crank drops.
+
+**Phase 8 (running engine and sound; branch `wip/f40-motion`, unattended, 2026-11-14/15)**
+
+*8A: fixes, draw-call headroom, missing parts*
+- **ECUs in a new group, `electrics`** (car-fixed electrics: they stay on the bay walls, so in
+  engine solo they floated far below the lifted engine). The starter, the ignition coils and
+  their leads stay in `engine`: they ride the powertrain and belong in engine solo.
+- **Draw calls (471 → 386 peak before the new parts, 412 after; idle 281 → 251).** Two
+  changes, neither visible (A/B screenshots against `main`, same camera, ≤ 0.04 % of pixels
+  differ, all of them the FPS meter):
+  - Procedural parts: everything static in a part that shares a material is one mesh
+    (`specBuild` bakes static instances such as bolts, flanges and cap towers into the part's
+    mesh of that material). Moving meshes stay separate.
+  - Body model: the model's opaque materials are all plain (untextured, double-sided)
+    standard materials that differ only in colour, roughness and metalness, so within each
+    model part they merge into one mesh carrying those three per vertex (a patched standard
+    material, `model-finishes`); the clear-coated paint keeps its own mesh, identical glass
+    panes share one. Ghosts (X-ray, inspect) tint per vertex the same way.
+  - The camshafts are now one rigid mesh per cam (lobes on the shaft, which the motion
+    needs); they cast no shadow (inside the head; the lobes never did).
+- **Valve seats recessed 3.8 mm up each valve's axis (est), the valves 3.8 mm shorter** (tips,
+  springs and cams unchanged). The valves lean 13°, so a closed valve centred on the deck
+  dipped its edge 2.1 mm below the block deck, into the piston's path at TDC; the moving
+  engine's sweep needs pistons and valves clear.
+- **Cam drive exactly 2:1:** the crank pulley's pitch circle is half the cam pulley's, so the
+  belt runs true on both and the cams turn at exactly half speed (crank pulley Ø49 with 20
+  teeth, was Ø56 with 16). The belt's pitch line runs 0.4 mm clearance + half its thickness
+  off every pulley (it touched them before).
+- **Cam-belt tensioners (est): one per belt, a smooth idler on the belt's back on the slack
+  run, 30 % along it from the crank, pressing it 5 mm in.** The crank turns clockwise seen from
+  the timing end, so the slack run (the one leaving the crank pulley) is the inboard run on the
+  left bank and the outboard run on the right. The cover's bulges grow to enclose them.
+- **Right cam belt plane 2 mm further back (43 mm from the block face, was 45).** The right cam
+  pulleys and the crank pulley ended exactly at the face of the cover's bulge and showed
+  through it (z-fighting, visible on `main` from the timing end).
+- **Water pumps Ø68 at (±187, 36) mm (est; were Ø80 at ±175, 40), inlets 20° below
+  horizontal (were 45°).** The pump housings reached about 6 mm into the cam belts' backs
+  (`main` too); the inlets turn out above the moved alternator.
+- **Water pumps are not on the alternator belt.** They sit behind the cover's face beside each
+  cam belt (bolted through its bosses); putting pulleys on the accessory belt would need
+  shafts through the cover, which the existing pumps don't have. The accessory belt drives the
+  alternator only (ratio 2.06 : 1).
+- **Crank damper (est): Ø136 × 24 mm on the crank nose, 1.5 mm off the cover face**, its rim
+  carrying the accessory belt's five grooves. The bay's front wall is a few millimetres ahead
+  of it (assembled check against the body clean). This reverses phase 2's "alternator drive
+  not drawn": 30 mm to the wall is enough for a damper and a poly-V belt.
+- **Alternator moved forward (est)** so its pulley sits in the belt's plane in front of the
+  cover: body z −0.507…−0.402 (was −0.585…−0.480), same x, y; ears to the block's skirt at its
+  front corner; a ten-blade fan between pulley and body (so its spin shows).
+- **Starter motor (est): gear-reduction type in the V at the flywheel end**, its ear bolted to
+  the top of the bellhousing's front flange; the pinion's axis 131 mm above the crank (in mesh
+  with the top of the ring gear), resting 12 mm ahead of it, sliding 24 mm back into mesh. Both
+  sides of the block are taken (skirt, sump, oil filter, oil cooler, scavenge lines, oil
+  hoses), and a starter at the ring gear's radius would sit inside the skirt or the sump; the
+  V at the flywheel end is free. The pinion carries its own shaft (nothing reaches into the
+  bellhousing at rest). Teardown: straight up 0.25 at +0.8.
+- **Ignition coils (est): one per distributor, on brackets on the bellhousing's top
+  (x ±80 mm)**, the HT tower facing back level with the cap's towers. They ride the transaxle:
+  lifting them in stage 4 dragged their leads up through the plug leads.
+- **Coil leads:** a short lead-out from the cap's centre tower, dropping between the two lower
+  plug leads, held to the distributor while the explode pulls the ends apart. The cable system
+  gained three options for this (`lead`, `viaPin`, `rigidLeads`); the HT leads' straight runs
+  out of the cap now move rigidly with it too.
+- **Distributor towers in firing order round the cap,** each where the rotor (new, red, at cam
+  speed) points as its cylinder fires; the plug leads were re-assigned to towers to match.
+- **Powertrain slide 0.37 m (was 0.3).** The roof's trailing edge reaches back to z ≈ −0.727 at
+  the height the engine's front passes it on the lift (car y ≈ 1.06; ≈ −0.69 lower down);
+  0.3 already clipped the belt cover there (`main` too), and the damper and alternator are
+  now 25 mm further forward.
+- **Teardown re-timed (stage 4):** alternator belt +0.2 (forward 0.42), damper +0.25 (forward
+  0.32), cam belts and tensioners +0.4 (were +0.75; the cam pulleys rose into the belts),
+  camshafts +0.75 with the heads (were +0.6), wastegate pipe +0.35 (was +0.2: its end flanges
+  caught the rims of the wastegates' cans at 2.93–2.96 s, on `main` too, found by 0.05 s
+  sweeps), starter +0.8.
+- **The cam-belt cover is declared in contact with what it encloses** (it is drawn solid, so the
+  belts, pulleys, tensioners and the parts it bolts to all register inside it).

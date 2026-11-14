@@ -167,6 +167,16 @@ const CRANK_THROWS: Record<string, readonly number[]> = {
   'cross-plane/4': [0, 90, 270, 180],
 };
 
+/**
+ * (est) Cam drive: toothed belt, the cam pulleys and the crank pulley. The crank pulley's
+ * pitch circle is exactly half the cam pulley's (2:1, so the cams turn at half crank speed
+ * and the belt runs true on both); the belt's pitch line runs `clearance` + half its
+ * thickness outside each pulley.
+ */
+const camPulley = { radius: mm(52), thickness: mm(26), teeth: 40 };
+const timingBelt = { width: mm(25), thickness: mm(4.5), toothDepth: mm(2), clearance: mm(0.4), pitch: mm(8), markEvery: 8 };
+const beltPitchOffset = timingBelt.clearance + timingBelt.thickness / 2;
+
 /** (est) Detail sizes of the engine's parts, proportioned to the 82 mm bore; see the coordinate note above `engine`. */
 const engineParts = {
   piston: {
@@ -255,6 +265,13 @@ const engineParts = {
     faceThickness: mm(2),
     tulipHeight: mm(9),
     length: mm(118),
+    /**
+     * (est) Each seat sits this far up its valve's axis from the head's deck face (the valve
+     * is that much shorter, so the tip and the cams stay put). The heads lean 13°, so a closed
+     * valve centred on the deck would dip its edge 3.5 mm below it, into the piston's path at
+     * TDC; recessed, every closed valve stays inside the head (a pent-roof chamber, simplified).
+     */
+    seatRecess: mm(3.8),
     spring: { radius: mm(10), wire: mm(1.7), coils: 6, length: mm(30) },
     retainer: { radius: mm(11.5), height: mm(4) },
     /** Valve events in crank degrees after firing TDC, and half the opening duration. */
@@ -271,7 +288,7 @@ const engineParts = {
     lobeWidth: mm(13),
     tower: { halfWidth: mm(16), thickness: mm(14), capHeight: mm(13) },
     /** Cam pulley (belt) or sprocket (chain). */
-    sprocket: { radius: mm(52), thickness: mm(26), teeth: 40 },
+    sprocket: camPulley,
   },
   camCover: {
     height: mm(78),
@@ -328,14 +345,24 @@ const engineParts = {
     webWidth: mm(16),
     /** Cover bolts sit this far in from the cover's edge. */
     boltInset: mm(9),
-    /** Belt/chain planes, measured forward from the block's front face. */
-    chainOffset: { l: mm(17), r: mm(45) },
-    crankSprocketRadius: mm(28),
+    /**
+     * Belt/chain planes, measured forward from the block's front face. The right one's pulleys
+     * end 2 mm inside the cover's bulge (at 45 mm they were flush with it and showed through).
+     */
+    chainOffset: { l: mm(17), r: mm(43) },
+    crankSprocketRadius: (camPulley.radius + beltPitchOffset) / 2 - beltPitchOffset,
+    crankSprocketTeeth: camPulley.teeth / 2,
     sprocketThickness: mm(26),
     /** Chain: 3/8" pitch; each link drawn as a rounded plate filling most of its pitch. */
     chain: { pitch: mm(9.525), width: mm(9), height: mm(8.5), linkFill: 0.92 },
     /** Toothed belt: width and thickness (teeth on the inside, hidden against the pulleys). */
-    belt: { width: mm(25), thickness: mm(4.5), toothDepth: mm(2) },
+    belt: timingBelt,
+    /**
+     * (est) One tensioner per belt, a smooth idler on the belt's back on the slack run (crank
+     * to intake cam, the run leaving the crank), `at` along it from the crank, pressing the
+     * run `push` into the loop. Its stud and arm reach back to the block's front face.
+     */
+    tensioner: { radius: mm(24), width: mm(26), at: 0.3, push: mm(5), hubRadius: mm(9), studRadius: mm(7), arm: { length: mm(48), width: mm(22), thickness: mm(3) } },
   },
   sump: {
     depth: mm(40),
@@ -441,17 +468,68 @@ const engineParts = {
     tower: { radius: mm(6), length: mm(18), circle: mm(22) },
     vacuum: { radius: mm(17), length: mm(30) },
   },
-  /** HT leads: from each distributor along the top of its cam cover to the plug caps. */
+  /** HT leads: from each distributor along the top of its cam cover to the plug caps (the coil leads are the same cable). */
   htLead: { radius: mm(3.6), height: mm(4), firstB: mm(24), pitchB: mm(9) },
+  /**
+   * (est) Distributor rotor: a bakelite arm on the distributor shaft inside the cap, turning
+   * at camshaft speed (its tip passes each plug tower in firing order).
+   */
+  rotor: { hubRadius: mm(9), length: mm(26), width: mm(9), thickness: mm(6), inset: mm(10) },
+  /**
+   * (est) Ignition coil per distributor: an oil-filled can lying along z on a bracket on the
+   * bellhousing's top, inboard of the distributor, its high-tension tower facing back level
+   * with the cap's towers (x of the left one).
+   */
+  ignitionCoil: { x: mm(80), y: mm(236), front: -0.868, length: mm(84), radius: mm(26), tower: { radius: mm(8), length: mm(18) }, terminal: { radius: mm(4), length: mm(8) }, clamp: { width: mm(12), thickness: mm(2.5) }, bracket: { thickness: mm(4), width: mm(36) } },
+  /**
+   * (est) Starter motor in the V at the flywheel end, bolted to the top of the bellhousing's
+   * front flange. Gear-reduction type: the pinion's shaft sits below the motor's axis, in line
+   * with the top of the flywheel's ring gear; the pinion slides back `travel` into mesh.
+   */
+  starter: {
+    y: mm(172),
+    radius: mm(34),
+    /** Motor body from the drive housing forward. */
+    front: -0.72,
+    driveHousing: { rear: -0.838, depth: mm(12) },
+    ear: { depth: mm(8), halfWidth: mm(44), y: [mm(150), mm(196)] as const },
+    solenoid: { radius: mm(19), z: [-0.82, -0.745] as const },
+    /** Pinion: rests forward of the ring gear (`rest` = its front face), its shaft reaching forward into the drive housing. */
+    pinion: { teeth: 10, width: mm(12), rest: -0.839, travel: mm(24), shaftRadius: mm(6), shaftFront: -0.8 },
+  },
+  /** (est) Harmonic damper and crank pulley on the crank nose, just in front of the cam-belt cover. */
+  crankDamper: {
+    gap: mm(1.5),
+    hubRadius: mm(30),
+    radius: mm(68),
+    ringInner: mm(47),
+    rubber: mm(3),
+    depth: mm(24),
+    /** Poly-V grooves round the rim (the accessory belt's plane is their middle). */
+    grooves: 5,
+    grooveDepth: mm(1.6),
+    grooveWidth: mm(16),
+    bolts: 4,
+    boltCircle: mm(22),
+    bolt: { radius: mm(6), height: mm(5) },
+    noseBolt: { radius: mm(11), height: mm(7) },
+  },
+  /** (est) Poly-V belt from the crank pulley to the alternator, in front of the cover. */
+  accessoryBelt: { width: mm(14), thickness: mm(4), clearance: mm(0.4), pitch: mm(10), markEvery: 7 },
   /** (est) Wiring loom along each fuel rail to the injectors. */
   loom: { x: mm(146), y: mm(336), radius: mm(6.5), clips: 5, clip: [mm(16), mm(8), mm(10)] as Vec3 },
-  /** (est) Alternator low on the left at the timing end, pulley just behind the block's front face. */
+  /**
+   * (est) Alternator low on the left at the timing end, beside the cam-belt cover, its pulley
+   * in the accessory belt's plane in front of the cover (driven from the crank damper); ears
+   * to the block's skirt at its front corner. A fan between pulley and body.
+   */
   alternator: {
     x: mm(200),
     y: -mm(70),
     radius: mm(55),
     length: mm(105),
     pulley: { radius: mm(32), length: mm(18), grooves: 5 },
+    fan: { radius: mm(48), thickness: mm(6), blades: 10, gap: mm(2) },
     fins: 12,
     ear: [mm(30), mm(16), mm(26)] as Vec3,
   },
@@ -572,13 +650,15 @@ const engineParts = {
   /** Braided oil lines (dry sump): scavenge pump to tank, tank to the oil cooler. */
   oilLine: { radius: mm(8), fitting: { radius: mm(11), length: mm(22) } },
   waterPump: {
-    radius: mm(40),
+    /** (est) Ø68 (was Ø80): at Ø80 the housing reached 6 mm into its cam belt's outboard run. */
+    radius: mm(34),
     length: mm(34),
-    /** Centre (x, y) on the block's front face, outboard of the belt runs. */
-    centre: [mm(175), mm(40)] as const,
+    /** (est) Centre (x, y) on the block's front face, outboard of the cam belt's outboard run (4 mm clear of the belt's back). */
+    centre: [mm(187), mm(36)] as const,
     faceScale: 0.75,
     faceThickness: mm(8),
-    inlet: { radius: mm(16), length: mm(50) },
+    /** Inlet stub out of the body's outboard side, `droop` below horizontal (est). */
+    inlet: { radius: mm(16), length: mm(46), droop: deg(20) },
   },
   mount: {
     bracket: [mm(55), mm(60), mm(70)] as Vec3,
@@ -870,11 +950,13 @@ export const EXPLODE = {
   /** Discs follow the wheels part of the way (they live on the hubs). */
   discOut: 0.45,
   /**
-   * The engine's front end tucks under the roof's trailing edge (z ≈ −0.69), so the
-   * powertrain first slides back (stage 2), then lifts (stage 3): 0.3 m clears the roof edge
-   * and keeps the block ahead of the frame's top crossmember over the axle (z ≈ −1.24).
+   * The engine's front end tucks under the roof's trailing edge, so the powertrain first
+   * slides back (stage 2), then lifts (stage 3). The edge reaches back to z ≈ −0.727 at the
+   * height the engine's front passes it (car y ≈ 1.06; it is ≈ −0.69 lower down). 0.37 m
+   * clears it by ≥ 12 mm with the crank damper and the alternator in front of the cam-belt
+   * cover (phase 8; 0.3 already clipped the bare cover there).
    */
-  powertrainBack: 0.3,
+  powertrainBack: 0.37,
   powertrainLift: 1.2,
   /**
    * Stage-4 teardown. Bank parts travel along their bank axis; the comments give what
@@ -892,7 +974,10 @@ export const EXPLODE = {
     crankDrop: 0.23,
     sumpDrop: 0.27, // clears the dropped crank
     timingCover: 0.2, // forward, toward the cabin
-    timingChains: 0.09, // forward, out of the pulleys' way as the heads lift
+    timingChains: 0.09, // forward, out of the pulleys' way as the heads lift (the tensioners with them)
+    accessoryBelt: 0.42, // forward, first: off the damper and the alternator pulley
+    crankDamper: 0.32, // forward, off the crank nose ahead of the belt cover
+    starter: 0.25, // straight up out of the V (the runners above it have gone)
     waterPump: 0.14, // forward, outboard of the timing cover
     waterPumpOut: 0.1, // and outboard, clear of the belts moving forward
     mount: 0.14, // outboard

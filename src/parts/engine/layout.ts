@@ -66,39 +66,62 @@ export function bankQuat(s: Side, lean = 0) {
   return new Quaternion().setFromEuler(new Euler(0, 0, -sideSign(s) * (E.halfBank + lean)));
 }
 
-export function compose(p: Vector3, q: Quaternion, scale = new Vector3(1, 1, 1)) {
+const ONE = new Vector3(1, 1, 1);
+
+export function compose(p: Vector3, q: Quaternion, scale = ONE) {
   return new Matrix4().compose(p, q, scale);
 }
 
 // ─── Crank and pistons ───────────────────────────────────────────────────────
+//
+// Every kinematic function takes the crank angle `crank` (radians; any value, it is
+// wrapped where it matters). The default is the static pose, `E.crankPhase`: the parts
+// are built there, and the running engine (engine/motion.ts) re-poses them from the
+// live angle. Increasing angle = the crank's direction of rotation.
 
-/** Crankpin angle of throw i in the assembled pose, measured from +y toward +x. */
-export const throwAngle = (i: number) => E.throwAngles[i] + E.crankPhase;
+const STATIC = E.crankPhase;
+
+/** Crankpin angle of throw i, measured from +y toward +x. */
+export const throwAngle = (i: number, crank = STATIC) => E.throwAngles[i] + crank;
 
 /** Crankpin centre of throw i (engine x, y). */
-export function crankpin(i: number) {
-  const p = throwAngle(i);
-  return new Vector3(E.crankRadius * Math.sin(p), E.crankRadius * Math.cos(p), 0);
+export function crankpin(i: number, crank = STATIC, out = new Vector3()) {
+  const p = throwAngle(i, crank);
+  return out.set(E.crankRadius * Math.sin(p), E.crankRadius * Math.cos(p), 0);
 }
 
 /** Wrist-pin height above the crank along the bank axis (slider-crank). */
-export function pinHeight(s: Side, i: number) {
-  const alpha = throwAngle(i) - bankTilt(s);
+export function pinHeight(s: Side, i: number, crank = STATIC) {
+  const alpha = throwAngle(i, crank) - bankTilt(s);
   const r = E.crankRadius;
   return r * Math.cos(alpha) + Math.sqrt(E.rodLength ** 2 - (r * Math.sin(alpha)) ** 2);
 }
 
 /** Piston pose: wrist-pin centre, axis up the bore. */
-export function pistonMatrix(s: Side, i: number) {
-  return compose(bankPoint(s, pinHeight(s, i), 0, E.boreZ[s][i]), bankQuat(s));
+export function pistonMatrix(s: Side, i: number, crank = STATIC, out = new Matrix4()) {
+  return out.compose(bankPoint(s, pinHeight(s, i, crank), 0, E.boreZ[s][i]), bankQuat(s), ONE);
 }
 
+const yUp = new Vector3(0, 1, 0);
+
 /** Connecting-rod pose: origin at the big end, +y toward the wrist pin. */
-export function rodMatrix(s: Side, i: number) {
-  const big = crankpin(i).setZ(E.boreZ[s][i]);
-  const small = bankPoint(s, pinHeight(s, i), 0, E.boreZ[s][i]);
-  const dir = small.clone().sub(big).normalize();
-  return compose(big, new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), dir));
+export function rodMatrix(s: Side, i: number, crank = STATIC, out = new Matrix4()) {
+  const big = crankpin(i, crank).setZ(E.boreZ[s][i]);
+  const small = bankPoint(s, pinHeight(s, i, crank), 0, E.boreZ[s][i]);
+  const dir = small.sub(big).normalize();
+  return out.compose(big, new Quaternion().setFromUnitVectors(yUp, dir), ONE);
+}
+
+/** Where cylinder (s, i) is in its four-stroke cycle: crank degrees after its firing TDC, 0…720°. */
+export function cycleAngle(s: Side, i: number, crank = STATIC) {
+  return wrap(crank - firingAngle(s, i), CYCLE);
+}
+
+export type Stroke = 'power' | 'exhaust' | 'intake' | 'compression';
+/** The stroke cylinder (s, i) is on (power from its firing TDC, then exhaust, intake, compression). */
+export function strokeOf(s: Side, i: number, crank = STATIC): Stroke {
+  const STROKES: Stroke[] = ['power', 'exhaust', 'intake', 'compression'];
+  return STROKES[Math.min(3, Math.floor(cycleAngle(s, i, crank) / Math.PI))];
 }
 
 // ─── Valve events ────────────────────────────────────────────────────────────
@@ -145,38 +168,42 @@ export function firingAngle(s: Side, i: number) {
 
 export type ValveKind = 'intake' | 'exhaust';
 
+/** Crank angle (after firing TDC) of this kind of valve's peak lift. */
+export const valvePeak = (kind: ValveKind) => (kind === 'intake' ? E.valve.intakePeak : E.valve.exhaustPeak);
+
 /** Crank degrees from this valve's peak lift, wrapped to (−360°, 360°]. */
-function fromPeak(kind: ValveKind, s: Side, i: number) {
-  const cycle = wrap(E.crankPhase - firingAngle(s, i), CYCLE);
-  const peak = kind === 'intake' ? E.valve.intakePeak : E.valve.exhaustPeak;
-  const d = wrap(cycle - peak, CYCLE);
+function fromPeak(kind: ValveKind, s: Side, i: number, crank = STATIC) {
+  const d = wrap(cycleAngle(s, i, crank) - valvePeak(kind), CYCLE);
   return d > CYCLE / 2 ? d - CYCLE : d;
 }
 
-/** Valve lift in the assembled pose (smooth cosine-squared profile). */
-export function valveLift(kind: ValveKind, s: Side, i: number) {
-  const d = fromPeak(kind, s, i);
+/** Valve lift (smooth cosine-squared profile). */
+export function valveLift(kind: ValveKind, s: Side, i: number, crank = STATIC) {
+  const d = fromPeak(kind, s, i, crank);
   const h = E.valve.halfDuration;
   return Math.abs(d) < h ? E.camshaft.lift * Math.cos((Math.PI / 2) * (d / h)) ** 2 : 0;
 }
 
 /** Cam lobe rotation away from its follower (the cam turns at half crank speed). */
-export const lobeAngle = (kind: ValveKind, s: Side, i: number) => fromPeak(kind, s, i) / 2;
+export const lobeAngle = (kind: ValveKind, s: Side, i: number, crank = STATIC) => fromPeak(kind, s, i, crank) / 2;
 
 /** Valves lean toward their own side: intake inboard, exhaust outboard. */
 export const valveLean = (kind: ValveKind) => (kind === 'intake' ? -1 : 1) * E.valve.angle;
 const valveSide = (kind: ValveKind) => (kind === 'intake' ? -1 : 1);
 
-/** Closed-valve face centre (engine coordinates) for one valve of a pair. */
-export function valveFace(kind: ValveKind, s: Side, i: number, pair: 0 | 1) {
-  const z = E.boreZ[s][i] + (pair === 0 ? 0.5 : -0.5) * E.valve.pairSpacing;
-  return bankPoint(s, headDeckA, valveSide(kind) * E.valve.seatOffset, z);
-}
-
 /** Unit vector along a valve's stem, toward its tip. */
 export function valveAxis(kind: ValveKind, s: Side) {
   return new Vector3(0, 1, 0).applyQuaternion(bankQuat(s, valveLean(kind)));
 }
+
+/** Closed-valve face centre (engine coordinates) for one valve of a pair: recessed up its axis from the deck. */
+export function valveFace(kind: ValveKind, s: Side, i: number, pair: 0 | 1) {
+  const z = E.boreZ[s][i] + (pair === 0 ? 0.5 : -0.5) * E.valve.pairSpacing;
+  return bankPoint(s, headDeckA, valveSide(kind) * E.valve.seatOffset, z).addScaledVector(valveAxis(kind, s), E.valve.seatRecess);
+}
+
+/** Valve length, face to tip (the seat recess comes off it, so the tips stay where the cams need them). */
+export const valveLength = E.valve.length - E.valve.seatRecess;
 
 /** Cam axis in bank-local (a, b): one base radius beyond the closed valve tips. */
 export function camLocal(kind: ValveKind) {

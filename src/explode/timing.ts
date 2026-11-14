@@ -44,9 +44,25 @@ export const TEARDOWN = {
   /** Fuel rails back out along their injectors; throttle bodies and distributors come off. */
   intake: 0.2,
   frontCovers: 0.3,
+  /** The accessory belt comes off first, then the damper, both ahead of the belt cover. */
+  accessoryBelt: 0.2,
+  crankDamper: 0.25,
+  /** The starter lifts out of the V once the runners above it are on their way. */
+  starter: 0.8,
+  /**
+   * Cam belts (with their tensioners) slide forward off the pulleys once the belt cover is on
+   * its way, and are clear of the cam pulleys before the camshafts lift.
+   */
+  camBelts: 0.4,
   /** Turbos slide out with their heat shields; downpipes, wastegate pipe and silencer come away. */
   turbos: 0.2,
   wastegates: 0.25,
+  /**
+   * The wastegate pipe lifts as the manifolds start carrying the wastegates outboard: its end
+   * flanges sit just under the rims of the wastegates' cans (at +0.2 they caught them), and it
+   * is well up before the heads lift the distributors' plug leads toward it.
+   */
+  wastegatePipe: 0.35,
   /** Manifolds pull off their studs once the turbos are off their collectors. */
   manifolds: 0.35,
   /**
@@ -58,7 +74,8 @@ export const TEARDOWN = {
   /** Runners wait until the injectors are clear of their bosses. */
   runners: 0.5,
   coilPacks: 0.55,
-  camshafts: 0.6,
+  /** With the heads (the cam pulleys would rise into the belts any earlier). */
+  camshafts: 0.75,
   sparkPlugs: 0.6,
   heads: 0.75,
   sump: 1.05,

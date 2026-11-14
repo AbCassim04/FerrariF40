@@ -85,7 +85,7 @@ function PartNode({ def, parentPosition }: { def: PartDef; parentPosition: Vec3 
       // Small detail casts nothing, and its layer keeps it out of the contact shadows.
       const g = mesh.geometry;
       const small = (g.boundingSphere ?? (g.computeBoundingSphere(), g.boundingSphere!)).radius < SCENE.shadowCasterMinRadius;
-      mesh.castShadow = !small && ![mesh.material].flat().some((m) => m.transparent);
+      mesh.castShadow = mesh.userData.castShadow ?? (!small && ![mesh.material].flat().some((m) => m.transparent));
       if (small) mesh.layers.set(DETAIL_LAYER);
     });
     partObjects.set(def.id, { anchor, pivot: pivotRef.current!, content, base });

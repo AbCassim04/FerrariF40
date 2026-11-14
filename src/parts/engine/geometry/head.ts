@@ -1,4 +1,5 @@
 import { Curve, Euler, Matrix4, Quaternion, Shape, Vector3 } from 'three';
+import type { Motion, MotionState } from '../../../engine/motion';
 import { DIMS } from '../../../config/dims';
 import { SEGMENTS } from '../../../config/detail';
 import {
@@ -23,14 +24,16 @@ import {
   camLocal,
   compose,
   CYLINDERS,
+  firingAngle,
   headDeckA,
   headZ,
-  lobeAngle,
   sideSign,
   valveAxis,
   valveFace,
   valveLean,
+  valveLength,
   valveLift,
+  valvePeak,
   type Side,
   type ValveKind,
 } from '../layout';
@@ -94,7 +97,7 @@ export function headMeshes(s: Side): MeshSpec[] {
     [1, -1].map((side) => compose(bankPoint(s, headTopA, side * (H.topHalfWidth - H.bolt.inset), z), bankQuat(s))),
   );
   return [
-    { geometry: bakeBank(merge(parts), s), material: 'castAluminium' },
+    { geometry: bakeBank(merge(parts), s), material: 'castAluminium', shell: true },
     { geometry: boltHead(H.bolt.radius, H.bolt.height), material: 'darkSteel', instances: bolts },
   ];
 }
@@ -109,26 +112,32 @@ export function gasketMeshes(s: Side): MeshSpec[] {
   const g = extrude(polygonShape(outline, holes), H.gasketThickness);
   g.rotateX(-Math.PI / 2);
   g.translate(0, E.deckHeight, 0);
-  return [{ geometry: bakeBank(g, s), material: 'gasket' }];
+  return [{ geometry: bakeBank(g, s), material: 'gasket', shell: true }];
 }
 
 // ─── Valvetrain ──────────────────────────────────────────────────────────────
 
+/** A valve with its spring retainer at the tip (the retainer moves with it). */
 function valveGeometry(headDiameter: number) {
   const V = E.valve;
+  const R = V.retainer;
+  const L = valveLength;
   const rh = headDiameter / 2;
   const rs = V.stemDiameter / 2;
-  return lathe(
+  const valve = lathe(
     [
       [0, 0],
       [rh, 0],
       [rh, V.faceThickness],
       [rs, V.faceThickness + V.tulipHeight],
-      [rs, V.length],
-      [0, V.length],
+      [rs, L],
+      [0, L],
     ],
     SEGMENTS.small * 2,
   );
+  const retainer = lathe([[0, 0], [V.stemDiameter, 0], [R.radius, R.height], [0, R.height]], SEGMENTS.small * 2);
+  retainer.translate(0, L - R.height, 0);
+  return merge([valve, retainer]);
 }
 
 class Helix extends Curve<Vector3> {
@@ -141,36 +150,52 @@ class Helix extends Curve<Vector3> {
   }
 }
 
+/** Every valve of a bank, in build order (kind, cylinder, pair): its closed face, axis and lean. */
+function valveSlots(s: Side) {
+  return KINDS.flatMap((kind) => {
+    const axis = valveAxis(kind, s);
+    const q = bankQuat(s, valveLean(kind));
+    return CYLINDERS.flatMap((i) => ([0, 1] as const).map((pair) => ({ kind, i, face: valveFace(kind, s, i, pair), axis, q })));
+  });
+}
+
 export function valvetrainMeshes(s: Side): MeshSpec[] {
   const V = E.valve;
   const S = V.spring;
-  const R = V.retainer;
-  const valves: Record<ValveKind, Matrix4[]> = { intake: [], exhaust: [] };
-  const springs: Matrix4[] = [];
-  const retainers: Matrix4[] = [];
-  for (const kind of KINDS) {
-    const axis = valveAxis(kind, s);
-    const q = bankQuat(s, valveLean(kind));
-    for (const i of CYLINDERS) {
-      const lift = valveLift(kind, s, i);
-      for (const pair of [0, 1] as const) {
-        const face = valveFace(kind, s, i, pair);
-        valves[kind].push(compose(face.clone().addScaledVector(axis, -lift), q));
-        // The spring seat is fixed in the head; the spring's top follows the valve.
-        const seat = face.clone().addScaledVector(axis, V.length - R.height - S.length);
-        springs.push(compose(seat, q, new Vector3(1, (S.length - lift) / S.length, 1)));
-        retainers.push(compose(face.clone().addScaledVector(axis, V.length - R.height - lift), q));
-      }
+  const slots = valveSlots(s);
+  const p = new Vector3();
+  const scale = new Vector3();
+  /** Valve (and retainer) pushed down its axis by the lift. */
+  const valvePose = (kind: ValveKind) => (state: MotionState, out: Matrix4[]) => {
+    let k = 0;
+    for (const v of slots) {
+      if (v.kind !== kind) continue;
+      out[k++].compose(p.copy(v.face).addScaledVector(v.axis, -valveLift(kind, s, v.i, state.crank)), v.q, one);
     }
-  }
+  };
+  // The spring seat is fixed in the head; the spring's top follows the valve (it is squashed by the lift).
+  const springPose = (state: MotionState, out: Matrix4[]) => {
+    slots.forEach((v, k) => {
+      const lift = valveLift(v.kind, s, v.i, state.crank);
+      out[k].compose(p.copy(v.face).addScaledVector(v.axis, valveLength - V.retainer.height - S.length), v.q, scale.set(1, (S.length - lift) / S.length, 1));
+    });
+  };
+  const posed = (pose: (state: MotionState, out: Matrix4[]) => void, count: number) => {
+    const out = Array.from({ length: count }, () => new Matrix4());
+    pose({ crank: E.crankPhase } as MotionState, out);
+    return out;
+  };
   const spring = tubeAlong(new Helix(S.radius, S.length, S.coils), S.wire / 2, false, S.coils * SEGMENTS.springCoil, SEGMENTS.springWire);
-  const retainer = lathe([[0, 0], [V.stemDiameter, 0], [R.radius, R.height], [0, R.height]], SEGMENTS.small * 2);
-  return [
-    { geometry: valveGeometry(V.intakeHeadDiameter), material: 'steel', instances: valves.intake },
-    { geometry: valveGeometry(V.exhaustHeadDiameter), material: 'steel', instances: valves.exhaust },
-    { geometry: spring, material: 'springSteel', instances: springs },
-    { geometry: retainer, material: 'steel', instances: retainers },
-  ];
+  const half = slots.length / 2;
+  return KINDS.map((kind): MeshSpec => {
+    const pose = valvePose(kind);
+    return {
+      geometry: valveGeometry(kind === 'intake' ? V.intakeHeadDiameter : V.exhaustHeadDiameter),
+      material: 'steel',
+      instances: posed(pose, half),
+      motion: { kind: 'pose', pose },
+    };
+  }).concat({ geometry: spring, material: 'springSteel', instances: posed(springPose, slots.length), motion: { kind: 'pose', pose: springPose } });
 }
 
 // ─── Camshafts ───────────────────────────────────────────────────────────────
@@ -189,35 +214,59 @@ function lobeShape() {
   return polygonShape(pts);
 }
 
-export function camshaftMeshes(s: Side): MeshSpec[] {
+/**
+ * Rotation of a bank's intake or exhaust cam about its own axis. The cam is one rigid piece:
+ * each lobe sits at half its cylinder's firing angle round the shaft, and the whole cam
+ * turns at half crank speed, phased so each lobe peaks at its valve's peak lift.
+ */
+export function camRotation(kind: ValveKind, s: Side, crank: number) {
+  const tilt = -sideSign(s) * (E.halfBank + valveLean(kind));
+  return tilt + (valvePeak(kind) - crank) / 2;
+}
+
+/** A bank's camshaft (both cams share it: shaft, journals and lobes), on its own axis along z. */
+function camGeometry(s: Side) {
   const C = E.camshaft;
   const [zr] = headZ(s);
   const front = E.chainZ[s] + E.timing.sprocketThickness / 2;
-  const shafts = [];
-  const sprockets = [];
-  const lobes: Matrix4[] = [];
-  for (const kind of KINDS) {
-    const c = camCentre(kind, s);
-    shafts.push(cylinderZ(C.shaftRadius, zr + E.bevel * 4, front, c.x, c.y));
-    for (const z of bulkheadZ(s)) shafts.push(cylinderZ(C.journalRadius, z - C.journalWidth / 2, z + C.journalWidth / 2, c.x, c.y));
-    const sp = extrude(polygonShape(gearOutline(C.sprocket.radius, C.sprocket.radius - E.timing.chain.height / 2, C.sprocket.teeth)), C.sprocket.thickness, E.bevel / 4);
-    sp.translate(c.x, c.y, E.chainZ[s] - C.sprocket.thickness / 2);
-    sprockets.push(sp);
-    const tilt = -sideSign(s) * (E.halfBank + valveLean(kind));
-    for (const i of CYLINDERS) {
-      for (const pair of [0, 1] as const) {
-        const z = valveFace(kind, s, i, pair).z;
-        const q = new Quaternion().setFromEuler(new Euler(0, 0, tilt - lobeAngle(kind, s, i)));
-        lobes.push(new Matrix4().compose(new Vector3(c.x, c.y, z), q, one));
-      }
+  const parts = [cylinderZ(C.shaftRadius, zr + E.bevel * 4, front)];
+  for (const z of bulkheadZ(s)) parts.push(cylinderZ(C.journalRadius, z - C.journalWidth / 2, z + C.journalWidth / 2));
+  for (const i of CYLINDERS) {
+    for (const pair of [0, 1] as const) {
+      const lobe = extrude(lobeShape(), C.lobeWidth, E.bevel / 4);
+      lobe.translate(0, 0, -C.lobeWidth / 2);
+      lobe.rotateZ(firingAngle(s, i) / 2);
+      lobe.translate(0, 0, valveFace('intake', s, i, pair).z);
+      parts.push(lobe);
     }
   }
-  const lobe = extrude(lobeShape(), C.lobeWidth, E.bevel / 4);
-  lobe.translate(0, 0, -C.lobeWidth / 2);
+  return merge(parts);
+}
+
+export function camshaftMeshes(s: Side): MeshSpec[] {
+  const C = E.camshaft;
+  const centres = KINDS.map((kind) => camCentre(kind, s));
+  const q = new Quaternion();
+  const zAxis = new Vector3(0, 0, 1);
+  const camPose = (state: MotionState, out: Matrix4[]) => {
+    KINDS.forEach((kind, k) => out[k].compose(centres[k], q.setFromAxisAngle(zAxis, camRotation(kind, s, state.crank)), one));
+  };
+  // Pulleys: any phase (their teeth are all alike), turning with the cams.
+  const pulleyPose = (state: MotionState, out: Matrix4[]) => {
+    KINDS.forEach((_, k) => out[k].compose(centres[k], q.setFromAxisAngle(zAxis, -(state.crank - E.crankPhase) / 2), one));
+  };
+  const staticPose = (pose: (state: MotionState, out: Matrix4[]) => void) => {
+    const out = KINDS.map(() => new Matrix4());
+    pose({ crank: E.crankPhase } as MotionState, out);
+    return out;
+  };
+  const pulley = extrude(polygonShape(gearOutline(C.sprocket.radius, C.sprocket.radius - E.timing.chain.height / 2, C.sprocket.teeth)), C.sprocket.thickness, E.bevel / 4);
+  pulley.translate(0, 0, E.chainZ[s] - C.sprocket.thickness / 2);
+  const camMotion: Motion = { kind: 'pose', pose: camPose };
   return [
-    { geometry: merge(shafts), material: 'steel' },
-    { geometry: lobe, material: 'steel', instances: lobes },
-    { geometry: merge(sprockets), material: 'darkSteel' },
+    // Inside the head under its cover; the lobes never cast shadows before (they were small detail).
+    { geometry: camGeometry(s), material: 'steel', instances: staticPose(camPose), motion: camMotion, castShadow: false },
+    { geometry: pulley, material: 'darkSteel', instances: staticPose(pulleyPose), motion: { kind: 'pose', pose: pulleyPose } },
   ];
 }
 
@@ -260,7 +309,7 @@ export function camCoverMeshes(s: Side): MeshSpec[] {
     }
   }
   return [
-    { geometry: bakeBank(merge([shell, flange, ...seats]), s), material: 'camCover' },
+    { geometry: bakeBank(merge([shell, flange, ...seats]), s), material: 'camCover', shell: true },
     { geometry: boltHead(C.bolt.radius, C.bolt.height), material: 'steel', instances: bolts },
   ];
 }

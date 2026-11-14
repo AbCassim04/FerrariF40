@@ -3,6 +3,12 @@
 Where the project stands and how to work on it. The spec and decision log are in
 docs/BRIEF.md; read that first. The build plan: docs/F40-PLAN.md.
 
+## Status (2026-11-15)
+- **Phase 8 on `wip/f40-motion`** (from `main`, unattended; a commit per sub-phase, not
+  pushed): 8A missing engine parts and draw-call headroom (peak 471 → 412); 8B the running
+  engine; 8C its procedural sound. Summary, figures and gates: docs/REVIEW.md ("Phase 8");
+  decisions: docs/BRIEF.md ("Phase 8").
+
 ## Status (2026-11-13)
 - Phase 1 approved and merged into `main`.
 - **Phases 2–4 done on `wip/f40-build`** (unattended run; one checkpoint commit per phase,
@@ -18,7 +24,9 @@ docs/BRIEF.md; read that first. The build plan: docs/F40-PLAN.md.
   has a rail at x ≈ ±0.30–0.34 rising from car y 0.26 (z −1.6) to 0.39 (z −1.9) and struts at
   x ±0.35–0.38 near z −1.63: keep clear of them, including during the stage-2 slide.
 - Timeline: stage starts 0 / 0.75 / 1.70 / 2.50 / 3.75 s (`STAGE_START`), the slide waits
-  `POWERTRAIN_SLIDE_DELAY` (0.25 s), ~4.9 s in all; `setProgress(t)` takes t / 4.9.
+  `POWERTRAIN_SLIDE_DELAY` (0.25 s), ~4.9 s in all; `setProgress(t)` takes t / 4.9. Since
+  phase 8 the powertrain slides back 0.37 m (the roof's trailing edge reaches z ≈ −0.727 at
+  the height the engine's front passes it).
 - Visual checks: one persistent page + `window.__dev` (below). In this session the MCP tools
   were not loaded, so the page is driven by a small Playwright script (same GPU launch).
 
@@ -125,6 +133,8 @@ await __dev.select('crankshaft')  // inspect a part; __dev.clearSelection()
 await __dev.setXray(true); await __dev.setSolo('engine' | null); await __dev.setLabels(true)
 await __dev.setGhost(true); await __dev.setSegments(true)   // key B / key K
 await __dev.view('rear34'); await __dev.fit()               // preset; frame everything visible
+await __dev.setSoloParts(['starter-motor', 'flywheel'])   // show only these parts (null: all)
+await __dev.clash({ at, focus, allPairs, skipBody, pairs, progress })  // clash check now, no reload
 await __dev.screenshotReady()     // → { frames, ms } once the timeline is idle, the camera has
                                   //   stopped, no shadow pass is pending, then 3 settled frames
 __dev.state()                     // selection, X-ray, solo, explode progress, __perf

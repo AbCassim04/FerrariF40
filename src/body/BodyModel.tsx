@@ -1,6 +1,25 @@
 import { useGLTF } from '@react-three/drei';
 import { useEffect, useMemo } from 'react';
-import { Box3, Color, CustomBlending, DoubleSide, MeshBasicMaterial, MeshStandardMaterial, OneFactor, OneMinusSrcAlphaFactor, Vector3, type Mesh, type MeshPhysicalMaterial, type Object3D } from 'three';
+import {
+  Box3,
+  BufferAttribute,
+  BufferGeometry,
+  Color,
+  CustomBlending,
+  DoubleSide,
+  Group,
+  Matrix4,
+  Mesh,
+  MeshBasicMaterial,
+  MeshStandardMaterial,
+  OneFactor,
+  OneMinusSrcAlphaFactor,
+  Vector3,
+  type Material,
+  type MeshPhysicalMaterial,
+  type Object3D,
+} from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { DIMS } from '../config/dims';
 import { asset } from '../lib/asset';
 import { BODY_PAINT, MODEL_FINISH, MODEL_GLASS, modelEnvLevels } from '../materials/materials';
@@ -16,10 +35,18 @@ useGLTF.preload(BODY_URL);
 
 const DEV = import.meta.env.DEV;
 
+const tuned = new WeakSet<object>();
+
 function useBody() {
   // Meshopt decoding uses three's bundled decoder; no network fetch.
   const gltf = useGLTF(BODY_URL, false, true);
-  return { nodes: gltf.nodes as Record<string, Object3D>, scene: gltf.scene };
+  const nodes = gltf.nodes as Record<string, Object3D>;
+  // Tune the model's materials before any part merges its meshes (the merge reads the tuned finish).
+  if (!tuned.has(nodes)) {
+    tuned.add(nodes);
+    tuneMaterials(nodes);
+  }
+  return { nodes, scene: gltf.scene };
 }
 
 /** Build for a registry part whose geometry comes from the body model. */
@@ -29,7 +56,7 @@ export function modelPartBuild(partId: string) {
     const object = useMemo(() => {
       const src = nodes[partId];
       if (!src) throw new Error(`body model has no node "${partId}"; re-run npm run prep:body`);
-      return src.clone(true);
+      return mergeByFinish(src);
     }, [nodes]);
     useSegmentColours(object, partId);
     return <primitive object={object} />;
@@ -87,14 +114,121 @@ function tuneMaterials(nodes: Record<string, Object3D>) {
   }
 }
 
-/** Mount once inside the Canvas: material tweaks plus dev diagnostics of the loaded model. */
+/** Mount once inside the Canvas: dev diagnostics of the loaded model (its materials are tuned on load). */
 export function BodyModelSetup() {
   const { nodes, scene } = useBody();
   useEffect(() => {
-    tuneMaterials(nodes);
     if (DEV) logDiagnostics(nodes, scene);
   }, [nodes, scene]);
   return null;
+}
+
+// ─── One draw call per finish ─────────────────────────────────────────────────
+
+/**
+ * The model's opaque materials are all plain (untextured, double-sided) standard materials
+ * that differ only in colour, roughness and metalness. Within a part, their meshes are merged
+ * into one, with those three per vertex (colour attribute, and `rm` read by a patched
+ * shader), so the part draws them in one call and looks exactly as before. The clear-coated
+ * paint keeps its own mesh; identical glass panes share one.
+ */
+const MERGED_FINISH = (() => {
+  const m = new MeshStandardMaterial({ color: '#ffffff', vertexColors: true, side: DoubleSide, roughness: 1, metalness: 1 });
+  m.name = 'model-finishes';
+  // Its colours are per vertex (the white base colour is a placeholder): ghosts tint by them too.
+  m.userData.ghostVertexColors = true;
+  m.onBeforeCompile = (shader) => {
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nattribute vec2 rm;\nvarying vec2 vRm;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvRm = rm;');
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying vec2 vRm;')
+      .replace('#include <roughnessmap_fragment>', 'float roughnessFactor = vRm.x;')
+      .replace('#include <metalnessmap_fragment>', 'float metalnessFactor = vRm.y;');
+  };
+  m.customProgramCacheKey = () => 'model-finishes';
+  return m;
+})();
+
+type Std = MeshStandardMaterial & Partial<MeshPhysicalMaterial>;
+/** Plain opaque standard materials can share the merged finish. */
+const mergeable = (m: Std) =>
+  m.isMeshStandardMaterial && !m.isMeshPhysicalMaterial && !m.transparent && !m.map && !m.normalMap && !m.roughnessMap && !m.metalnessMap && !m.emissiveMap && !m.alphaMap && !m.aoMap && !m.vertexColors && m.side === DoubleSide && m.emissive.getHex() === 0 && m.envMapIntensity === 1 && !m.flatShading;
+
+/** Float copy of a mesh's geometry in the part root's frame (the model's attributes are quantised). */
+function bakedGeometry(mesh: Mesh, toRoot: Matrix4) {
+  const src = mesh.geometry;
+  const g = new BufferGeometry();
+  for (const name of ['position', 'normal'] as const) {
+    const a = src.getAttribute(name);
+    if (!a) continue;
+    const out = new Float32Array(a.count * 3);
+    for (let i = 0; i < a.count; i++) {
+      out[i * 3] = a.getX(i);
+      out[i * 3 + 1] = a.getY(i);
+      out[i * 3 + 2] = a.getZ(i);
+    }
+    g.setAttribute(name, new BufferAttribute(out, 3));
+  }
+  if (src.index) g.setIndex(src.index.clone());
+  g.applyMatrix4(new Matrix4().multiplyMatrices(toRoot, mesh.matrixWorld));
+  if (!g.getAttribute('normal')) g.computeVertexNormals();
+  return g;
+}
+
+function mergeByFinish(src: Object3D) {
+  const root = src.clone(true);
+  root.updateMatrixWorld(true);
+  const toRoot = root.matrixWorld.clone().invert();
+  const meshes: Mesh[] = [];
+  root.traverse((o) => (o as Mesh).isMesh && meshes.push(o as Mesh));
+  const out = new Group();
+  out.name = root.name;
+  root.matrix.decompose(out.position, out.quaternion, out.scale);
+  const opaque: BufferGeometry[] = [];
+  const bySame = new Map<string, { material: Material; parts: BufferGeometry[] }>();
+  for (const mesh of meshes) {
+    const m = mesh.material as Std;
+    if (Array.isArray(mesh.material)) {
+      out.add(rehome(mesh, toRoot));
+      continue;
+    }
+    const g = bakedGeometry(mesh, toRoot);
+    if (mergeable(m)) {
+      const n = g.getAttribute('position').count;
+      const colour = new Float32Array(n * 3);
+      const rm = new Float32Array(n * 2);
+      for (let i = 0; i < n; i++) {
+        colour.set([m.color.r, m.color.g, m.color.b], i * 3);
+        rm.set([m.roughness, m.metalness], i * 2);
+      }
+      g.setAttribute('color', new BufferAttribute(colour, 3));
+      g.setAttribute('rm', new BufferAttribute(rm, 2));
+      opaque.push(g);
+    } else {
+      // Glass panes with the same finish (e.g. cabin windows) share one mesh; the paint keeps its own.
+      const key = MODEL_GLASS[m.name] ? `glass:${JSON.stringify(MODEL_GLASS[m.name])}` : m.uuid;
+      const entry = bySame.get(key) ?? { material: m, parts: [] };
+      entry.parts.push(g);
+      bySame.set(key, entry);
+    }
+  }
+  const add = (parts: BufferGeometry[], material: Material) => {
+    const indexed = parts.every((p) => p.index);
+    const g = parts.length === 1 ? parts[0] : mergeGeometries(indexed ? parts : parts.map((p) => (p.index ? p.toNonIndexed() : p)), false);
+    if (!g) throw new Error(`body: could not merge the meshes of "${root.name}"`);
+    out.add(new Mesh(g, material));
+  };
+  if (opaque.length) add(opaque, MERGED_FINISH);
+  for (const { material, parts } of bySame.values()) add(parts, material);
+  return out;
+}
+
+/** A mesh moved under the merged part root unchanged (kept for anything the merge can't take). */
+function rehome(mesh: Mesh, toRoot: Matrix4) {
+  const copy = mesh.clone();
+  new Matrix4().multiplyMatrices(toRoot, mesh.matrixWorld).decompose(copy.position, copy.quaternion, copy.scale);
+  return copy;
 }
 
 function logDiagnostics(nodes: Record<string, Object3D>, scene: Object3D) {

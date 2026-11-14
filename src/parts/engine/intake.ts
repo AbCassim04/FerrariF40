@@ -6,9 +6,11 @@ import { specBuild } from '../../scene/MeshSet';
 import { cablesBuild, type CableRoute, type CableStyle } from '../cables/Cable';
 import type { PartDef } from '../types';
 import { alternatorMeshes, oilTankFittings, oilTankMeshes } from './geometry/ancillaries';
+import { coilTower, ignitionCoilMeshes, starterMeshes } from './geometry/electrics';
 import { plugLeadEnd } from './geometry/head';
 import {
   distributorAxis,
+  distributorCentreTower,
   distributorMeshes,
   distributorTowers,
   ecuMeshes,
@@ -78,6 +80,8 @@ function htRoutes(s: Side): CableRoute[] {
       via: [over, rear, near].map(car),
       // Bow upward as the caps and distributor lift apart, not outboard into the oil lines and tank.
       slack: new Vector3(sideSign(s) * 0.015, 0.12, 0),
+      // Straight out of the cap's towers whatever the plug caps do (the coil lead drops out between them).
+      rigidLeads: true,
     };
   });
 }
@@ -124,6 +128,36 @@ function oilRoutes(): CableRoute[] {
 }
 
 const cablePart = (p: Omit<PartDef, 'position' | 'stage' | 'explodeOffset'>): PartDef => ({ ...p, position: ZERO, stage: 4, explodeOffset: ZERO });
+
+/**
+ * Coil lead: from the coil's tower back, then into the centre of the distributor cap from
+ * below. It leaves the centre tower with only a short straight run and drops between the cap's
+ * two lower plug leads (which run on back and then rise over the cap), so it never crosses them.
+ */
+function coilRoutes(): CableRoute[] {
+  return SIDES.map((s) => {
+    const from = coilTower(s);
+    const to = distributorCentreTower(s);
+    const below = to.at.y - E.distributor.capRadius - 0.005;
+    return {
+      id: `coil-lead-${s}`,
+      style: HT_STYLE,
+      from: { part: `ignition-coil-${s}`, origin: ORIGIN, at: car(from.at), dir: from.dir },
+      to: { part: `distributor-${s}`, origin: ORIGIN, at: car(to.at), dir: to.dir },
+      via: [
+        new Vector3((from.at.x + to.at.x) / 2, (below + from.at.y) / 2, to.at.z - 0.034),
+        new Vector3(to.at.x, below, to.at.z - 0.024),
+        new Vector3(to.at.x, to.at.y - 0.018, to.at.z - 0.017),
+      ].map(car),
+      lead: [0.03, 0.01],
+      // The drop below the cap moves with the distributor, so it stays between the lower plug leads.
+      viaPin: [undefined, 'to', 'to'],
+      rigidLeads: true,
+      // As the cap and the coil part, sag down and back, away from the plug leads (which bow up).
+      slack: new Vector3(0, -0.07, -0.03),
+    };
+  });
+}
 
 // ─── Parts ───────────────────────────────────────────────────────────────────
 
@@ -239,6 +273,30 @@ export const intakeParts: PartDef[] = [
     contacts: ['engine-block'],
   }),
   part({
+    id: 'starter-motor',
+    name: 'Starter motor',
+    group: 'engine',
+    description:
+      'Gear-reduction starter in the V at the flywheel end, bolted to the top of the bellhousing. To start, its solenoid throws the pinion back into the flywheel’s ring gear and the motor cranks the engine at about 200 rpm until it fires; then the pinion springs back out of mesh. Position estimated.',
+    specs: { Pinion: `${E.starter.pinion.teeth} teeth`, 'Ring gear': `${DIMS.transaxle.flywheel.teeth} teeth`, Position: 'In the V, on the bellhousing (est)' },
+    build: specBuild('StarterMotor', starterMeshes),
+    material: 'satinBlack',
+    explodeOffset: [0, X.starter, 0],
+    delay: TEARDOWN.starter,
+    // The pinion meshes with the ring gear while it cranks.
+    contacts: ['flywheel'],
+  }),
+  cablePart({
+    id: 'coil-leads',
+    name: 'Coil leads',
+    group: 'engine',
+    description: 'High-tension leads from each coil to the centre tower of its distributor cap.',
+    specs: { Count: '2', Diameter: `Ø${fmtMm(E.htLead.radius * 2, 1)}` },
+    build: cablesBuild('coil-leads', coilRoutes()),
+    material: 'rubber',
+    contacts: ['ignition-coil-l', 'ignition-coil-r', 'distributor-l', 'distributor-r'],
+  }),
+  part({
     id: 'oil-tank',
     name: 'Dry-sump oil tank',
     group: 'engine',
@@ -263,7 +321,7 @@ export const intakeParts: PartDef[] = [
   ...both((s) => ({
     id: `ecu-${s}`,
     name: named(s, 'Engine control unit'),
-    group: 'engine' as const,
+    group: 'electrics' as const,
     description: 'One of two Weber-Marelli control units, each running the injection and ignition of one bank. On the bay side wall, clear of the exhaust heat; position estimated.',
     specs: { Banks: '1 each', Mounting: 'Bay side wall (est)' },
     build: specBuild(`Ecu_${s}`, () => ecuMeshes(s)),
@@ -274,3 +332,23 @@ export const intakeParts: PartDef[] = [
     contacts: ['body-shell'],
   })),
 ];
+
+/**
+ * Ignition coils: bolted to the bellhousing, so they ride the transaxle (listed after it in
+ * the registry). Lifting them early would drag their leads up through the plug leads.
+ */
+export const coilParts: PartDef[] = SIDES.map((s) => ({
+  id: `ignition-coil-${s}`,
+  name: named(s, 'Ignition coil'),
+  group: 'engine',
+  description: `Steps the battery’s 12 V up to the tens of thousands of volts that jump a spark-plug gap, once for every cylinder of the ${sideName(s)} bank; its lead runs to the centre of the distributor cap, and the rotor hands each spark on to a plug lead. One coil per distributor; position estimated.`,
+  specs: { Feeds: `Distributor (${sideName(s)})`, Mounting: 'Bellhousing top (est)' },
+  build: specBuild(`IgnitionCoil_${s}`, () => ignitionCoilMeshes(s)),
+  material: 'satinBlack',
+  parent: 'transaxle',
+  position: ORIGIN,
+  stage: 5,
+  explodeOffset: ZERO,
+  // Its bracket's foot is bolted to the bellhousing's top.
+  contacts: ['bellhousing'],
+}));

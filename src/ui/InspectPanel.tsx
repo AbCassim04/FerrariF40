@@ -12,6 +12,7 @@ const GROUP_LABEL: Record<PartGroup, string> = {
   transmission: 'Transmission',
   cooling: 'Cooling',
   exhaust: 'Exhaust',
+  electrics: 'Electrics',
 };
 
 /**

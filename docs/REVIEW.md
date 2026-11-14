@@ -1,4 +1,57 @@
-# Build review: phases 2–4 (`wip/f40-build`)
+# Build review: phase 8 (`wip/f40-motion`), then phases 2–4
+
+## Phase 8: a running engine and its sound (`wip/f40-motion`)
+Branch `wip/f40-motion` from `main` (phases 1–4 merged), one checkpoint commit per
+sub-phase, not pushed. Built unattended; every judgement call is in docs/BRIEF.md under
+"Phase 8". Screenshots: `docs/review/f40-phase8/` (local, git-ignored; 1440×900 on the GPU
+browser, one persistent page driven through `window.__dev`).
+
+### 8A: fixes, draw-call headroom, missing parts
+**Built:** ECUs moved to a new `electrics` group; draw calls cut before adding anything (see
+below); new parts `crank-damper`, `accessory-belt`, `belt-tensioners`, `starter-motor`,
+`ignition-coil-l / -r`, `coil-leads`, and a rotor in each distributor. The cam belts are now
+rings of short segments with printed marks (they will run in 8B); the cam drive is exactly 2:1.
+Fixed on the way (all on `main` too): the right cam pulleys z-fighting through the belt
+cover, the water pumps overlapping the cam belts, the belt cover clipping the roof's trailing
+edge on the lift, the wastegate pipe catching the wastegates' cans (2.93–2.96 s), closed
+valves dipping below the deck.
+
+**Draw calls** (peak = the frame with the shadow pass live; budget ~500 / ~1.5 M):
+
+| | idle calls / triangles | peak calls / triangles | meshes |
+| --- | --- | --- | --- |
+| before (phase 4, `main`) | 281 / 0.76 M | 471 / 1.36 M | 262 |
+| after the merges, before new parts | 233 / 0.76 M | 386 / 1.42 M | 216 |
+| after 8A | 251 / 0.78 M | 412 / 1.44 M (exploded 399 / 1.39 M) | 234 |
+
+The merges are invisible: A/B screenshots against `main` (assembled, X-ray, through the
+Lexan, exploded, inspect) differ in at most 0.04 % of pixels, all in the FPS meter. Peak
+triangles rose 0.06 M because baked bolts and the merged model meshes now sit in meshes
+that cast shadows.
+
+**Gates**
+- Typecheck and build: pass. Production bundle contains no dev API.
+- Clash check: assembled vs body **none**; full explode **none**; ours against ours,
+  assembled (info, focus on the new and changed parts): **none** after the declared contacts
+  (the belt cover encloses the belts; the coils' brackets on the bellhousing).
+- Mid-explode sweep: **every 0.05 s from 0.05 to 4.9 s, every part in focus: no contact
+  appears during the explode.** The only pairs reported are 39 assembled touches present from
+  t = 0 (pistons in their bores, heads on their gaskets, rods on the crank…) that end as soon
+  as one of the two parts moves. `__dev.clash()` runs the check without a reload now.
+- What the sweeps caught, and the fixes: damper and alternator on the roof's trailing edge
+  (slide 0.37 m); cam pulleys rising into the belts (belts off at +0.4, cams with the heads);
+  coil leads against the plug leads (coils ride the transaxle, the leads' cap ends held rigid);
+  the starter's pinion shaft against the bellhousing on its lift (the shaft slides with the
+  pinion); the wastegate pipe (above).
+
+**Screenshots (docs/review/f40-phase8/):** 8a-01-timing-end (damper, alternator belt and the
+moved alternator, engine solo), 8a-02-front-exploded (belt cover, belt and damper off the
+front), 8a-03-starter-coils (coils on the bellhousing, coil leads into the caps' centres),
+8a-04-starter-lifted (t = 3.95 s), 8a-05-exploded-rear34, 8a-06-assembled-lexan;
+`ab/*-new.png` vs `ab/*-main.png` (the draw-call A/B).
+
+## Phases 2–4 (`wip/f40-build`, merged)
+
 
 Branch `wip/f40-build` from `main`, one checkpoint commit per phase, not pushed. Built
 unattended after the owner approved the plan (decisions: docs/BRIEF.md, 2026-11-13).

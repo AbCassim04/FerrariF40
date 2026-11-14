@@ -1,4 +1,5 @@
 import { Matrix4, Vector3 } from 'three';
+import type { Motion } from '../../../engine/motion';
 import { DIMS } from '../../../config/dims';
 import { SEGMENTS } from '../../../config/detail';
 import {
@@ -127,7 +128,7 @@ export function blockMeshes(): MeshSpec[] {
     }
   }
   return [
-    { geometry: merge(parts), material: 'castAluminium' },
+    { geometry: merge(parts), material: 'castAluminium', shell: true },
     { geometry: liner, material: 'steel', instances: liners },
     { geometry: boltHead(B.bolt.radius, B.bolt.height), material: 'darkSteel', instances: capBolts },
   ];
@@ -183,12 +184,24 @@ export function crankMeshes(): MeshSpec[] {
     g.translate(0, 0, z);
     return g;
   });
+  // The main shells stay in the block (and are round): only the crank itself turns.
   return [
-    { geometry: merge(steel), material: 'steel' },
-    { geometry: merge([sprocket(E.chainZ.l), sprocket(E.chainZ.r)]), material: 'darkSteel' },
+    { geometry: merge(steel), material: 'steel', motion: CRANK_SPIN },
+    { geometry: merge([sprocket(E.chainZ.l), sprocket(E.chainZ.r)]), material: 'darkSteel', motion: CRANK_SPIN },
     { geometry: merge(shells), material: 'bearing' },
   ];
 }
+
+/** Turning with the crank, about its axis (engine z through the origin). */
+export const CRANK_SPIN: Motion = { kind: 'spin', centre: new Vector3(0, 0, 0), axis: new Vector3(0, 0, 1), ratio: 1 };
+
+/** Instances re-posed per cylinder of a bank from the crank angle. */
+const perCylinder = (s: Side, matrix: (s: Side, i: number, crank: number, out: Matrix4) => Matrix4): Motion => ({
+  kind: 'pose',
+  pose: (state, out) => {
+    for (const i of CYLINDERS) matrix(s, i, state.crank, out[i]);
+  },
+});
 
 // ─── Pistons and rods ────────────────────────────────────────────────────────
 
@@ -218,10 +231,11 @@ export function pistonMeshes(s: Side): MeshSpec[] {
   );
   const pin = cylinderZ(P.pin.radius, -P.pin.length / 2, P.pin.length / 2, 0, 0, SEGMENTS.small * 2);
   const poses = CYLINDERS.map((i) => pistonMatrix(s, i));
+  const motion = perCylinder(s, pistonMatrix);
   return [
-    { geometry: body, material: 'piston', instances: poses },
-    { geometry: rings, material: 'darkSteel', instances: poses },
-    { geometry: pin, material: 'steel', instances: poses },
+    { geometry: body, material: 'piston', instances: poses, motion },
+    { geometry: rings, material: 'darkSteel', instances: poses, motion },
+    { geometry: pin, material: 'steel', instances: poses, motion },
   ];
 }
 
@@ -251,8 +265,9 @@ export function rodMeshes(s: Side): MeshSpec[] {
   const shell = lathe(band(E.crank.pinRadius, bigBore, -width / 2, width / 2));
   shell.rotateX(Math.PI / 2);
   const poses = CYLINDERS.map((i) => rodMatrix(s, i));
+  const motion = perCylinder(s, rodMatrix);
   return [
-    { geometry: merge([rod, ...bolts]), material: 'titanium', instances: poses },
-    { geometry: shell, material: 'bearing', instances: poses },
+    { geometry: merge([rod, ...bolts]), material: 'titanium', instances: poses, motion },
+    { geometry: shell, material: 'bearing', instances: poses, motion },
   ];
 }
