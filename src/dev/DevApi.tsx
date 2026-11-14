@@ -14,6 +14,7 @@ import { frame } from '../engine/EngineController';
 import { motionState, setPose } from '../engine/motion';
 import { sim, useEngineStore } from '../state/engine';
 import { stepSim } from '../engine/sim';
+import { engineAudio } from '../engine/audio/engineAudio';
 import { fitView } from '../scene/fitView';
 import { refreshShadows, shadowState } from '../scene/ShadowScheduler';
 import { useAppStore } from '../state/store';
@@ -60,6 +61,13 @@ export interface DevApi {
    * pinion; `timeScale` 'slow' | 'strokes' | 'real'. Returns the engine state.
    */
   engine(options?: EngineOptions): Promise<Record<string, unknown>>;
+  /**
+   * Offline renders of the engine sound (same worklet and sim as the page): numeric checks
+   * per clip; with `save`, each clip's WAV and spectrogram PNG are downloaded.
+   */
+  renderAudio(names?: string[], save?: boolean): Promise<Record<string, unknown>>;
+  /** The live sound: context state, synth running, output level; and the sim's phase and speed. */
+  audio(): Record<string, unknown>;
 }
 
 export interface EngineOptions {
@@ -175,6 +183,8 @@ export function DevApi() {
         return { frames: count, ms: Math.round(performance.now() - t0) };
       },
       clash: (options) => runClashCheck(options),
+      renderAudio: async (names, save) => (await import('./audioRender')).renderAudio(names, save),
+      audio: () => ({ ...engineAudio.status(), phase: sim.phase, rpm: Math.round(sim.rpm), throttle: +sim.throttle.toFixed(2), boost: +sim.boost.toFixed(2) }),
       async engine(o = {}) {
         const store = useEngineStore;
         if (o.timeScale) store.setState({ timeScale: o.timeScale });

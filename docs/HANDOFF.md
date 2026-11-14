@@ -6,7 +6,10 @@ docs/BRIEF.md; read that first. The build plan: docs/F40-PLAN.md.
 ## Status (2026-11-15)
 - **Phase 8 on `wip/f40-motion`** (from `main`, unattended; a commit per sub-phase, not
   pushed): 8A missing engine parts and draw-call headroom (peak 471 → 412); 8B the running
-  engine (done); 8C its procedural sound. Summary, figures and gates: docs/REVIEW.md ("Phase 8");
+  engine (done); 8C its procedural sound (done). Sound: `config/sound.ts` (voicing),
+  `engine/audio/` (synth, worklet, live output); renders with `__dev.renderAudio(names?, true)`
+  (WAV + spectrogram downloads; the review harness saves them to docs/review/f40-phase8/audio/),
+  live status with `__dev.audio()`. Summary, figures and gates: docs/REVIEW.md ("Phase 8");
   decisions: docs/BRIEF.md ("Phase 8").
 
 ## Status (2026-11-13)

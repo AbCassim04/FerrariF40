@@ -552,3 +552,32 @@ docs/reference/f40/ would correct them (the folder is empty).
   are written out.
 - **`__dev.view` rejects unknown names** (an unknown preset reached the camera rig and took
   the canvas down).
+
+*8C: procedural engine sound*
+- **Driven by AudioParams, not messages.** The sim's rpm, throttle, boost, firing and starter
+  reach the worklet as k-rate AudioParams (set once a frame live; automated sample-accurately
+  along a scripted sim in the offline renders), so a render is deterministic and the live
+  page and the renders run the same code. The worklet integrates its own crank angle per
+  sample from rpm and fires each cylinder's events as that angle crosses them.
+- **Exhaust pulses are zero-area** (a blowdown pulse followed by an equal-area suction, both
+  smooth): one-sided pulses carry DC, and their per-pulse jitter then made a sub-60 Hz rumble
+  that dominated the level and drove the compressor.
+- **The low "thump" is an idle-only colour** (58 Hz, gone by 2800 rpm): fixed in pitch, it rang
+  on as a drone once the pulses came faster than it decays.
+- **Compressor and limiter inside the worklet, last in the chain** (only the volume, ≤ 1, comes
+  after): Chrome's DynamicsCompressor adds automatic makeup gain after a limiter placed before
+  it, so the ceiling (0.85, −1.4 dBFS) would not have held.
+- **Loudness rises with load and speed, compressed into ~28 dB(A)** (idle to 7000 rpm full
+  load: −48 → −20 dB(A) in the renders). Real engines span more (~35 dB); idle would be
+  near-inaudible beside full throttle on a laptop.
+- **Induction noise kept low** (half the first voicing): at full throttle it filled the
+  limiter's fuel cuts so they hardly dipped.
+- **Lift-off flutter is detected in the synth** (throttle snapping shut from > 60 % with
+  boost above 0.5 bar), not sent from the page, so the renders and the page agree. It
+  modulates at 19–25 Hz, decaying over ~0.4 s.
+- **The starter overruns:** its whine holds the motor's own speed once the engine fires
+  (one-way clutch), rather than sweeping up with the flare.
+- **The context is created on the first Start click and suspended 1.5 s after the engine
+  stops** (no audio-thread work while it is off); hidden tab: volume ramps to 0 (the sim
+  pauses too). The volume control is squared (perceptual).
+- **Voices not modelled separately:** backfire / overrun crackle; the gearbox (in neutral).

@@ -105,6 +105,57 @@ lit), intake (intake valves lit), compression; 8b-13 X-ray flashes at 3000 rpm; 
 start: pinion in mesh with the ring gear; 8b-15 / 16 Real at idle and at 7000 rpm (blur);
 8b-16 also shows the turbine housing's heat glow.
 
+### 8C: procedural engine sound
+**Built:** an AudioWorklet synth (`engine/audio/synth.ts`, voicing in `config/sound.ts`, no
+samples) with its own per-sample crank-angle integrator, driven by the sim through AudioParams.
+Voices: an exhaust pulse per cylinder at its exhaust opening, each bank into its own manifold
+(two sets of resonances), leaning to its own side of the stereo image; turbine muffling that
+darkens with boost, silencer, and the wastegates' brighter centre outlet near peak boost;
+induction; turbo whistle on a spool-lagged turbo speed; lift-off flutter; limiter cuts (the
+sim's fuel cuts); valvetrain ticks and belt whine; starter whine with compression pulses and
+the pinion's knock. In the worklet: DC block, compressor, soft limiter (ceiling −1.4 dBFS);
+after it only the volume (mute, the hidden-tab duck). The context is created by the first
+Start click (nothing loads before), and suspended when the engine is off.
+
+**Offline renders** (`__dev.renderAudio(names?, save?)`: OfflineAudioContext with the same
+worklet, driven by the same sim along a script; 48 kHz stereo, at full volume, the worst case).
+WAV and spectrogram per clip in `docs/review/f40-phase8/audio/` (git-ignored). Listen first:
+
+1. `rev-2000-7750.wav`: full throttle from 2000 rpm to the limiter, two seconds on it, then lift
+   (whistle rising, cuts, flutter) — the one that shows the most.
+2. `liftoff-7000.wav`: lift at 7000 on full boost: the flutter.
+3. `start.wav`: knock, cranking, catch, flare, idle.
+4. `idle.wav`, then `steady-3000 / 5000 / 7000.wav`: the flat-plane bark at steady speeds.
+5. `limiter.wav`: held on the limiter.
+
+| clip | peak dBFS | level dB(A) | firing peak (rpm/60 × 4) | bank (rpm/60 × 2): left ch. / L−R / mono | other |
+| --- | --- | --- | --- | --- | --- |
+| idle 1000 | −22.7 | −47.9 | 66.7 Hz, +43 dB | 33.3 Hz: +46 / +48 / +13 | |
+| 3000, 30 % | −15.1 | −36.6 | 200 Hz, +53 dB | 100 Hz: +51 / +55 / +36 | |
+| 5000, 60 % | −10.2 | −27.7 | 333 Hz, +55 dB | 167 Hz: +50 / +57 / +37 | |
+| 7000, 100 % | −4.8 | −20.3 | 467 Hz, +54 dB | 233 Hz: +48 / +57 / +35 | |
+| rev 2000→7750 | −5.3 | | (spectrogram: firing line tracks rpm) | | |
+| lift-off 7000 | −4.8 | | | | flutter at 20.0 Hz (+27 dB) |
+| limiter | −4.9 | | | | 4.4 dips / s = the sim's 4.4 cuts / s |
+| start | −10.9 | | | | cranking pulses at 13.3 Hz (200 rpm × 4 / 60) |
+
+Peaks are measured to the side (dB above the median within 0.6–1.4 × f). The bank frequency
+stands out in each channel and in L−R but is 10–35 dB weaker in the mono sum: the banks'
+pulses interleave, so each bank alone is a four-cylinder (the flat-plane signature).
+**Every clip:** peak below −1 dBFS (loudest −4.8), no NaN, **no clicks** (high-frequency
+frames 12× the clip's median and 4× their neighbours), sample steps at the 128-sample render
+boundaries the same as elsewhere (ratio 0.95–1.04). Found and fixed on the way: one-sided
+pulses' rumble, a drone from the fixed-pitch thump, two resonators driven ~35 dB too hard,
+step clicks from the suction tail and the starter's labour envelope, filter coefficients
+stepping on block edges (now every 16 samples), induction masking the limiter's cuts, the
+starter whine sweeping up with the flare.
+
+**Live** (real clicks and keys in the review browser): nothing created on load; Start creates
+a running 48 kHz context with the synth; Space opens the throttle (6300 rpm, 0.82 bar in 2.5 s);
+mute and unmute take the output to 0 and back; Stop suspends the context once the engine is
+off. Not tested here: the hidden-tab duck (Playwright cannot hide the tab), and anything heard
+(no speakers): the voicing is by numbers and spectrograms only.
+
 ## Phases 2–4 (`wip/f40-build`, merged)
 
 

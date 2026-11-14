@@ -157,11 +157,11 @@ moving meshes' instance matrices / transforms are updated each frame. Engine off
   `__dev.engine({ running, rpm, throttle, timeScale, crankAngle })`
 
 **8C — procedural engine sound (Web Audio, no samples)**
-- [ ] AudioWorklet synth with its own sample-accurate crank-angle integrator, driven by rpm /
+- [x] AudioWorklet synth with its own sample-accurate crank-angle integrator, driven by rpm /
   throttle / boost / limiter; voicing in `src/config/sound.ts`: exhaust pulses per bank (the
   flat-plane signature), induction, turbo whistle, lift-off flutter, limiter cuts, valvetrain and
   belt, starter; master compressor, volume, mute, ducking when hidden
-- [ ] Objective checks: offline renders (OfflineAudioContext, same worklet) → WAV + spectrogram
+- [x] Objective checks: offline renders (OfflineAudioContext, same worklet) → WAV + spectrogram
   in docs/review/f40-phase8/audio/, firing-frequency peaks, no clipping, no clicks
 
 ## Layout
