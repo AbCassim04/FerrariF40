@@ -28,6 +28,8 @@ type Bvh = typeof MeshBVH;
 /** One mesh (or one instance of an instanced mesh) with its world pose. */
 interface Item {
   partId: string;
+  /** Instance index (0 for a plain mesh). */
+  k: number;
   mesh: Mesh;
   world: Matrix4;
   box: Box3;
@@ -82,11 +84,17 @@ export interface ClashOptions {
   /** Skip the assembled-vs-body pass (sweeps that only look at the overlaps). */
   skipBody?: boolean;
   /**
-   * Only these pairs (ids, either order; '*' matches any part). With it, the overlap pass
-   * checks exactly these pairs, contacts and riders included, at full explode or `at`; used
-   * by the moving-engine sweep.
+   * Only these pairs (ids, either order; '*' matches any part; `id:material` narrows a part
+   * to its meshes of that material, e.g. 'conrods-l:titanium' leaves out the bearing shells).
+   * With it, the overlap pass checks exactly these pairs, contacts and riders included, at
+   * full explode or `at`; used by the moving-engine sweep. A pair naming the same part twice
+   * checks its meshes and instances against each other (valve against valve).
    */
   pairs?: readonly (readonly [string, string])[];
+  /** With `pairs`: report each instance separately (`id:material#instance`). */
+  detail?: boolean;
+  /** With `pairs`: leave out declared contacts (only undeclared touches are reported). */
+  skipContacts?: boolean;
   /** Pose of the timeline for the `pairs` pass: 0 = assembled (default: as `at`). */
   progress?: number;
   paint?: (mesh: Mesh, m: Material) => void;
@@ -113,18 +121,28 @@ export async function runClashCheck(o: ClashOptions = {}): Promise<string> {
     }
     syncDynamicParts();
     const items = collect(MeshBVH);
-    const match = (id: string, p: string) => p === '*' || id === p;
+    const material = (it: Item) => [it.mesh.material].flat()[0]?.name;
+    const match = (it: Item, p: string) => {
+      if (p === '*') return true;
+      const [id, mat] = p.split(':');
+      return it.partId === id && (!mat || material(it) === mat);
+    };
     const hits = new Map<string, Map<string, Vector3>>();
     for (let i = 0; i < items.length; i++) {
       const a = items[i];
       for (let j = i + 1; j < items.length; j++) {
         const b = items[j];
-        if (a.partId === b.partId) continue;
-        if (!o.pairs.some(([p, q]) => (match(a.partId, p) && match(b.partId, q)) || (match(a.partId, q) && match(b.partId, p)))) continue;
+        // Within one part only its distinct instances (or meshes), and only when a pair names it twice.
+        if (a.partId === b.partId && !o.pairs.some(([p, q]) => p.split(':')[0] === a.partId && q.split(':')[0] === a.partId)) continue;
+        if (a.mesh === b.mesh && a.world.equals(b.world)) continue;
+        if (!o.pairs.some(([p, q]) => (match(a, p) && match(b, q)) || (match(a, q) && match(b, p)))) continue;
+        if (o.skipContacts && a.partId !== b.partId && allowed(a.partId, b.partId)) continue;
         const [x, y] = a.partId < b.partId ? [a, b] : [b, a];
-        if (hits.get(x.partId)?.has(y.partId) || !a.box.intersectsBox(b.box)) continue;
+        const xk = `${x.partId}:${material(x)}${o.detail ? `#${x.k}` : ''}`;
+        const yk = `${y.partId}:${material(y)}${o.detail ? `#${y.k}` : ''}`;
+        if (hits.get(xk)?.has(yk) || !a.box.intersectsBox(b.box)) continue;
         const hit = contact(a, b);
-        if (hit) add(hits, x.partId, y.partId, hit);
+        if (hit) add(hits, xk, yk, hit);
       }
     }
     tl?.progress(progress);
@@ -290,7 +308,7 @@ function collect(Bvh: Bvh) {
     o.content.updateWorldMatrix(true, true);
     o.content.traverse((obj) => {
       const mesh = obj as Mesh;
-      if (!mesh.isMesh) return;
+      if (!mesh.isMesh || mesh.userData.effect) return;
       const bvh = bvhOf(mesh.geometry, Bvh);
       const local = bvh.geometry.boundingBox ?? (bvh.geometry.computeBoundingBox(), bvh.geometry.boundingBox!);
       const inst = mesh as InstancedMesh;
@@ -298,7 +316,7 @@ function collect(Bvh: Bvh) {
       for (let k = 0; k < count; k++) {
         const world = mesh.matrixWorld.clone();
         if (inst.isInstancedMesh) world.multiply((inst.getMatrixAt(k, instance), instance));
-        items.push({ partId: def.id, mesh, world, box: local.clone().applyMatrix4(world), bvh });
+        items.push({ partId: def.id, k, mesh, world, box: local.clone().applyMatrix4(world), bvh });
       }
     });
   }

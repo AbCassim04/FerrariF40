@@ -37,10 +37,18 @@ body,
   /* Just above the credit (its height is measured into --credits-h). */
   bottom: calc(max(10px, env(safe-area-inset-bottom)) + var(--credits-h, 32px) + 12px);
   display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 10px;
+  max-width: calc(100vw - 24px);
   transform: translateX(-50%);
   transition: bottom 0.3s ease;
+}
+
+.controls__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .explode-btn {
@@ -68,12 +76,16 @@ body,
 }
 
 .explode-btn:active,
-.xray-btn:active {
+.xray-btn:active,
+.engine-btn:active {
   transform: scale(0.97);
 }
 
 .explode-btn:focus-visible,
 .xray-btn:focus-visible,
+.engine-btn:focus-visible,
+.engine-panel button:focus-visible,
+.engine-panel input:focus-visible,
 .inspect__close:focus-visible {
   outline: 2px solid #5fd0ff;
   outline-offset: 3px;
@@ -83,7 +95,8 @@ body,
 
 .xray-btn {
   padding: 15px 20px;
-  border: 1px solid rgba(255, 255, 255, 0.22);
+  /* Opaque (blended over the dark backdrop): see the engine buttons below. */
+  border: 1px solid #4b4d52;
   border-radius: 999px;
   background: rgba(20, 22, 27, 0.78);
   backdrop-filter: blur(8px);
@@ -104,13 +117,320 @@ body,
 }
 
 .xray-btn:hover {
-  border-color: rgba(255, 255, 255, 0.4);
+  border-color: #76787c;
 }
 
 .xray-btn[aria-pressed='true'] {
   border-color: #7fd6ff;
   background: rgba(127, 214, 255, 0.16);
   color: #c9efff;
+}
+
+/* ── Engine: Start / Stop and the panel while it runs ───────────────────── */
+/* Pill borders are opaque (blended by hand over the dark panel): semi-transparent borders on
+   fully rounded buttons drew a diagonal cross in the review browser. */
+
+.engine-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 15px 20px;
+  border: 1px solid #4b4d52;
+  border-radius: 999px;
+  background: rgba(20, 22, 27, 0.78);
+  backdrop-filter: blur(8px);
+  color: var(--fg);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background 0.2s,
+    border-color 0.2s,
+    transform 0.2s;
+}
+
+.engine-btn:hover {
+  border-color: #76787c;
+}
+
+.engine-btn__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #5a5f69;
+  transition:
+    background 0.2s,
+    box-shadow 0.2s;
+}
+
+.engine-btn[aria-pressed='true'] {
+  border-color: #954c38;
+}
+
+.engine-btn[aria-pressed='true'] .engine-btn__dot {
+  background: #ff5a36;
+  box-shadow: 0 0 10px #ff5a36;
+}
+
+.engine-panel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px 14px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--panel);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
+  font-size: 12px;
+  animation: panel-in 0.25s ease-out;
+}
+
+@keyframes panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+.gauges {
+  display: flex;
+  gap: 6px;
+}
+
+.gauge {
+  position: relative;
+  width: 86px;
+  height: 56px;
+}
+
+.gauge--small {
+  width: 66px;
+}
+
+.gauge svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.gauge path {
+  fill: none;
+  stroke-width: 7;
+  stroke-linecap: round;
+}
+
+.gauge__track {
+  stroke: rgba(255, 255, 255, 0.1);
+}
+
+.gauge__red {
+  stroke: rgba(255, 70, 50, 0.55);
+}
+
+.gauge__fill {
+  stroke: #e8e9ec;
+}
+
+.gauge__fill--boost {
+  stroke: #7fd6ff;
+}
+
+[data-limiter] .gauge__fill {
+  stroke: #ff5a36;
+}
+
+.gauge__value {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 22px;
+  text-align: center;
+  font: 600 13px/1 var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.gauge__unit {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 38px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.throttle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 18px;
+  border: 1px solid #4b4d52;
+  border-radius: 999px;
+  background: #24262b;
+  color: var(--fg);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.throttle-btn[aria-pressed='true'] {
+  border-color: #ff8a5c;
+  background: #4a2c22;
+}
+
+.throttle-btn kbd,
+.engine-panel kbd {
+  padding: 2px 5px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--muted);
+  font: 10px var(--mono);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.speed {
+  display: inline-flex;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+.speed button,
+.cyl-picker button {
+  padding: 7px 11px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.speed button[aria-checked='true'] {
+  background: #33353a;
+  color: var(--fg);
+}
+
+.cyl-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+.cyl-picker button {
+  padding: 6px 9px;
+  color: var(--fg);
+  font-size: 15px;
+}
+
+.volume {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.volume__mute {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--fg);
+  cursor: pointer;
+}
+
+.volume__mute svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+}
+
+.volume__mute .volume__waves,
+.volume__mute .volume__x {
+  fill: none;
+}
+
+.volume input {
+  width: 84px;
+  accent-color: #e8e9ec;
+}
+
+/* Strokes mode: the followed cylinder's stroke, beside it in the scene. */
+.stroke-label {
+  padding: 5px 10px;
+  border: 1px solid #55575c;
+  border-radius: 999px;
+  background: rgba(10, 11, 14, 0.85);
+  color: #fff;
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.stroke-label[data-stroke='intake'] {
+  border-color: #7fd6ff;
+}
+
+.stroke-label[data-stroke='compression'] {
+  border-color: #c9c2ff;
+}
+
+.stroke-label[data-stroke='power'] {
+  border-color: #ff8a5c;
+  color: #ffd2bd;
+}
+
+.stroke-label[data-stroke='exhaust'] {
+  border-color: #ffb04a;
+}
+
+@media (max-width: 719.98px) {
+  .engine-panel {
+    gap: 8px 10px;
+    padding: 8px 10px;
+  }
+
+  .engine-btn {
+    padding: 15px 16px;
+  }
+
+  .volume input {
+    width: 64px;
+  }
 }
 
 /* ── Hover tooltip ──────────────────────────────────────────────────────── */

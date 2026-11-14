@@ -8,6 +8,7 @@ import { DETAIL_LAYER, SCENE } from '../config/scene';
 import { getMaterial } from '../materials/materials';
 import { CHILDREN, PARTS_BY_ID, ROOT_PARTS } from '../parts/registry';
 import type { PartDef } from '../parts/types';
+import { useEngineStore } from '../state/engine';
 import { useAppStore } from '../state/store';
 import { claimedClicks, partObjects } from './partObjects';
 import { blocksView } from './picking';
@@ -109,6 +110,9 @@ function PartNode({ def, parentPosition }: { def: PartDef; parentPosition: Vec3 
                 if (!pick(e)) return;
                 claimedClicks.add(e.nativeEvent);
                 if (e.delta < CLICK_SLOP) useAppStore.getState().select(def.id);
+                // A click on a piston picks the cylinder Strokes mode follows.
+                const side = def.id === 'pistons-l' ? 'l' : def.id === 'pistons-r' ? 'r' : null;
+                if (side && e.instanceId !== undefined && e.delta < CLICK_SLOP) useEngineStore.getState().setStrokeCylinder({ s: side, i: e.instanceId });
               }}
             >
               {Build && <Build material={def.material ? getMaterial(def.material) : undefined} />}

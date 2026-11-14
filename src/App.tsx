@@ -6,6 +6,7 @@ import { claimedClicks } from './scene/partObjects';
 import { useAppStore } from './state/store';
 import { Credits } from './ui/Credits';
 import { DevPanel } from './ui/DevPanel';
+import { EngineButton, EnginePanel } from './ui/EngineControls';
 import { ExplodeButton } from './ui/ExplodeButton';
 import { HoverTooltip } from './ui/HoverTooltip';
 import { InspectPanel } from './ui/InspectPanel';
@@ -41,8 +42,12 @@ export function App() {
         <Experience />
       </Canvas>
       <div className="controls">
-        <ExplodeButton />
-        <XrayToggle />
+        <EnginePanel />
+        <div className="controls__row">
+          <ExplodeButton />
+          <XrayToggle />
+          <EngineButton />
+        </div>
       </div>
       <InspectPanel />
       <HoverTooltip />

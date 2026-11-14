@@ -96,6 +96,8 @@ function bankParts(s: Side): PartDef[] {
       },
       build: specBuild(`Valvetrain_${s}`, () => valvetrainMeshes(s)),
       material: 'steel',
+      // Valves run in their guides and close on their seats.
+      contacts: [head],
     }),
     enginePart({
       id: `camshafts-${s}`,
@@ -106,6 +108,8 @@ function bankParts(s: Side): PartDef[] {
       specs: { Lobes: count(PER_BANK * 4), 'Valve lift': fmtMm(E.camshaft.lift) },
       build: specBuild(`Camshafts_${s}`, () => camshaftMeshes(s)),
       material: 'steel',
+      // Journals in the head's bearings, lobes under the cover.
+      contacts: [head, cover],
       explodeOffset: alongBank(s, X.camshafts),
       delay: TEARDOWN.camshafts,
     }),
@@ -162,6 +166,9 @@ function bottomEnd(s: Side): PartDef[] {
       material: 'piston',
       explodeOffset: alongBank(s, X.pistons),
       delay: TEARDOWN.pistons,
+      // Sliding in the bores. The block is drawn as a closed casting, so the skirts also cross
+      // its notional bore bottoms near BDC.
+      contacts: ['engine-block'],
     }),
     enginePart({
       id: `conrods-${s}`,
@@ -173,6 +180,9 @@ function bottomEnd(s: Side): PartDef[] {
       material: 'titanium',
       explodeOffset: alongBank(s, X.rods),
       delay: TEARDOWN.pistons,
+      // Big-end shells on the crankpin, small end on the piston's pin; the beams pass from the
+      // crankcase up into the bores (the closed casting's notional faces).
+      contacts: ['engine-block', 'crankshaft', `pistons-${s}`],
     }),
   ];
 }
@@ -215,6 +225,8 @@ export const engineParts: PartDef[] = [
     },
     build: specBuild('Crankshaft', crankMeshes),
     material: 'steel',
+    // In the main bearings, through the end walls; the counterweights sweep below the closed casting's floor.
+    contacts: ['engine-block'],
     explodeOffset: [0, -X.crankDrop, 0],
     delay: TEARDOWN.crank,
   }),

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { Box3, Color, ShaderMaterial, type Material, type Mesh, type Object3D, type WebGLRenderer } from 'three';
 import { OUTLINE_LAYER, SCENE } from '../config/scene';
 import { explodeTimeline } from '../explode/buildTimeline';
+import { useEngineStore } from '../state/engine';
 import { useAppStore } from '../state/store';
 import { boxCorners } from './fitView';
 import { partObjects } from './partObjects';
@@ -17,10 +18,12 @@ import { applyGhosts } from './ghosts';
 export function InspectController() {
   const selectedId = useAppStore((s) => s.selectedId);
   const xray = useAppStore((s) => s.xray);
+  // While the engine runs, X-ray also sees through its casings.
+  const running = useEngineStore((s) => s.engineRunning);
   /** Last selection framed; only real changes move the camera (StrictMode re-runs effects). */
   const framed = useRef<string | null>(null);
 
-  useEffect(() => applyGhosts(xray, selectedId), [xray, selectedId]);
+  useEffect(() => applyGhosts(xray, selectedId, running), [xray, selectedId, running]);
 
   useEffect(() => {
     if (selectedId === framed.current) return;

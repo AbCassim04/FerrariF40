@@ -3,6 +3,8 @@ import { Suspense } from 'react';
 import { BodyModelSetup, EngineBayGhost } from '../body/BodyModel';
 import { SCENE } from '../config/scene';
 import { DevApi } from '../dev/DevApi';
+import { EngineController } from '../engine/EngineController';
+import { EngineEffects } from '../engine/EngineEffects';
 import { ExplodeController } from '../explode/ExplodeController';
 import { useAppStore } from '../state/store';
 import { CameraRig } from './CameraRig';
@@ -41,6 +43,8 @@ export function Experience() {
         <ShadowScheduler />
         <EnvironmentLevels />
         <InspectController />
+        <EngineController />
+        <EngineEffects />
         {DEV && showLabels && <PartLabels />}
         {DEV && <ClashCheck />}
         {DEV && showGhost && <EngineBayGhost />}

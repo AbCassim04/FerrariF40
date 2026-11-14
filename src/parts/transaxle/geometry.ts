@@ -20,6 +20,8 @@ import {
   type Section,
 } from '../../geometry/build';
 import type { MeshSpec } from '../../scene/MeshSet';
+import { spinAngle, type Motion } from '../../engine/motion';
+import { CRANK_SPIN } from '../engine/geometry/core';
 import { boltHead } from '../engine/geometry/core';
 import { compose, sideSign, type Side } from '../engine/layout';
 
@@ -127,9 +129,21 @@ export function flywheelMeshes(): MeshSpec[] {
     return compose(new Vector3(F.boltCircle * Math.cos(a), F.boltCircle * Math.sin(a), flywheelZ - t + F.dish), q);
   });
   return [
-    { geometry: merge([disc, teeth]), material: 'darkSteel' },
-    { geometry: bolt(), material: 'steel', instances: bolts },
+    { geometry: merge([disc, teeth]), material: 'darkSteel', motion: CRANK_SPIN },
+    { geometry: bolt(), material: 'steel', instances: bolts, motion: spinInstances(bolts) },
   ];
+}
+
+/** Instances (bolts, springs) turning with the crank about its axis: their static poses, rotated. */
+function spinInstances(statics: readonly Matrix4[], ratio = 1): Motion {
+  const r = new Matrix4();
+  return {
+    kind: 'pose',
+    pose: (state, out) => {
+      r.makeRotationZ(spinAngle(state, ratio));
+      statics.forEach((m, i) => out[i].multiplyMatrices(r, m));
+    },
+  };
 }
 
 /** The clutch stack behind the flywheel, front to back: disc, intermediate plate, disc, pressure plate (with its cover). */
@@ -168,10 +182,11 @@ export function clutchDiscMeshes(el: 'disc-front' | 'disc-rear'): MeshSpec[] {
     return compose(new Vector3(r * Math.cos(a), r * Math.sin(a), z - t / 2), aim(tangent));
   });
   const spring = lathe(ring(0, (t - 2 * face) * 0.5 + 0.0015, -0.011, 0.011), SEGMENTS.small);
+  // Clutch engaged: the whole stack turns with the crank.
   return [
-    { geometry: linings, material: 'satinBlack' },
-    { geometry: merge([carrier, hub]), material: 'steel' },
-    { geometry: spring, material: 'springSteel', instances: springs },
+    { geometry: linings, material: 'satinBlack', motion: CRANK_SPIN },
+    { geometry: merge([carrier, hub]), material: 'steel', motion: CRANK_SPIN },
+    { geometry: spring, material: 'springSteel', instances: springs, motion: spinInstances(springs) },
   ];
 }
 
@@ -188,7 +203,7 @@ export function intermediatePlateMeshes(): MeshSpec[] {
     g.rotateZ(a);
     return g;
   });
-  return [{ geometry: merge([plate, ...lugs]), material: 'steel' }];
+  return [{ geometry: merge([plate, ...lugs]), material: 'steel', motion: CRANK_SPIN }];
 }
 
 /**
@@ -227,8 +242,8 @@ export function pressurePlateMeshes(): MeshSpec[] {
     return g;
   });
   return [
-    { geometry: plate, material: 'darkSteel' },
-    { geometry: merge([drum, ...fingers]), material: 'steel' },
+    { geometry: plate, material: 'darkSteel', motion: CRANK_SPIN },
+    { geometry: merge([drum, ...fingers]), material: 'steel', motion: CRANK_SPIN },
   ];
 }
 
@@ -369,6 +384,15 @@ export function gearClusterMeshes(): MeshSpec[] {
     cylinderZ(G.shaftRadius, z1, G.pinionZ + 0.03, 0, G.secondaryY, SEGMENTS.small * 2),
   ];
   const centres = G.primaryY - G.secondaryY;
+  // In neutral: the input shaft turns with the crank (clutch engaged), its transfer gear turns
+  // the primary shaft the other way, and each gear on the primary turns its constant-mesh
+  // partner on the secondary shaft, which idles round the still secondary shaft (no gear is
+  // selected). The secondary shaft, the pinion and the differential stay still.
+  const primaryRatio = -G.transferInput / (G.primaryY - G.transferInput);
+  const spins: { x: number; y: number; z: number; r: number; ratio: number }[] = [
+    { x: 0, y: 0, z: G.transferZ, r: G.transferInput * 1.02, ratio: 1 },
+    { x: 0, y: G.primaryY, z: G.transferZ, r: (G.primaryY - G.transferInput) * 1.02, ratio: primaryRatio },
+  ];
   // Reverse at the front, where the casing is deepest.
   const pairs = [G.reverse, ...G.ratios];
   pairs.forEach((ratio, k) => {
@@ -376,6 +400,7 @@ export function gearClusterMeshes(): MeshSpec[] {
     const rp = centres / (1 + ratio);
     const rs = centres - rp;
     poses.push(gearAt(0, G.primaryY, z, rp * 1.02, G.width), gearAt(0, G.secondaryY, z, rs * 1.02, G.width));
+    spins.push({ x: 0, y: G.primaryY, z, r: rp * 1.02, ratio: primaryRatio }, { x: 0, y: G.secondaryY, z, r: rs * 1.02, ratio: -primaryRatio * (rp / rs) });
   });
   // Pinion on the secondary shaft's front end.
   const pinion = latheBack(
@@ -390,9 +415,18 @@ export function gearClusterMeshes(): MeshSpec[] {
     G.secondaryY,
     SEGMENTS.small * 2,
   );
+  const rot = new Matrix4();
+  const gearPose: Motion = {
+    kind: 'pose',
+    pose: (state, out) => {
+      spins.forEach((g, k) => {
+        out[k].makeTranslation(g.x, g.y, g.z - G.width / 2).multiply(rot.makeRotationZ(spinAngle(state, g.ratio))).multiply(new Matrix4().makeScale(g.r, g.r, G.width));
+      });
+    },
+  };
   return [
     { geometry: merge([...shafts, pinion]), material: 'darkSteel' },
-    { geometry: unit, material: 'steel', instances: poses },
+    { geometry: unit, material: 'steel', instances: poses, motion: gearPose },
   ];
 }
 

@@ -6,7 +6,7 @@ docs/BRIEF.md; read that first. The build plan: docs/F40-PLAN.md.
 ## Status (2026-11-15)
 - **Phase 8 on `wip/f40-motion`** (from `main`, unattended; a commit per sub-phase, not
   pushed): 8A missing engine parts and draw-call headroom (peak 471 → 412); 8B the running
-  engine; 8C its procedural sound. Summary, figures and gates: docs/REVIEW.md ("Phase 8");
+  engine (done); 8C its procedural sound. Summary, figures and gates: docs/REVIEW.md ("Phase 8");
   decisions: docs/BRIEF.md ("Phase 8").
 
 ## Status (2026-11-13)
@@ -135,6 +135,11 @@ await __dev.setGhost(true); await __dev.setSegments(true)   // key B / key K
 await __dev.view('rear34'); await __dev.fit()               // preset; frame everything visible
 await __dev.setSoloParts(['starter-motor', 'flywheel'])   // show only these parts (null: all)
 await __dev.clash({ at, focus, allPairs, skipBody, pairs, progress })  // clash check now, no reload
+// pairs: [['pistons-l', 'crankshaft'], ['conrods-r:titanium', '*']] (id:material, '*' any part);
+// skipContacts leaves declared contacts out; detail reports each instance
+await __dev.engine({ running, rpm, throttle, timeScale, crankAngle, pinionIn, heat, blurDeg, free, cylinder })
+// rpm: run held at that speed; crankAngle (deg): pose the crank and freeze it (screenshots;
+// free: true lets it turn); running: false stops at once (static pose)
 await __dev.screenshotReady()     // → { frames, ms } once the timeline is idle, the camera has
                                   //   stopped, no shadow pass is pending, then 3 settled frames
 __dev.state()                     // selection, X-ray, solo, explode progress, __perf

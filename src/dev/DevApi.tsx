@@ -2,13 +2,18 @@ import type { CameraControls } from '@react-three/drei';
 import { useThree } from '@react-three/fiber';
 import { useEffect } from 'react';
 import { Vector3, type PerspectiveCamera } from 'three';
-import type { Vec3 } from '../config/dims';
-import type { ViewName } from '../config/scene';
+import { DIMS, type Vec3 } from '../config/dims';
+import { SCENE, type ViewName } from '../config/scene';
 import { explodeTimeline, partCorners } from '../explode/buildTimeline';
 import { PARTS_BY_ID } from '../parts/registry';
 import type { PartGroup } from '../parts/types';
 import { cameraEase } from '../scene/CameraRig';
 import { runClashCheck, type ClashOptions } from '../scene/ClashCheck';
+import { TIME_SCALES, type TimeScaleName } from '../config/engine-sim';
+import { frame } from '../engine/EngineController';
+import { motionState, setPose } from '../engine/motion';
+import { sim, useEngineStore } from '../state/engine';
+import { stepSim } from '../engine/sim';
 import { fitView } from '../scene/fitView';
 import { refreshShadows, shadowState } from '../scene/ShadowScheduler';
 import { useAppStore } from '../state/store';
@@ -48,9 +53,34 @@ export interface DevApi {
   state(): Record<string, unknown>;
   /** Clash check in the current pose, without a reload: `{ at, focus, allPairs, skipBody, pairs, progress }`. */
   clash(options?: Omit<ClashOptions, 'paint'>): Promise<string>;
+  /**
+   * The engine, deterministically. `running` false stops it at once (static pose); with
+   * `rpm` (and `throttle`) it runs held at that speed; `crankAngle` (degrees) poses the crank
+   * there and freezes the visual crank (screenshots); `pinionIn` (0…1) poses the starter's
+   * pinion; `timeScale` 'slow' | 'strokes' | 'real'. Returns the engine state.
+   */
+  engine(options?: EngineOptions): Promise<Record<string, unknown>>;
+}
+
+export interface EngineOptions {
+  running?: boolean;
+  rpm?: number;
+  throttle?: number;
+  timeScale?: TimeScaleName;
+  crankAngle?: number;
+  pinionIn?: number;
+  boost?: number;
+  heat?: number;
+  /** Let the visual crank turn again after a `crankAngle` pose. */
+  free?: boolean;
+  /** Real mode's blur: this much crank travel (degrees) smeared over the frame (screenshots). */
+  blurDeg?: number;
+  /** Strokes mode's cylinder: bank and index from the timing end. */
+  cylinder?: { s: 'l' | 'r'; i: number };
 }
 
 const nextFrame = () => new Promise<void>((r) => requestAnimationFrame(() => r()));
+const DIMS_CRANK_PHASE = DIMS.engine.crankPhase;
 async function frames(n: number) {
   for (let i = 0; i < n; i++) await nextFrame();
 }
@@ -109,7 +139,11 @@ export function DevApi() {
       setLabels: (on) => instant(() => store.setState({ showLabels: on })),
       setGhost: (on) => instant(() => store.setState({ showGhost: on })),
       setSegments: (on) => instant(() => store.setState({ showSegments: on })),
-      view: (name) => instant(() => store.getState().requestView(name)),
+      view: (name) => {
+        // An unknown name would reach the camera rig and take the canvas down.
+        if (!(name in SCENE.views)) return Promise.reject(new Error(`unknown view '${name}' (${Object.keys(SCENE.views).join(', ')})`));
+        return instant(() => store.getState().requestView(name));
+      },
       async fit() {
         const from = controls.getPosition(new Vector3(), true);
         const to = controls.getTarget(new Vector3(), true);
@@ -141,6 +175,41 @@ export function DevApi() {
         return { frames: count, ms: Math.round(performance.now() - t0) };
       },
       clash: (options) => runClashCheck(options),
+      async engine(o = {}) {
+        const store = useEngineStore;
+        if (o.timeScale) store.setState({ timeScale: o.timeScale });
+        if (o.cylinder) store.setState({ strokeCylinder: o.cylinder });
+        if (o.running === false) {
+          Object.assign(sim, { phase: 'off', t: 0, rpm: 0, throttle: 0, boost: 0, firing: false, limiter: false, pinionIn: 0, starter: false, load: 0, heat: 0, torque: 0 });
+          store.setState({ engineRunning: false, phase: 'off', rpm: 0, boost: 0, throttle: 0, held: false, pedal: false });
+          frame.frozen = false;
+          setPose({ crank: o.crankAngle !== undefined ? (o.crankAngle * Math.PI) / 180 : DIMS_CRANK_PHASE, pinionIn: 0, highlight: null, blur: 0 });
+        } else if (o.running || o.rpm !== undefined) {
+          const rpm = o.rpm ?? 1000;
+          Object.assign(sim, { phase: 'running', t: 10, rpm, throttle: o.throttle ?? 0, firing: true, limiter: false, starter: false });
+          if (o.boost !== undefined) sim.boost = o.boost;
+          else for (let k = 0; k < 120; k++) stepSim(sim, { pedal: o.throttle ?? 0 }, 0.05), (sim.rpm = rpm);
+          if (o.heat !== undefined) sim.heat = o.heat;
+          store.setState({ engineRunning: true, phase: 'running', rpm, throttle: sim.throttle, boost: sim.boost, held: true });
+        }
+        if (o.pinionIn !== undefined) sim.pinionIn = o.pinionIn;
+        if (o.crankAngle !== undefined) {
+          frame.frozen = !o.free;
+          const { strokeCylinder: c, timeScale } = store.getState();
+          setPose({
+            crank: (o.crankAngle * Math.PI) / 180,
+            pinionIn: sim.pinionIn,
+            pinion: motionState.pinion,
+            highlight: timeScale === 'strokes' ? `${c.s}${c.i}` : null,
+            blur: ((o.blurDeg ?? 0) * Math.PI) / 180,
+          });
+        } else if (o.free) frame.frozen = false;
+        frame.dirty = true;
+        refreshShadows();
+        await frames(3);
+        const s = store.getState();
+        return { phase: s.phase, rpm: Math.round(sim.rpm), throttle: sim.throttle, boost: +sim.boost.toFixed(3), heat: +sim.heat.toFixed(3), crankDeg: +((motionState.crank * 180) / Math.PI).toFixed(2), timeScale: s.timeScale, scale: TIME_SCALES[s.timeScale].scale, pinionIn: sim.pinionIn };
+      },
       state() {
         const { selectedId, xray, soloGroup, exploded, showLabels, showGhost } = store.getState();
         const w = window as unknown as { __perf?: object };

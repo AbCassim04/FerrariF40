@@ -227,13 +227,19 @@ const sumpTop = E.block.panRail.y;
 
 export function sumpMeshes(): MeshSpec[] {
   const lip = S.flange.halfWidth - S.halfWidth;
-  // Outlines in (x, z), extruded downward from the pan rail.
-  const body = extrude(roundedRectShape(-S.halfWidth, E.blockRearZ + lip, S.halfWidth, E.blockFrontZ - lip, S.cornerRadius), S.depth, E.bevel * 2);
-  const flange = extrude(roundedRectShape(-S.flange.halfWidth, E.blockRearZ, S.flange.halfWidth, E.blockFrontZ, S.cornerRadius), S.flange.thickness, E.bevel / 2);
-  for (const g of [body, flange]) {
+  // Outlines in (x, z), extruded downward from the pan rail: an open pan (walls, floor, and the
+  // flange around its mouth), so the rods' big ends can swing down into it.
+  const inner = () => roundedRectShape(-S.halfWidth + S.wall, E.blockRearZ + lip + S.wall, S.halfWidth - S.wall, E.blockFrontZ - lip - S.wall, S.cornerRadius - S.wall);
+  const walled = (shape: ReturnType<typeof roundedRectShape>) => (shape.holes.push(inner()), shape);
+  const walls = extrude(walled(roundedRectShape(-S.halfWidth, E.blockRearZ + lip, S.halfWidth, E.blockFrontZ - lip, S.cornerRadius)), S.depth, Math.min(E.bevel * 2, S.wall / 4));
+  const floor = extrude(inner(), S.floor, 0);
+  floor.translate(0, 0, S.depth - S.floor);
+  const flange = extrude(walled(roundedRectShape(-S.flange.halfWidth, E.blockRearZ, S.flange.halfWidth, E.blockFrontZ, S.cornerRadius)), S.flange.thickness, E.bevel / 2);
+  for (const g of [walls, floor, flange]) {
     g.rotateX(Math.PI / 2);
     g.translate(0, sumpTop, 0);
   }
+  const body = merge([walls, floor]);
   const outlets = S.pickupAt.map(E.blockZ).map((z) => {
     const g = cylinderZ(S.outletRadius, -S.outletLength, 0, 0, 0, SEGMENTS.small * 2);
     g.rotateY(Math.PI / 2); // points outboard (−x) from the right-hand wall

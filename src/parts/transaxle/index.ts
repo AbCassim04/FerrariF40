@@ -136,6 +136,8 @@ const gearbox: PartDef[] = [
     parent: 'transaxle',
     description: 'Input shaft and transfer gears up to the primary shaft, with the secondary shaft below it carrying the pinion forward to the crown wheel. Hidden inside the casing.',
     specs: { 'Gear pairs': '5 + reverse', Shafts: 'Input, primary, secondary' },
+    // Shafts run in the casing's bearings.
+    contacts: ['gearbox-casing'],
     build: specBuild('GearClusters', gearClusterMeshes),
     material: 'steel',
   }),

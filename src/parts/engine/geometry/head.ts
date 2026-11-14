@@ -1,4 +1,4 @@
-import { Curve, Euler, Matrix4, Quaternion, Shape, Vector3 } from 'three';
+import { Color, Curve, Euler, Matrix4, Quaternion, Shape, Vector3 } from 'three';
 import type { Motion, MotionState } from '../../../engine/motion';
 import { DIMS } from '../../../config/dims';
 import { SEGMENTS } from '../../../config/detail';
@@ -140,6 +140,11 @@ function valveGeometry(headDiameter: number) {
   return merge([valve, retainer]);
 }
 
+/** Lift (m) above which a valve counts as open, and the tints of open valves (× the steel; intake cool, exhaust warm). */
+const OPEN_LIFT = 0.0003;
+const WHITE = new Color(1, 1, 1);
+const VALVE_LIT: Record<ValveKind, Color> = { intake: new Color(0.5, 2.2, 3.4), exhaust: new Color(3.4, 1.4, 0.4) };
+
 class Helix extends Curve<Vector3> {
   constructor(private radius: number, private length: number, private coils: number) {
     super();
@@ -187,13 +192,22 @@ export function valvetrainMeshes(s: Side): MeshSpec[] {
   };
   const spring = tubeAlong(new Helix(S.radius, S.length, S.coils), S.wire / 2, false, S.coils * SEGMENTS.springCoil, SEGMENTS.springWire);
   const half = slots.length / 2;
+  // Strokes mode: the followed cylinder's valves light up while they are open.
+  const lit = (kind: ValveKind) => (state: MotionState, out: Color[]) => {
+    let k = 0;
+    for (const v of slots) {
+      if (v.kind !== kind) continue;
+      const on = state.highlight === `${s}${v.i}` && valveLift(kind, s, v.i, state.crank) > OPEN_LIFT;
+      out[k++].copy(on ? VALVE_LIT[kind] : WHITE);
+    }
+  };
   return KINDS.map((kind): MeshSpec => {
     const pose = valvePose(kind);
     return {
       geometry: valveGeometry(kind === 'intake' ? V.intakeHeadDiameter : V.exhaustHeadDiameter),
       material: 'steel',
       instances: posed(pose, half),
-      motion: { kind: 'pose', pose },
+      motion: { kind: 'pose', pose, colours: lit(kind) },
     };
   }).concat({ geometry: spring, material: 'springSteel', instances: posed(springPose, slots.length), motion: { kind: 'pose', pose: springPose } });
 }

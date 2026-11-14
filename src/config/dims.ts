@@ -209,7 +209,8 @@ const engineParts = {
     webThickness: mm(14),
     webPinRadius: mm(30),
     webHubRadius: mm(36),
-    counterweightRadius: mm(70),
+    // (est) Clears the piston skirts at BDC by 3 mm (their bottoms come within 67.25 mm of the crank axis).
+    counterweightRadius: mm(64),
     counterweightHalfAngle: deg(60),
     snoutRadius: mm(20),
     flangeRadius: mm(42),
@@ -368,6 +369,9 @@ const engineParts = {
     depth: mm(40),
     halfWidth: mm(130),
     cornerRadius: mm(30),
+    /** (est) An open pan: wall and floor thickness (the rods' big ends swing down into it at BDC). */
+    wall: mm(5),
+    floor: mm(6),
     flange: { halfWidth: mm(145), thickness: mm(6) },
     boltsPerSide: 7,
     /** Scavenge pick-ups along the right side (block fractions, front to back). */

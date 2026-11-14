@@ -141,19 +141,19 @@ moving meshes' instance matrices / transforms are updated each frame. Engine off
 - [x] `belt-tensioners` — one per cam belt (the cam drive had none)
 
 **8B — the running engine (assembled and exploded)**
-- [ ] State: engineRunning, rpm, throttle, boost, visual crank angle, time scale; `src/config/engine-sim.ts`
+- [x] State: engineRunning, rpm, throttle, boost, visual crank angle, time scale; `src/config/engine-sim.ts`
   (idle ≈ 1000, limiter ≈ 7750, boost ≈ 1.1 bar with spool lag, all est); start / stop sequences
-- [ ] Everything driven from the one crank angle: crank, pistons, rods, cams (½), valves and springs,
+- [x] Everything driven from the one crank angle: crank, pistons, rods, cams (½), valves and springs,
   belts and pulleys, damper, accessory belt, alternator, distributor rotors (½), flywheel and
   clutch, the gearbox's input / primary side in neutral; engine rock on its mounts (assembled);
   heat glow on the exhaust side with load
-- [ ] The same motion in each part's own frame when exploded (any explode progress); guide lines
+- [x] The same motion in each part's own frame when exploded (any explode progress); guide lines
   from each rod's big end to its crank pin while exploded
-- [ ] Display speed: Slow ×1/20 (default), Strokes ×1/100 (stroke labels, valve highlight, spark
+- [x] Display speed: Slow ×1/20 (default), Strokes ×1/100 (stroke labels, valve highlight, spark
   flash for the chosen cylinder), Real (rotational blur); X-ray combustion flashes in firing order
-- [ ] UI: Start / Stop, throttle (hold button, Space / W, touch), tach and boost gauge, speed
+- [x] UI: Start / Stop, throttle (hold button, Space / W, touch), tach and boost gauge, speed
   selector, volume + mute; off on load, paused when hidden, prefers-reduced-motion respected
-- [ ] Clash sweep of the moving engine over 0–720° (10° steps), assembled and exploded; dev API
+- [x] Clash sweep of the moving engine over 0–720° (10° steps), assembled and exploded; dev API
   `__dev.engine({ running, rpm, throttle, timeScale, crankAngle })`
 
 **8C — procedural engine sound (Web Audio, no samples)**

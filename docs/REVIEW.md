@@ -50,6 +50,61 @@ front), 8a-03-starter-coils (coils on the bellhousing, coil leads into the caps'
 8a-04-starter-lifted (t = 3.95 s), 8a-05-exploded-rear34, 8a-06-assembled-lexan;
 `ab/*-new.png` vs `ab/*-main.png` (the draw-call A/B).
 
+### 8B: the running engine
+**Built:** Start / Stop beside Explode and X-ray; while it runs, a panel with a tachometer and
+boost gauge, a throttle (hold the button, Space or W, or touch-hold), the display speed
+(Slow ×1/20, Strokes ×1/100, Real), the followed cylinder in Strokes, and volume / mute
+(wired in 8C). A physics-lite sim (`engine/sim.ts`, figures in `config/engine-sim.ts`): idle
+1000, limiter 7750 (fuel cut, back at 7600), boost to 1.1 bar with spool lag, start sequence
+(pinion in, cranking 200 rpm for 0.8 s, catch, flare to 1500, idle; pinion out) and stop
+(coast down). One crank angle drives everything: crank, pistons, rods, cams and their
+pulleys at half speed, valves and springs, cam belts (travelling, with their marks),
+tensioners, damper, alternator belt and alternator (2.06:1), distributor rotors (½),
+flywheel and clutch, the gearbox's input and primary side in neutral (the secondary idlers
+turn on their still shaft), the starter's pinion while it cranks. Assembled, the powertrain
+rocks up to 0.4° with torque; the exhaust side glows with sustained load. Exploded, the same
+motion runs in each part's own frame, with guide lines from the rods' big ends to their
+crank pins. X-ray while running also sees through the block, heads, covers and caps, with a
+flash in each cylinder in firing order. Strokes: the followed cylinder's stroke label,
+lit open valves and spark. Off on load; the sim pauses with the tab hidden; reduced motion
+keeps Slow, no rock, no Real. Engine off costs nothing (no per-frame work, static pose
+identical to 8A).
+
+**Clash: the moving engine, crank 0–710° in 10° steps, assembled and fully exploded.**
+Pairs: pistons vs valves, heads, gaskets, block; rods vs crank, pistons, block, pan, each
+other; valves vs each other and their heads; cams vs heads, covers, belts; belts vs crank,
+tensioners, cam pulleys; damper, alternator and belt vs cover and pumps; crank vs block and
+pan; crankshaft and pistons vs **every** part; starter vs flywheel and bellhousing (also with
+the pinion in mesh); flywheel, clutch and gear clusters vs their casings. Result after the
+fixes: **none**, assembled and exploded, other than declared contacts. Found and fixed:
+- the counterweights cut 2.75 mm into the piston skirts around each BDC (at the static pose
+  too, on `main`): counterweights 64 mm (were 70), 3.25 mm clear;
+- the rods' cap bolts touched the solid dry-sump pan near BDC: the pan is now an open tray.
+Declared (designed contacts, in the part definitions): pistons, rods and crank inside the
+block (drawn as a closed casting), valves in their heads, cams in their heads and covers,
+gear shafts in the gearbox casing. Standard checks: assembled vs body **none**, full explode
+**none**.
+
+**Perf** (draw calls / triangles; the shadow pass re-renders while anything moves):
+
+| | calls / triangles |
+| --- | --- |
+| engine off (idle view) | 251 / 0.78 M (unchanged from 8A) |
+| running, Slow or Strokes (assembled or exploded) | 399–412 / 1.40–1.44 M |
+| running, Slow, anywhere in the explode (peak) | 412 / 1.44 M (= 8A's explode peak) |
+| running, Real, steady | 251 / 1.56 M (blurred copies, no shadow pass) |
+| running, Real, a shadow-refresh frame (≤ 2 Hz while the rock changes) | ~380 / 2.08 M |
+
+**Gates:** typecheck, build (the worklet is its own 8 KB chunk; no dev API in the bundle),
+clash sweeps above, review shots below.
+
+**Screenshots (docs/review/f40-phase8/):** 8b-01…04 assembled, X-ray, at crank 0 / 90 / 180 /
+270°; 8b-05…08 fully exploded at the same angles (rods with their pistons, guide lines to the
+pins, open pan); 8b-09…12 Strokes on cylinder 1 in power (spark), exhaust (exhaust valves
+lit), intake (intake valves lit), compression; 8b-13 X-ray flashes at 3000 rpm; 8b-14 the
+start: pinion in mesh with the ring gear; 8b-15 / 16 Real at idle and at 7000 rpm (blur);
+8b-16 also shows the turbine housing's heat glow.
+
 ## Phases 2–4 (`wip/f40-build`, merged)
 
 

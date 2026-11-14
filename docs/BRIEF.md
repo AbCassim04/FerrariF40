@@ -481,3 +481,74 @@ docs/reference/f40/ would correct them (the folder is empty).
   sweeps), starter +0.8.
 - **The cam-belt cover is declared in contact with what it encloses** (it is drawn solid, so the
   belts, pulleys, tensioners and the parts it bolts to all register inside it).
+
+*8B: the running engine*
+- **A physics-lite sim, separate from the scene's store** (`engine/sim.ts`, every figure in
+  `config/engine-sim.ts`): speed follows the throttle with inertia (faster on boost), boost
+  follows throttle × exhaust flow (none below 2400 rpm, full from 4200, est) through a
+  first-order spool (0.6 s up, 0.35 s down), the limiter cuts fuel at 7750 and restores it
+  at 7600 (est), fuel cut decelerates at 2600 rpm/s plus friction. The scene's UI reads a
+  separate small store (`state/engine.ts`) mirrored 20 times a second: the app store's
+  changes re-render shadows, which a running engine must not do 60 times a second.
+- **Start sequence (est):** pinion in over 0.18 s, cranking at 200 rpm for 0.8 s (with a
+  4 % compression ripple), the engine catches and flares to 1500 rpm in 0.3 s, the pinion
+  springs back 0.2 s after the catch, idle settles with a 0.45 s time constant. Stop: fuel
+  and spark off, the crank coasts down (≈ 2 s from idle).
+- **Gearbox in neutral, clutch engaged:** the flywheel, both clutch plates, the pressure
+  plate and the clutch cover turn with the crank; in the gearbox the input shaft's transfer
+  gear turns the primary shaft (the other way, at the transfer ratio), every primary gear
+  turns its constant-mesh partner, and those idle on the still secondary shaft. The
+  secondary shaft, final drive and differential do not turn.
+- **Turbos not spun:** they have no modelled internals (no wheels to turn); the turbine
+  housings glow with the rest of the exhaust side instead.
+- **Engine rock: ≤ 0.4° about the crank axis with the torque's reaction** (smoothed 0.12 s),
+  assembled only, never with reduced motion. The whole powertrain pivots (it is the
+  powertrain's pivot that turns), so the transaxle rocks with the engine as on its mounts.
+- **Heat glow (est): emissive orange on the exhaust primaries' and the cast-iron (turbine
+  and manifold) materials**, following load × speed with a 6 s rise and 12 s fall; none below
+  18 % of full heat, so idle never glows. All parts of those materials glow together.
+- **Exploded motion:** every moving mesh is posed in its own part's frame, so the motion
+  runs unchanged at any explode progress. The rods stay with their pistons (both lift along
+  the bank axis by the same amount until the rods' own offset), and faint guide lines join
+  each big end to its crank pin, fading in as they part (from 2 cm apart, full at 17 cm).
+- **Display speeds: Slow ×1/20 (default), Strokes ×1/100, Real.** Real draws each moving
+  mesh as six angular copies spread over the frame's crank travel (at most 360°), each
+  faint, together nearly opaque where they overlap (one instanced draw per moving mesh,
+  replacing it: no extra draw calls). Sound always follows the true speed.
+- **Strokes mode:** the followed cylinder (default no. 1, right bank front; ‹ › step through
+  the firing order; clicking a piston picks it) gets a label with its stroke, its open
+  valves tinted (intake blue, exhaust orange) and a spark at its plug from 10° before to
+  25° after TDC.
+- **X-ray while running:** the block, heads, gaskets, cam covers, timing cover and the
+  distributor caps also go see-through, so the pistons, rods, valves and cams show. A
+  combustion flash per cylinder at its firing (firing order), drawn through the casings,
+  decaying over 50° of the visual crank or 0.09 s, whichever is longer (the rate cap: at
+  Real speed the flashes merge into a glow instead of strobing).
+- **Reduced motion:** Slow, no rocking, and Real is not offered.
+- **Designed contacts declared for the sweep:** pistons in their bores, rods passing from
+  the crankcase into the bores, and the crank in its mains: the block is drawn as a closed
+  casting, so anything turning inside it crosses its notional faces (bore bottoms, the
+  crankcase floor, the end walls the crank passes through). Valves in the heads (guides and
+  seats); camshafts in the heads and under their covers.
+- **Dry-sump pan is now an open pan** (5 mm walls, 6 mm floor, flange around its mouth;
+  est). It was a solid block, and the rods' cap bolts swing 1 mm into its top at BDC.
+- **Crank counterweights Ø128 (radius 64 mm, was 70; est).** Each counterweight faces up its
+  piston's bore at that piston's BDC, where the skirt's bottom comes within 67.25 mm of the
+  crank axis (rod 125 − half-stroke 34.75 + compression height 27 − piston height 50), so at
+  70 mm they cut 2.75 mm into the skirts (at the static pose too, on `main`). 64 mm leaves
+  3.25 mm.
+- **Gear clusters declared in contact with the gearbox casing** (the shafts run in its
+  bearings; static, found by the transmission's spin check).
+- **Real kept, at five blur copies and without a per-frame shadow pass.** Six copies put the
+  main pass at 1.76 M triangles and a live shadow pass on top passed 2 M; with five
+  (1.56 M) and the shadows refreshed only for the rock and the pinion (the blurred copies
+  cast none; at most twice a second) Real costs 251 calls / 1.56 M in steady running. The
+  blur reads as a smear of the pistons through their stroke and of the belts and pulleys
+  (8b-15, 8b-16); whether it is convincing enough is the owner's call.
+- **Opaque borders on the pill buttons** (X-ray, Start / Stop, throttle, stroke label), blended
+  by hand to the same colours over the dark panel: semi-transparent 1 px borders on fully
+  rounded buttons drew a diagonal cross through them in the review browser (the X-ray
+  button's unpressed state on `main` too). The invalid `font:` shorthands in the new styles
+  are written out.
+- **`__dev.view` rejects unknown names** (an unknown preset reached the camera rig and took
+  the canvas down).
