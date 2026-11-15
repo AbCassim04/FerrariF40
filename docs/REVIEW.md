@@ -156,6 +156,66 @@ mute and unmute take the output to 0 and back; Stop suspends the context once th
 off. Not tested here: the hidden-tab duck (Playwright cannot hide the tab), and anything heard
 (no speakers): the voicing is by numbers and spectrograms only.
 
+### 8D-1: mobile layout, a freer camera, heat glow
+**Built:** phone-first controls in three layouts (`state/ui.ts`): desktop, one slim bar (Explode,
+X-ray, Stop, a small tach and boost, Throttle, "more" with display speed, cylinder, volume and the
+driving-controls switch in a card above); portrait phone, one compact bottom bar (while driving:
+more, Stop, Throttle; gauges at the top centre; Explode, X-ray and the rest in a bottom sheet);
+landscape phone, the driving layout (throttle under the right thumb, gauges small at the top
+centre, a small row at the bottom centre). Camera buttons top-left on every layout (reset, view
+chips). Hold-buttons for real thumbs; no key hints on touch-only devices; safe-area insets and
+dvh; one-line credits on phones (tap for the full credit). Framing in the space the UI leaves
+(measured from the page), re-framed on rotate / resize. Quality tiers (phones start at medium,
+an automatic drop that never climbs back), Real only at the top tier. Phone audio: the audio
+session set to playback where supported, else a one-time silent-switch hint; the context resumes
+when the page comes back. Camera: zoom to the cursor / pinch midpoint, double-click / double-tap
+re-centres the orbit on that point, pan (right-drag, Shift+drag, two fingers), orbit down to
+just above the ground, looser preset and explode framing, lighter damping and a flick's
+inertia, automatic moves stop the moment the user takes over. Heat glow: a blackbody ramp on the
+exhaust, strongest at the ports, cherry at the turbine housings, fading down the downpipes.
+Decisions in docs/BRIEF.md ("8D-1").
+
+**Gates**
+- Typecheck and build: pass; production bundle contains no dev API.
+- Clash: assembled vs body **none**; full explode **none** (no geometry changed).
+- **Perf, desktop 1440×900 (top tier), unchanged from 8B:** idle 251 calls / 0.78 M triangles;
+  peak (shadow frame) 412 / 1.44 M; running assembled ≤ 412 / 1.44 M; running exploded ≤ 400 /
+  1.40 M. The tiers change pixels, not draw calls.
+- **Phones (emulated in the review browser):** iPhone 13 (DPR 3) and Pixel 7 (DPR 2.625) start
+  at the medium tier: DPR 1.5, AO low, 1024 shadow map, 512 contact shadows. Unpinned, the Pixel 7
+  run dropped once to low (DPR 1, AO off) after ~8 s on a 30.8 ms median frame and stayed there;
+  this browser's frame rate says nothing about a phone's. Real is not offered on either.
+- **Touch gestures (CDP `Input.dispatchTouchEvent`, iPhone 13 portrait):**
+  - pinch-zoom at a point 85 px left of centre: distance 17.6 → 9.9 m, the point under the
+    fingers moved 8 px (a plain dolly would have pushed it ~150 px out);
+  - two-finger pan: the pivot moved 0.82 m, distance 9.89 → 9.83 m;
+  - double-tap on the front clam and on a front wheel: the pivot landed on the tapped point
+    (0 mm), the point came to the centre column, nothing was selected;
+  - single tap: selects after the 300 ms double-tap window;
+  - hold-throttle: pressed on touch, still pressed after a 6 px wobble, released when the
+    finger slid 120 px off, pressed again when it slid back, released on lift; no text
+    selection, no page scroll.
+- **Mouse (desktop):** wheel zoom toward the cursor: 6.3 → 1.85 m with the point under the
+  cursor held to 2 px; Shift+drag pans at constant distance; double-click focuses (0 mm, no
+  selection); orbit down to 104° from vertical, camera above the ground.
+- **Heat glow (exploded, close on the left turbo and manifold):** idle none; heavy part load
+  (heat 0.45) a dull red on the turbine housing and the primaries; full (heat 1.0) orange-red at
+  the ports, cherry over the collector and turbine housing, fading down the downpipes, the
+  metal's tint and highlights still showing.
+
+**Screenshots (docs/review/f40-phase8/):** `8d1-desktop-*` (off assembled; running, engine view;
+running with "more"; running exploded; off exploded with the view chips), `8d1-iphone13-portrait-*`
+and `8d1-iphone13-landscape-*` (off assembled, running in the engine view, running with the
+sheet, running exploded, running exploded with the turbo inspected, off exploded),
+`8d1-pixel7-portrait-*` (off assembled, running engine view, running exploded, off exploded);
+heat glow `wip-8d-glow-explode-idle / -half / -full`.
+
+**Needs a real phone (not verifiable in emulation):** the frame rate and where the automatic
+tier settles; the iOS silent switch with and without `navigator.audioSession`, and resuming after
+a call or app switch; notch and home-indicator insets (the emulator draws none); dvh against
+Safari's collapsing bars; two thumbs at once on real glass; Safari's handling of
+`touch-action` / long-press callout on the hold-buttons.
+
 ## Phases 2–4 (`wip/f40-build`, merged)
 
 

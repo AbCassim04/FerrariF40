@@ -3,6 +3,7 @@ import { N8AOPostPass } from 'n8ao';
 import { ToneMappingMode } from 'postprocessing';
 import type { WebGLRenderTarget } from 'three';
 import { SCENE } from '../config/scene';
+import { useTier } from '../state/quality';
 import { PartOutline } from './Inspect';
 
 /**
@@ -42,6 +43,8 @@ const MSAA = import.meta.env.DEV && params.has('msaa') ? Number(params.get('msaa
  */
 export function PostEffects() {
   const { ao } = post;
+  // Quality tiers scale the AO down (phones start lower) or turn it off.
+  const tier = useTier();
   return (
     <EffectComposer multisampling={MSAA}>
       <N8AO
@@ -54,9 +57,9 @@ export function PostEffects() {
           // that is hundreds of ghost shells. The glass and ghosts are see-through anyway.
           pass.configuration.transparencyAware = false;
         }}
-        enabled={AO_ON}
+        enabled={AO_ON && tier.aoOn}
         halfRes={AO_HALF}
-        quality={ao.quality}
+        quality={tier.ao === 'medium' ? ao.quality : tier.ao}
         aoRadius={ao.radius}
         distanceFalloff={ao.distanceFalloff}
         intensity={ao.intensity}

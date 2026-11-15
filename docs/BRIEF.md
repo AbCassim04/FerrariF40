@@ -581,3 +581,72 @@ docs/reference/f40/ would correct them (the folder is empty).
   stops** (no audio-thread work while it is off); hidden tab: volume ramps to 0 (the sim
   pauses too). The volume control is squared (perceptual).
 - **Voices not modelled separately:** backfire / overrun crackle; the gearbox (in neutral).
+
+*8D-1: mobile layout, a freer camera, heat glow (owner's brief 2026-11-15: phone-first)*
+- **Three layouts, chosen by media query** (`state/ui.ts`, same queries in styles.css):
+  landscape phone = `(orientation: landscape) and (max-height: 500px)` (the driving layout:
+  throttle under the right thumb, gauges small at the top centre, a small row of Explode /
+  X-ray / Stop / "more" at the bottom centre); portrait = narrower than 720 px (one bottom bar,
+  a bottom sheet for the rest); desktop = everything else (one slim bar).
+- **Portrait while driving: the bar holds "more", Stop and the throttle; Explode and X-ray move
+  into the sheet** (top row). 390 px can't hold all of them at 44 px targets, and 8D-2 adds
+  − / + to the bar. With the engine off (or the driving controls hidden) the bar is Explode,
+  X-ray, Start.
+- **"Collapsible to just Start / Stop" is a switch in "more" ("Driving controls"), on every
+  layout**, rather than a chevron on the bar (no room for one on a phone bar). Hidden: the
+  bar is back to Explode / X-ray / Stop, no gauges; Space / W still work.
+- **Framing measures the free area from the page** (`scene/freeArea.ts`: UI marked
+  `data-occludes` cuts the canvas from its nearest side; a cut that would leave under 38 % of
+  either dimension is skipped). The landscape bug: the framing reserved a fixed 100 px for the
+  buttons and took fractions for the panel, while the running engine's panel, buttons and
+  credits took ~270 of 390 px, so framed subjects landed under the panel; with the inspect
+  panel open the fractions could leave next to nothing. Measured, it cannot collapse.
+- **Re-frame on rotate / resize only if the user hasn't moved the camera since the last
+  automatic framing**; otherwise only re-centre their view in the new free area.
+- **Never yank:** an automatic move stops where it is the moment the user touches, drags or
+  scrolls (camera-controls' own `stop()` jumps to the end of the move, so the rig sets the end
+  to the current pose instead). After the user has explored, Assemble frames the car from
+  where they are looking instead of jumping back to the view from before Explode, and closing
+  the inspect panel only re-centres.
+- **Single taps wait 300 ms before selecting** (the double-tap window, typical of phones), so a
+  double tap never opens the panel first. Tap slop 10 px for touch, 4 px for a mouse. Taps are
+  timed by their events' timestamps (a slow frame can hold an event back).
+- **Double-click / double-tap keeps the camera where it is and turns to the point**
+  (`setTarget`): the point comes to the middle of the free area and becomes the pivot; no zoom.
+- **Presets frame the exploded car while it is exploded** (the view chips work exploded); the
+  engine preset frames the lifted block from the same direction. Reset view = front ¾.
+- **Camera figures (est):** min distance 0.6 → 0.35 m (with the pivot on a part you can now get
+  close); orbit down to π − 0.12 with the camera held 6 cm above the ground (focal offset
+  included); damping 0.25 → 0.18 s, while dragging 0.125 → 0.07 s; inertia τ 0.3 s above
+  0.6 rad/s (none under reduced motion); on touch screens the rotation per swipe scales with
+  the screen's height / 800 (min 0.55: landscape phones are short); padding presets 0.06 →
+  0.13, explode 0.12 → 0.16, both × 0.55 when the free area's short side is under 420 px.
+- **Hold-buttons release when the finger strays 14 px off the button and press again if it
+  slides back while still down** (a thumb wobbles; the brief: "releases if the finger slides
+  off").
+- **Quality tiers (est):** high (DPR ≤ 2, AO medium, 2048 shadow map, 1024 contact shadows),
+  medium (1.5, AO low, 1024, 512), low (1, AO off, 1024, 256). Phones (touch-only, short screen
+  side < 600 px) start at medium; any device drops a tier when the median frame stays over
+  26 ms for two 2 s windows (after 4 s, and again after each drop), never back up. `?tier=N`
+  pins it (dev).
+- **Real speed is offered at the top tier only, so it is hidden on phones** (they start one
+  tier down) and wherever the tier has dropped (a drop while in Real switches to Slow). A real
+  phone's frame rate couldn't be measured here; Real puts 1.56 M triangles in the main pass
+  (2.08 M on shadow frames), more than a phone GPU will hold at 60 fps.
+- **Silent-switch hint once per device** (localStorage), on iPhone / iPad without
+  `navigator.audioSession`, after Start once the context runs. Where the audio session exists it
+  is set to 'playback' (plays with the ringer on silent). The context resumes when the page is
+  shown again, on `pageshow`, and at the next touch after a system interruption.
+- **Credits on phones:** one 10 px line, "Model: Black Snow, CC BY 4.0, modified · Fan project,
+  not affiliated with Ferrari ⓘ" (the licence's credit, licence and "modified" stay in it); a
+  tap opens the full credit with its links.
+- **Heat glow as hot metal** (`materials/heatGlow.ts`, figures in `ENGINE_SIM.glow`, est): a
+  shader on the exhaust materials adds a blackbody-like emission (dark red → cherry → orange
+  only above 0.88) at a temperature = heat ^ 0.8 × a weight by position in engine coordinates:
+  1 at the ports, 0.8 from the merge through the collector and turbine housing (cherry, never
+  bright orange), fading down the downpipes to 0.12. Radiance rises as T^1.5 to a peak of
+  0.5; the hot metal's reflections and diffuse dull by up to 65 / 50 % so the glow reads as
+  heat rather than salmon paint. Exploded, the parts keep the same glow (the weight is in their
+  own frame).
+- **Dev:** the frame-rate meter sits below the camera buttons and hides with `?panel=0`;
+  `__dev.pick(x, y)` / `__dev.project(p)` for gesture checks.

@@ -1,4 +1,5 @@
-import { useLayoutEffect, useRef } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
+import { useLayout } from '../state/ui';
 
 /**
  * Attribution for the licensed body model (CC BY 4.0 requires credit, a licence link and a
@@ -15,11 +16,15 @@ const MODEL = {
 };
 
 /**
- * The credit's height goes to `--credits-h` on the app, so the controls sit just above it
- * however many lines it wraps to.
+ * Desktop: two short lines bottom-left. Phones: one small line (author, licence, "modified",
+ * not affiliated) that expands to the full credit with its links on a tap. The credit's
+ * height goes to `--credits-h` on the app, so the controls sit just above it.
  */
 export function Credits() {
   const ref = useRef<HTMLElement>(null);
+  const layout = useLayout();
+  const [expanded, setExpanded] = useState(false);
+  const short = layout !== 'desktop' && !expanded;
   useLayoutEffect(() => {
     const el = ref.current!;
     const app = el.parentElement!;
@@ -29,26 +34,42 @@ export function Credits() {
   }, []);
 
   return (
-    <footer ref={ref} className="credits">
-      <p>
-        Car model:{' '}
-        <a href={MODEL.source} target="_blank" rel="noreferrer">
-          {MODEL.title}
-        </a>{' '}
-        by{' '}
-        <a href={MODEL.authorUrl} target="_blank" rel="noreferrer">
-          {MODEL.author}
-        </a>{' '}
-        (Sketchfab),{' '}
-        <a href={MODEL.licenceUrl} target="_blank" rel="noreferrer">
-          {MODEL.licence}
-        </a>{' '}
-        · modified
-      </p>
-      <p className="credits__disclaimer">
-        Independent fan project. Not affiliated with or endorsed by Ferrari S.p.A. Ferrari and F40 are
-        trademarks of Ferrari S.p.A.
-      </p>
+    <footer ref={ref} className="credits" data-short={short || undefined} data-expanded={(layout !== 'desktop' && expanded) || undefined}>
+      {short ? (
+        <button type="button" className="credits__toggle" aria-expanded="false" onClick={() => setExpanded(true)}>
+          Model: {MODEL.author}, {MODEL.licence}, modified · Fan project, not affiliated with Ferrari
+          <span className="credits__more" aria-hidden="true">
+            ⓘ
+          </span>
+        </button>
+      ) : (
+        <>
+          <p>
+            Car model:{' '}
+            <a href={MODEL.source} target="_blank" rel="noreferrer">
+              {MODEL.title}
+            </a>{' '}
+            by{' '}
+            <a href={MODEL.authorUrl} target="_blank" rel="noreferrer">
+              {MODEL.author}
+            </a>{' '}
+            (Sketchfab),{' '}
+            <a href={MODEL.licenceUrl} target="_blank" rel="noreferrer">
+              {MODEL.licence}
+            </a>{' '}
+            · modified
+          </p>
+          <p className="credits__disclaimer">
+            Independent fan project. Not affiliated with or endorsed by Ferrari S.p.A. Ferrari and F40 are
+            trademarks of Ferrari S.p.A.
+          </p>
+          {layout !== 'desktop' && (
+            <button type="button" className="credits__close" aria-label="Fold the credits" onClick={() => setExpanded(false)}>
+              ×
+            </button>
+          )}
+        </>
+      )}
     </footer>
   );
 }

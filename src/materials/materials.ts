@@ -6,6 +6,7 @@ import {
   type Material,
 } from 'three';
 import { brushedRoughnessTexture, carbonWeaveTextures, castNoiseTexture } from './textures';
+import { addHeatGlow } from './heatGlow';
 
 /**
  * Shared materials, one instance per key. Parts reference materials by key so that
@@ -211,14 +212,14 @@ const factories: Record<MaterialKey, () => Material> = {
   redAccent: () => new MeshPhysicalMaterial({ color: PALETTE.redAccent, metalness: 0, roughness: 0.3, clearcoat: 1, clearcoatRoughness: 0.1 }),
   headerSteel: () => new MeshStandardMaterial({ color: PALETTE.headerSteel, metalness: 1, roughness: 0.42 }),
   /** Header primaries: the tint comes from vertex colours (heat oxide, blue/purple to gold). */
-  headerTint: () => new MeshStandardMaterial({ color: '#ffffff', vertexColors: true, metalness: 1, roughness: 0.36 }),
+  headerTint: () => addHeatGlow(new MeshStandardMaterial({ color: '#ffffff', vertexColors: true, metalness: 1, roughness: 0.36 })),
   tipSteel: () => new MeshStandardMaterial({ color: PALETTE.tipSteel, metalness: 1, roughness: 0.18 }),
   anodised: () => new MeshStandardMaterial({ color: PALETTE.anodised, metalness: 0.9, roughness: 0.3 }),
   /** Stainless braid over the oil hoses: a dull, rough metal at this scale. */
   braided: () => new MeshStandardMaterial({ color: PALETTE.braided, metalness: 0.85, roughness: 0.62, bumpMap: castNoiseTexture(40, 90, 170), bumpScale: 0.3 }),
   castIron: () => {
     const grain = castNoiseTexture(24, 120, 190);
-    return new MeshStandardMaterial({ color: PALETTE.castIron, metalness: 0.75, roughness: 0.8, roughnessMap: grain, bumpMap: grain, bumpScale: 0.25 });
+    return addHeatGlow(new MeshStandardMaterial({ color: PALETTE.castIron, metalness: 0.75, roughness: 0.8, roughnessMap: grain, bumpMap: grain, bumpScale: 0.25 }));
   },
   /** Intercooler cores and end tanks: bare aluminium, finely finned (brushed roughness reads as fins). */
   intercooler: () =>

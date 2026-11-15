@@ -1,5 +1,6 @@
 import { ContactShadows, Grid } from '@react-three/drei';
 import { SCENE } from '../config/scene';
+import { useTier } from '../state/quality';
 import { useContactShadowTick } from './ShadowScheduler';
 
 const { grid, contactShadows } = SCENE;
@@ -8,6 +9,7 @@ const { grid, contactShadows } = SCENE;
 export function Ground() {
   // Each tick re-renders this, which makes ContactShadows render one more frame (see ShadowScheduler).
   useContactShadowTick((s) => s.tick);
+  const tier = useTier();
   return (
     <>
       {/* Just below y=0 so the shadow plane draws over it without z-fighting. */}
@@ -29,7 +31,7 @@ export function Ground() {
         far={contactShadows.far}
         blur={contactShadows.blur}
         opacity={contactShadows.opacity}
-        resolution={contactShadows.resolution}
+        resolution={Math.min(contactShadows.resolution, tier.contactShadows)}
         frames={1}
       />
     </>

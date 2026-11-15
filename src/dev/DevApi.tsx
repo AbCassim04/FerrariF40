@@ -1,13 +1,13 @@
 import type { CameraControls } from '@react-three/drei';
 import { useThree } from '@react-three/fiber';
 import { useEffect } from 'react';
-import { Vector3, type PerspectiveCamera } from 'three';
+import { Vector2, Vector3, type Object3D, type PerspectiveCamera } from 'three';
 import { DIMS, type Vec3 } from '../config/dims';
 import { SCENE, type ViewName } from '../config/scene';
 import { explodeTimeline, partCorners } from '../explode/buildTimeline';
 import { PARTS_BY_ID } from '../parts/registry';
 import type { PartGroup } from '../parts/types';
-import { cameraEase } from '../scene/CameraRig';
+import { cameraEase, cameraRig } from '../scene/CameraRig';
 import { runClashCheck, type ClashOptions } from '../scene/ClashCheck';
 import { TIME_SCALES, type TimeScaleName } from '../config/engine-sim';
 import { frame } from '../engine/EngineController';
@@ -18,6 +18,7 @@ import { engineAudio } from '../engine/audio/engineAudio';
 import { fitView } from '../scene/fitView';
 import { refreshShadows, shadowState } from '../scene/ShadowScheduler';
 import { useAppStore } from '../state/store';
+import { blocksView } from '../scene/picking';
 
 /**
  * Dev only: `window.__dev`, a scripting API for review checks on one persistent page (no
@@ -68,6 +69,10 @@ export interface DevApi {
   renderAudio(names?: string[], save?: boolean): Promise<Record<string, unknown>>;
   /** The live sound: context state, synth running, output level; and the sim's phase and speed. */
   audio(): Record<string, unknown>;
+  /** The first visible surface under a screen point (CSS px): world point and part id (gesture checks). */
+  pick(x: number, y: number): { point: Vec3; partId: string | null } | null;
+  /** A world point on screen (CSS px). */
+  project(point: Vec3): [number, number];
 }
 
 export interface EngineOptions {
@@ -108,12 +113,17 @@ async function instant(change: () => void) {
 export function DevApi() {
   const controls = useThree((s) => s.controls) as CameraControls | null;
   const camera = useThree((s) => s.camera);
+  const gl = useThree((s) => s.gl);
+  const scene = useThree((s) => s.scene);
+  const raycaster = useThree((s) => s.raycaster);
 
   useEffect(() => {
     if (!controls) return;
     const store = useAppStore;
     const api: DevApi = {
       async setCamera(position, target) {
+        // A posed camera counts as the user's: a resize re-centres it rather than re-framing.
+        cameraRig.userMoved = true;
         controls.setFocalOffset(0, 0, 0, false);
         await controls.setLookAt(...position, ...target, false);
         await frames(1);
@@ -220,6 +230,21 @@ export function DevApi() {
         const s = store.getState();
         return { phase: s.phase, rpm: Math.round(sim.rpm), throttle: sim.throttle, boost: +sim.boost.toFixed(3), heat: +sim.heat.toFixed(3), crankDeg: +((motionState.crank * 180) / Math.PI).toFixed(2), timeScale: s.timeScale, scale: TIME_SCALES[s.timeScale].scale, pinionIn: sim.pinionIn };
       },
+      pick(x, y) {
+        const rect = gl.domElement.getBoundingClientRect();
+        const ndc = new Vector2(((x - rect.left) / rect.width) * 2 - 1, -((y - rect.top) / rect.height) * 2 + 1);
+        raycaster.setFromCamera(ndc, camera);
+        const hit = raycaster.intersectObject(scene, true).find((h) => !h.object.userData.effect && blocksView(h.object));
+        if (!hit) return null;
+        let o: Object3D | null = hit.object;
+        while (o && !o.userData.partId) o = o.parent;
+        return { point: vec(hit.point), partId: (o?.userData.partId as string | undefined) ?? null };
+      },
+      project(point) {
+        const rect = gl.domElement.getBoundingClientRect();
+        const v = new Vector3(...point).project(camera);
+        return [Math.round(rect.left + ((v.x + 1) / 2) * rect.width), Math.round(rect.top + ((1 - v.y) / 2) * rect.height)];
+      },
       state() {
         const { selectedId, xray, soloGroup, exploded, showLabels, showGhost } = store.getState();
         const w = window as unknown as { __perf?: object };
@@ -230,7 +255,7 @@ export function DevApi() {
     return () => {
       delete (window as unknown as { __dev?: DevApi }).__dev;
     };
-  }, [controls, camera]);
+  }, [controls, camera, gl, scene, raycaster]);
 
   return null;
 }

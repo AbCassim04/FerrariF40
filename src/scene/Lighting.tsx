@@ -1,7 +1,11 @@
 import { Environment, Lightformer } from '@react-three/drei';
+import { useEffect, useRef } from 'react';
+import type { DirectionalLight } from 'three';
 import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
 import { SCENE } from '../config/scene';
 import { asset } from '../lib/asset';
+import { useTier } from '../state/quality';
+import { refreshShadows } from './ShadowScheduler';
 
 RectAreaLightUniformsLib.init();
 
@@ -12,6 +16,17 @@ const { bayLight, environment } = SCENE;
  * reflections, one shadow-casting key light, and soft display strips in the engine bay.
  */
 export function Lighting() {
+  const key = useRef<DirectionalLight>(null);
+  const { shadowMap } = useTier();
+  // A smaller shadow map on lower quality tiers: the old map is freed and re-rendered at the new size.
+  useEffect(() => {
+    const light = key.current;
+    if (!light || light.shadow.mapSize.x === shadowMap) return;
+    light.shadow.mapSize.set(shadowMap, shadowMap);
+    light.shadow.map?.dispose();
+    light.shadow.map = null;
+    refreshShadows();
+  }, [shadowMap]);
   return (
     <>
       <Environment files={asset(environment.file)} resolution={environment.resolution} frames={1} environmentIntensity={environment.intensity}>
@@ -28,10 +43,11 @@ export function Lighting() {
       </Environment>
 
       <directionalLight
+        ref={key}
         castShadow
         position={[3.5, 7, 4.5]}
         intensity={1.6}
-        shadow-mapSize={[2048, 2048]}
+        shadow-mapSize={[shadowMap, shadowMap]}
         shadow-bias={-0.0002}
         shadow-normalBias={0.02}
       >

@@ -3,6 +3,15 @@
 Where the project stands and how to work on it. The spec and decision log are in
 docs/BRIEF.md; read that first. The build plan: docs/F40-PLAN.md.
 
+## Status (2026-11-15, 8D)
+- **8D on `wip/f40-motion`** (unattended, a commit per half, not pushed): 8D-1 mobile layout
+  (desktop / portrait / landscape-driving, `state/ui.ts`, `ui/ControlBar.tsx`), a freer camera
+  (`scene/CameraRig.tsx`, free area measured in `scene/freeArea.ts`, taps in `scene/taps.ts`),
+  quality tiers (`state/quality.ts`, `scene/QualityController.tsx`), heat glow
+  (`materials/heatGlow.ts`). Review shots on phones: a second browser context with
+  `isMobile/hasTouch/deviceScaleFactor` (see REVIEW "8D-1"); pin `?tier=N` for shots (the slow
+  review browser drops the tier otherwise). 8D-2 (gears, rolling road) follows.
+
 ## Status (2026-11-15)
 - **Phase 8 on `wip/f40-motion`** (from `main`, unattended; a commit per sub-phase, not
   pushed): 8A missing engine parts and draw-call headroom (peak 471 → 412); 8B the running

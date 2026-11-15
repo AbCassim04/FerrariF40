@@ -40,6 +40,35 @@ export const ENGINE_SIM = {
   coolTau: 12,
   /** No glow below this heat (idle never glows). */
   heatGlowFrom: 0.18,
+  /**
+   * (est, 8D) Heat glow as hot metal: a blackbody-like ramp on the exhaust side (manifold
+   * primaries, collectors, turbine housings, wastegates, downpipes). The glow's temperature
+   * is heat × a weight along the exhaust (engine coordinates, so it reads the same exploded):
+   * full at the ports, 0.8 from the merge through the collector and turbine housing (cherry,
+   * never bright orange), fading down the downpipes to `down.floor` at the silencer. Colour runs dark red → dull cherry →
+   * orange only near the top; radiance rises with temperature^1.5 up to `peak` and the
+   * reflections dull a little, so the metal's own colour stays visible under the glow.
+   */
+  glow: {
+    /** Radiance at full temperature; it rises as temperature^`power`. */
+    peak: 0.5,
+    power: 1.5,
+    /** Temperature = heat level ^ `gamma` × weight. */
+    gamma: 0.8,
+    primaries: { from: -0.55, to: -1.0, drop: 0.2 },
+    down: { from: -1.28, to: -1.85, floor: 0.12 },
+    /** Ramp stops (linear RGB): dark red, cherry from `cherryAt`, orange only from `orangeAt`. */
+    darkRed: [0.6, 0.03, 0.01],
+    cherry: [0.9, 0.1, 0.03],
+    orange: [1.0, 0.3, 0.05],
+    cherryAt: [0.3, 0.7],
+    orangeAt: [0.88, 1.0],
+    /**
+     * Hot metal dulls: its lighting drops by up to these shares at full temperature (env
+     * reflections, direct highlights, diffuse), so the glow reads as heat, not salmon paint.
+     */
+    dull: { reflections: 0.65, highlights: 0.5, diffuse: 0.5 },
+  },
   /** Start: pinion in, crank on the starter, catch, flare, settle; then the pinion springs back. */
   start: {
     pinionIn: 0.18,

@@ -18,9 +18,12 @@ import { PartLabels } from './PartLabels';
 import { PartsRenderer } from './PartsRenderer';
 import { PerfProbe } from './PerfProbe';
 import { PostEffects } from './PostEffects';
+import { QualityController } from './QualityController';
 import { ShadowScheduler } from './ShadowScheduler';
 
 const DEV = import.meta.env.DEV;
+/** Dev: `?panel=0` (product and review shots) also hides the frame-rate meter. */
+const STATS = DEV && new URLSearchParams(location.search).get('panel') !== '0';
 
 /**
  * Everything inside the Canvas. Parts and the explode controller share one Suspense
@@ -50,10 +53,11 @@ export function Experience() {
         {DEV && showGhost && <EngineBayGhost />}
       </Suspense>
       <CameraRig />
+      <QualityController />
       {DEV && <DevApi />}
       <PostEffects />
       {DEV && showGuides && <Guides />}
-      {DEV && <Stats className="stats" />}
+      {STATS && <Stats className="stats" />}
       {DEV && <PerfProbe />}
     </>
   );

@@ -18,16 +18,28 @@ export const SCENE = {
     target: [0, DIMS.overall.height * 0.4, DIMS.body.centreZ] as Vec3,
   },
   controls: {
-    /** Close enough to read valve springs and bolt heads on the exploded engine. */
-    minDistance: 0.6,
+    /** Close enough to read valve springs and bolt heads (double-tap a part to orbit round it, then zoom in). */
+    minDistance: 0.35,
     maxDistance: 20,
-    /** Keep the camera just above the orbit target (and so above the ground). */
-    maxPolarAngle: Math.PI / 2 - 0.04,
-    smoothTime: 0.25,
-    /** Fraction of the view kept clear around a fitted box (explode framing). */
-    fitPadding: 0.12,
-    /** The same for the car presets (the assembled car is compact, so tighter). */
-    presetPadding: 0.06,
+    /**
+     * Low orbit (8D): the camera may drop below the orbit target, down to `minCameraY` above
+     * the ground (never under it), to look up under the exploded car; at most this far over.
+     */
+    maxPolarAngle: Math.PI - 0.12,
+    minCameraY: 0.06,
+    /** (est) Damping: how long the camera takes to settle on a framing, and while dragging. */
+    smoothTime: 0.18,
+    draggingSmoothTime: 0.07,
+    /** (est) Inertia after a flick: the orbit keeps turning, decaying with this time constant (s), if it was turning faster than `minSpeed` (rad/s). */
+    inertia: { tau: 0.3, minSpeed: 0.6 },
+    /** (est) Rotation per screen height on touch screens, as a share of a full turn at 800 px tall (landscape phones are short). */
+    touchRotate: { refHeight: 800, min: 0.55 },
+    /** Fraction of the view kept clear around a fitted box (explode framing). (est, 8D: looser) */
+    fitPadding: 0.16,
+    /** The same for the car presets. (est, 8D: was 0.06, felt cramped) */
+    presetPadding: 0.13,
+    /** (est) A free area whose short side is under `px` (a phone, between its bars) keeps only this share of the padding. */
+    smallArea: { px: 420, paddingScale: 0.55 },
     /** Screen aspect the views are composed for; narrower screens back the camera off, up to `narrowBackOff` times. */
     designAspect: 1.6,
     narrowBackOff: 2.4,
@@ -66,8 +78,6 @@ export const SCENE = {
    */
   inspect: {
     panelWidth: 380,
-    /** Height (px) kept clear at the bottom for the Explode and X-ray buttons when framing. */
-    controlsReserve: 100,
     sheetHeight: 0.42,
     compactBelow: 720,
     outline: { colour: '#7fd6ff', strength: 2.2 },
@@ -81,6 +91,21 @@ export const SCENE = {
   ghosts: {
     xray: { base: 0.008, rim: 0.34, tintMix: 0.25, cool: '#a9c8dc' },
     isolate: { base: 0.004, rim: 0.11, tintMix: 0.5 },
+  },
+  /**
+   * Quality tiers (8D, est). Phones start at `phoneStart`; any device drops a tier when its
+   * median frame time stays above `slowMs` for `strikes` windows of `window` s in a row (after
+   * `warmup` s, and again after each drop), and never climbs back mid-session (no flicker).
+   * Real speed mode is only offered at the top tier. Dev: `?tier=0|1|2` pins a tier.
+   */
+  quality: {
+    tiers: [
+      { name: 'high', dpr: 2, ao: 'medium', aoOn: true, shadowMap: 2048, contactShadows: 1024 },
+      { name: 'medium', dpr: 1.5, ao: 'low', aoOn: true, shadowMap: 1024, contactShadows: 512 },
+      { name: 'low', dpr: 1, ao: 'low', aoOn: false, shadowMap: 1024, contactShadows: 256 },
+    ],
+    phoneStart: 1,
+    watch: { window: 2, slowMs: 26, strikes: 2, warmup: 4 },
   },
   post: {
     /** No MSAA: N8AO gets no usable depth from multisampled buffers; SMAA does the edges. */

@@ -1,9 +1,9 @@
 import { useFrame } from '@react-three/fiber';
 import { useEffect } from 'react';
-import { Color, MathUtils, type MeshStandardMaterial } from 'three';
+import { MathUtils } from 'three';
 import { BLUR, ENGINE_SIM, TIME_SCALES } from '../config/engine-sim';
 import { explodeTimeline } from '../explode/buildTimeline';
-import { getMaterial } from '../materials/materials';
+import { heatUniform } from '../materials/heatGlow';
 import { PINION_RATIO } from '../parts/engine/geometry/electrics';
 import { partObjects } from '../scene/partObjects';
 import { refreshShadows } from '../scene/ShadowScheduler';
@@ -18,9 +18,6 @@ const MAX_DT = 1 / 30;
 /** UI mirror rate (the gauges), per second. */
 const MIRROR_HZ = 20;
 
-/** Exhaust-side materials that glow with heat (manifold primaries, collectors, downpipes, turbine housings). */
-const GLOW_MATERIALS = ['headerTint', 'castIron'] as const;
-const GLOW = new Color('#ff3c0a');
 
 /**
  * Runs the engine: steps the simulation, turns the visual crank at the true speed × the
@@ -116,15 +113,11 @@ function rock() {
   if (Math.abs(o.pivot.rotation.z - target) > 1e-6) o.pivot.rotation.z = target;
 }
 
-/** Exhaust heat: an emissive glow on the hot parts, nothing at idle. */
+/** Exhaust heat: the hot-metal glow on the exhaust side (materials/heatGlow.ts), nothing at idle. */
 function glow() {
   const from = ENGINE_SIM.heatGlowFrom;
   const level = Math.max(0, (sim.heat - from) / (1 - from));
-  if (Math.abs(level - frame.glow) < 0.004) return;
+  if (Math.abs(level - frame.glow) < 0.004 && (level > 0 || frame.glow === 0)) return;
   frame.glow = level;
-  for (const key of GLOW_MATERIALS) {
-    const m = getMaterial(key) as MeshStandardMaterial;
-    m.emissive.copy(GLOW);
-    m.emissiveIntensity = level * level * 1.6;
-  }
+  heatUniform.value = level > 0 ? level ** ENGINE_SIM.glow.gamma : 0;
 }

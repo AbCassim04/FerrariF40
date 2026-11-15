@@ -35,7 +35,7 @@ export function InspectPanel() {
   const parent = part.parent ? PARTS_BY_ID.get(part.parent) : undefined;
   const specs = Object.entries(part.specs);
   return (
-    <aside className="inspect" aria-labelledby="inspect-title" key={part.id}>
+    <aside className="inspect" aria-labelledby="inspect-title" key={part.id} data-occludes="">
       <header className="inspect__head">
         <p className="inspect__group">
           {GROUP_LABEL[part.group]}

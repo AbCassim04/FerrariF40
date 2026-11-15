@@ -12,6 +12,7 @@ import { useEngineStore } from '../state/engine';
 import { useAppStore } from '../state/store';
 import { claimedClicks, partObjects } from './partObjects';
 import { blocksView } from './picking';
+import { tap, tapSlop } from './taps';
 
 const ORIGIN: Vec3 = [0, 0, 0];
 
@@ -23,9 +24,6 @@ function isSelfOrDescendant(def: PartDef, id: string) {
   return false;
 }
 const ZERO: Vec3 = [0, 0, 0];
-
-/** Pointer travel (px) between down and up that still counts as a click, not a drag. */
-const CLICK_SLOP = 4;
 
 /**
  * Claims a pointer event for this part (the frontmost one hit), unless what was hit is
@@ -109,10 +107,19 @@ function PartNode({ def, parentPosition }: { def: PartDef; parentPosition: Vec3 
               onClick={(e) => {
                 if (!pick(e)) return;
                 claimedClicks.add(e.nativeEvent);
-                if (e.delta < CLICK_SLOP) useAppStore.getState().select(def.id);
-                // A click on a piston picks the cylinder Strokes mode follows.
-                const side = def.id === 'pistons-l' ? 'l' : def.id === 'pistons-r' ? 'r' : null;
-                if (side && e.instanceId !== undefined && e.delta < CLICK_SLOP) useEngineStore.getState().setStrokeCylinder({ s: side, i: e.instanceId });
+                // A drag (an orbit) never selects; a tap waits briefly in case it is a double tap.
+                if (e.delta >= tapSlop(e.nativeEvent)) return;
+                const instance = e.instanceId;
+                tap(
+                  e.nativeEvent,
+                  () => {
+                    useAppStore.getState().select(def.id);
+                    // A click on a piston picks the cylinder Strokes mode follows.
+                    const side = def.id === 'pistons-l' ? 'l' : def.id === 'pistons-r' ? 'r' : null;
+                    if (side && instance !== undefined) useEngineStore.getState().setStrokeCylinder({ s: side, i: instance });
+                  },
+                  e.point.clone(),
+                );
               }}
             >
               {Build && <Build material={def.material ? getMaterial(def.material) : undefined} />}

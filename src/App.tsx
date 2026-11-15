@@ -3,55 +3,58 @@ import { useRef, type CSSProperties } from 'react';
 import { SCENE } from './config/scene';
 import { Experience } from './scene/Experience';
 import { claimedClicks } from './scene/partObjects';
+import { tap, tapSlop } from './scene/taps';
+import { useEngineStore } from './state/engine';
+import { tierOf, useQuality } from './state/quality';
+import { useUiStore } from './state/ui';
 import { useAppStore } from './state/store';
+import { CameraButtons } from './ui/CameraButtons';
+import { ControlBar } from './ui/ControlBar';
 import { Credits } from './ui/Credits';
 import { DevPanel } from './ui/DevPanel';
-import { EngineButton, EnginePanel } from './ui/EngineControls';
-import { ExplodeButton } from './ui/ExplodeButton';
+import { EngineKeys, VolumeSync } from './ui/EngineControls';
 import { HoverTooltip } from './ui/HoverTooltip';
 import { InspectPanel } from './ui/InspectPanel';
-import { XrayToggle } from './ui/XrayToggle';
+import { SoundHint } from './ui/SoundHint';
 
 const { camera, inspect } = SCENE;
-/** Pointer travel (px) that turns a click on empty space into a drag (orbit), which keeps the panel open. */
-const DRAG = 4;
 /** Dev: `?panel=0` hides the dev panel (product shots). */
 const HIDE_DEV_PANEL = import.meta.env.DEV && new URLSearchParams(location.search).get('panel') === '0';
+/** The pixel ratio the first frame renders at (the quality controller keeps it in step with the tier). */
+const START_DPR = Math.min(typeof devicePixelRatio === 'number' ? devicePixelRatio : 1, tierOf(useQuality.getState().tier).dpr);
 
 export function App() {
   const inspecting = useAppStore((s) => s.selectedId !== null);
+  const running = useEngineStore((s) => s.engineRunning);
+  const compact = useUiStore((s) => s.compact);
   const down = useRef({ x: 0, y: 0 });
   return (
     <div
       className="app"
       data-inspecting={inspecting || undefined}
-      style={{ '--panel-w': `${inspect.panelWidth}px`, '--sheet-h': `${inspect.sheetHeight * 100}vh` } as CSSProperties}
+      data-driving={(running && !compact) || undefined}
+      style={{ '--panel-w': `${inspect.panelWidth}px`, '--sheet-h': `${inspect.sheetHeight * 100}dvh` } as CSSProperties}
       onPointerDown={(e) => (down.current = { x: e.clientX, y: e.clientY })}
       onClick={(e) => {
-        // A click on the canvas that no part claimed is a click on empty space.
+        // A tap on the canvas that no part claimed is a tap on empty space: it closes the panel
+        // (unless it turns out to be a double tap, or it was a drag).
         const moved = Math.hypot(e.clientX - down.current.x, e.clientY - down.current.y);
-        if (e.target instanceof HTMLCanvasElement && !claimedClicks.has(e.nativeEvent) && moved < DRAG) useAppStore.getState().select(null);
+        if (e.target instanceof HTMLCanvasElement && !claimedClicks.has(e.nativeEvent) && moved < tapSlop(e.nativeEvent)) {
+          tap(e.nativeEvent, () => useAppStore.getState().select(null));
+        }
       }}
     >
-      <Canvas
-        shadows="percentage"
-        dpr={[1, 2]}
-        gl={{ antialias: true }}
-        camera={{ fov: camera.fov, near: camera.near, far: camera.far, position: [...camera.position] }}
-      >
+      <Canvas shadows="percentage" dpr={START_DPR} gl={{ antialias: true }} camera={{ fov: camera.fov, near: camera.near, far: camera.far, position: [...camera.position] }}>
         <Experience />
       </Canvas>
-      <div className="controls">
-        <EnginePanel />
-        <div className="controls__row">
-          <ExplodeButton />
-          <XrayToggle />
-          <EngineButton />
-        </div>
-      </div>
+      <CameraButtons />
+      <ControlBar />
       <InspectPanel />
       <HoverTooltip />
       <Credits />
+      <SoundHint />
+      <EngineKeys />
+      <VolumeSync />
       {import.meta.env.DEV && !HIDE_DEV_PANEL && <DevPanel />}
     </div>
   );

@@ -21,84 +21,98 @@ body,
   margin: 0;
   height: 100%;
   overflow: hidden;
+  overscroll-behavior: none;
   background: var(--bg);
 }
 
+/* The dynamic viewport: mobile browser bars never push the controls off-screen. */
 .app {
   position: fixed;
-  inset: 0;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 100vh;
+  height: 100dvh;
+  /* No page scroll, pinch-zoom or double-tap zoom: the canvas and the controls take every touch
+     (the panels' scrolling bodies opt back in to vertical panning). */
+  touch-action: none;
 }
 
-/* ── Explode button ─────────────────────────────────────────────────────── */
+/* ── Controls (phone-first: the layouts are in state/ui.ts) ─────────────── */
+/* Pill borders are opaque (blended by hand over the dark backdrop): semi-transparent borders on
+   fully rounded buttons drew a diagonal cross in the review browser. */
 
-.controls {
+.app {
+  /* Where the bottom bar sits: just above the credit (its height is measured into --credits-h). */
+  --bar-bottom: calc(max(10px, env(safe-area-inset-bottom)) + var(--credits-h, 32px) + 12px);
+  --btn-h: 46px;
+  --ui-bg: rgba(20, 22, 27, 0.82);
+  --ui-line: #4b4d52;
+  --ui-line-hover: #76787c;
+}
+
+.app button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.bar {
   position: absolute;
   left: 50%;
-  /* Just above the credit (its height is measured into --credits-h). */
-  bottom: calc(max(10px, env(safe-area-inset-bottom)) + var(--credits-h, 32px) + 12px);
+  bottom: var(--bar-bottom);
+  z-index: 2;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 10px;
-  max-width: calc(100vw - 24px);
+  gap: 8px;
+  max-width: calc(100% - 24px);
   transform: translateX(-50%);
-  transition: bottom 0.3s ease;
+  transition:
+    bottom 0.3s ease,
+    left 0.3s ease;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
-.controls__row {
+.bar__engine {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
-.explode-btn {
-  min-width: 200px;
-  padding: 16px 40px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+.bar__engine[data-running] {
+  padding: 3px;
+  border: 1px solid var(--ui-line);
   border-radius: 999px;
-  background: rgba(240, 242, 246, 0.92);
-  color: #0b0c0f;
-  font-family: inherit;
-  font-size: 15px;
-  font-weight: 600;
-  line-height: 1;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  cursor: pointer;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-  transition:
-    background 0.2s,
-    transform 0.2s;
+  background: var(--ui-bg);
+  backdrop-filter: blur(10px);
+  animation: panel-in 0.25s ease-out;
 }
 
-.explode-btn:hover {
-  background: #fff;
+.bar__engine[data-running] .engine-btn,
+.bar__engine[data-running] .icon-btn {
+  border-color: transparent;
+  background: transparent;
+  backdrop-filter: none;
 }
 
-.explode-btn:active,
-.xray-btn:active,
-.engine-btn:active {
-  transform: scale(0.97);
+@keyframes panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
 }
 
-.explode-btn:focus-visible,
-.xray-btn:focus-visible,
-.engine-btn:focus-visible,
-.engine-panel button:focus-visible,
-.engine-panel input:focus-visible,
-.inspect__close:focus-visible {
-  outline: 2px solid #5fd0ff;
-  outline-offset: 3px;
-}
-
-/* ── X-ray toggle ───────────────────────────────────────────────────────── */
-
-.xray-btn {
-  padding: 15px 20px;
-  /* Opaque (blended over the dark backdrop): see the engine buttons below. */
-  border: 1px solid #4b4d52;
+.explode-btn,
+.xray-btn,
+.engine-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: var(--btn-h);
+  padding: 0 20px;
+  border: 1px solid var(--ui-line);
   border-radius: 999px;
-  background: rgba(20, 22, 27, 0.78);
+  background: var(--ui-bg);
   backdrop-filter: blur(8px);
   color: var(--fg);
   font-family: inherit;
@@ -116,46 +130,46 @@ body,
     transform 0.2s;
 }
 
-.xray-btn:hover {
-  border-color: #76787c;
+.explode-btn {
+  min-width: 168px;
+  padding: 0 32px;
+  border-color: #d9dbe0;
+  background: rgba(240, 242, 246, 0.94);
+  color: #0b0c0f;
+  font-size: 14px;
+  letter-spacing: 0.14em;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+.explode-btn:hover {
+  background: #fff;
+}
+
+.xray-btn:hover,
+.engine-btn:hover,
+.icon-btn:hover,
+.chip:hover {
+  border-color: var(--ui-line-hover);
+}
+
+.explode-btn:active,
+.xray-btn:active,
+.engine-btn:active,
+.icon-btn:active,
+.chip:active {
+  transform: scale(0.96);
+}
+
+.app button:focus-visible,
+.app input:focus-visible {
+  outline: 2px solid #5fd0ff;
+  outline-offset: 3px;
 }
 
 .xray-btn[aria-pressed='true'] {
   border-color: #7fd6ff;
   background: rgba(127, 214, 255, 0.16);
   color: #c9efff;
-}
-
-/* ── Engine: Start / Stop and the panel while it runs ───────────────────── */
-/* Pill borders are opaque (blended by hand over the dark panel): semi-transparent borders on
-   fully rounded buttons drew a diagonal cross in the review browser. */
-
-.engine-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  padding: 15px 20px;
-  border: 1px solid #4b4d52;
-  border-radius: 999px;
-  background: rgba(20, 22, 27, 0.78);
-  backdrop-filter: blur(8px);
-  color: var(--fg);
-  font-family: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  cursor: pointer;
-  transition:
-    background 0.2s,
-    border-color 0.2s,
-    transform 0.2s;
-}
-
-.engine-btn:hover {
-  border-color: #76787c;
 }
 
 .engine-btn__dot {
@@ -165,7 +179,8 @@ body,
   background: #5a5f69;
   transition:
     background 0.2s,
-    box-shadow 0.2s;
+    box-shadow 0.2s,
+    border-radius 0.2s;
 }
 
 .engine-btn[aria-pressed='true'] {
@@ -177,104 +192,182 @@ body,
   box-shadow: 0 0 10px #ff5a36;
 }
 
-.engine-panel {
+/* Square Start / Stop on phone bars: a dot to start, a stop square while it runs. */
+.engine-btn--icon {
+  width: var(--btn-h);
+  padding: 0;
+}
+
+.engine-btn--icon .engine-btn__dot {
+  width: 11px;
+  height: 11px;
+}
+
+.engine-btn--icon[aria-pressed='true'] .engine-btn__dot {
+  border-radius: 2px;
+}
+
+.icon-btn {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: var(--btn-h);
+  height: var(--btn-h);
+  padding: 0;
+  border: 1px solid var(--ui-line);
+  border-radius: 999px;
+  background: var(--ui-bg);
+  backdrop-filter: blur(8px);
+  color: var(--fg);
+  font-family: inherit;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    border-color 0.2s,
+    background 0.2s,
+    transform 0.2s;
+}
+
+.icon-btn svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.more-btn svg {
+  fill: currentColor;
+  stroke: none;
+}
+
+.more-btn[aria-expanded='true'] {
+  border-color: #7fd6ff;
+  color: #c9efff;
+}
+
+/* ── Readout: tach and boost (inline in the desktop bar, a chip at the top on phones) ── */
+
+.readout {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  justify-content: center;
-  gap: 10px 14px;
-  padding: 10px 14px;
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  background: var(--panel);
-  backdrop-filter: blur(12px);
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
-  font-size: 12px;
+  gap: 10px;
+  padding: 0 6px;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+.readout--hud {
+  position: absolute;
+  top: max(12px, env(safe-area-inset-top));
+  left: 50%;
+  z-index: 2;
+  padding: 4px 14px 4px 8px;
+  border: 1px solid var(--ui-line);
+  border-radius: 14px;
+  background: var(--ui-bg);
+  backdrop-filter: blur(10px);
+  transform: translateX(-50%);
   animation: panel-in 0.25s ease-out;
 }
 
-@keyframes panel-in {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-}
-
-.gauges {
-  display: flex;
-  gap: 6px;
-}
-
-.gauge {
+.readout__tach {
   position: relative;
-  width: 86px;
-  height: 56px;
+  width: 64px;
+  height: 44px;
 }
 
-.gauge--small {
-  width: 66px;
-}
-
-.gauge svg {
+.readout__tach svg {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   overflow: visible;
 }
 
-.gauge path {
+.readout path {
   fill: none;
-  stroke-width: 7;
+  stroke-width: 8;
   stroke-linecap: round;
 }
 
-.gauge__track {
-  stroke: rgba(255, 255, 255, 0.1);
+.readout__track {
+  stroke: rgba(255, 255, 255, 0.12);
 }
 
-.gauge__red {
-  stroke: rgba(255, 70, 50, 0.55);
+.readout__red {
+  stroke: rgba(255, 70, 50, 0.6);
 }
 
-.gauge__fill {
+.readout__fill {
   stroke: #e8e9ec;
 }
 
-.gauge__fill--boost {
-  stroke: #7fd6ff;
-}
-
-[data-limiter] .gauge__fill {
+.readout[data-limiter] .readout__fill {
   stroke: #ff5a36;
 }
 
-.gauge__value {
+.readout__rpm {
   position: absolute;
   left: 0;
   right: 0;
-  top: 22px;
+  top: 19px;
   text-align: center;
-  font: 600 13px/1 var(--mono);
-  font-variant-numeric: tabular-nums;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
 }
 
-.gauge__unit {
+.readout__unit--tach {
   position: absolute;
   left: 0;
   right: 0;
-  top: 38px;
+  top: 33px;
   text-align: center;
+}
+
+.readout__cell {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+}
+
+.readout__value {
+  font-family: var(--mono);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.readout__unit {
   color: var(--muted);
   font-size: 9px;
+  line-height: 1;
   letter-spacing: 0.1em;
   text-transform: uppercase;
+}
+
+/* ── Hold-buttons (throttle; the brake in 8D-2) ───────────────────────────── */
+
+.hold {
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .throttle-btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  padding: 12px 18px;
-  border: 1px solid #4b4d52;
+  min-height: var(--btn-h);
+  padding: 0 18px;
+  border: 1px solid var(--ui-line);
   border-radius: 999px;
   background: #24262b;
   color: var(--fg);
@@ -284,22 +377,33 @@ body,
   line-height: 1;
   letter-spacing: 0.1em;
   text-transform: uppercase;
+  white-space: nowrap;
   cursor: pointer;
-  touch-action: none;
-  user-select: none;
-  -webkit-user-select: none;
-  -webkit-touch-callout: none;
+  transition:
+    background 0.12s,
+    border-color 0.12s,
+    transform 0.12s;
 }
 
 .throttle-btn[aria-pressed='true'] {
   border-color: #ff8a5c;
   background: #4a2c22;
+  transform: scale(0.97);
 }
 
-.throttle-btn kbd,
-.engine-panel kbd {
+.throttle-btn__icon {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.app kbd {
   padding: 2px 5px;
-  border: 1px solid var(--border);
+  border: 1px solid #3a3c41;
   border-radius: 4px;
   color: var(--muted);
   font: 10px var(--mono);
@@ -307,16 +411,137 @@ body,
   text-transform: none;
 }
 
-.speed {
+/* Touch-only devices: no keyboard hints. */
+@media (hover: none) and (pointer: coarse) {
+  .app kbd {
+    display: none;
+  }
+}
+
+/* ── "More": a card above the bar (desktop), a bottom sheet (phones) ────────── */
+
+.more {
+  z-index: 4;
+  display: grid;
+  gap: 4px;
+  padding: 10px 14px;
+  border: 1px solid var(--ui-line);
+  background: rgba(18, 20, 25, 0.94);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 16px 50px rgba(0, 0, 0, 0.5);
+  font-size: 12px;
+  user-select: none;
+  -webkit-user-select: none;
+  transition:
+    opacity 0.2s ease,
+    transform 0.22s ease;
+}
+
+.more--card {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--bar-bottom) + var(--btn-h) + 18px);
+  min-width: 340px;
+  border-radius: 14px;
+  opacity: 0;
+  transform: translate(-50%, 8px);
+  pointer-events: none;
+}
+
+.more--card[data-open] {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  pointer-events: auto;
+}
+
+.more--sheet {
+  position: fixed;
+  left: 50%;
+  bottom: 0;
+  width: min(560px, 100%);
+  max-height: 80dvh;
+  overflow-y: auto;
+  padding: 6px max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  border-width: 1px 1px 0;
+  border-radius: 18px 18px 0 0;
+  transform: translate(-50%, 104%);
+  touch-action: pan-y;
+}
+
+.more--sheet[data-open] {
+  transform: translate(-50%, 0);
+}
+
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 3;
+  background: rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.sheet-backdrop[data-open] {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.sheet__grabber {
+  justify-self: center;
+  width: 64px;
+  height: 22px;
+  margin-bottom: 2px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.sheet__grabber::before {
+  content: '';
+  display: block;
+  width: 40px;
+  height: 4px;
+  margin: 0 auto;
+  border-radius: 2px;
+  background: #4b4d52;
+}
+
+.more__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-height: 48px;
+}
+
+.more__row + .more__row {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.more__row--actions {
+  justify-content: center;
+  padding-bottom: 6px;
+}
+
+.more__label {
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.seg {
   display: inline-flex;
   padding: 3px;
-  border: 1px solid var(--border);
+  border: 1px solid #36383d;
   border-radius: 999px;
 }
 
-.speed button,
-.cyl-picker button {
-  padding: 7px 11px;
+.seg button {
+  min-height: 38px;
+  padding: 0 12px;
   border: 0;
   border-radius: 999px;
   background: transparent;
@@ -329,7 +554,7 @@ body,
   cursor: pointer;
 }
 
-.speed button[aria-checked='true'] {
+.seg button[aria-checked='true'] {
   background: #33353a;
   color: var(--fg);
 }
@@ -337,42 +562,23 @@ body,
 .cyl-picker {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  gap: 6px;
   font-variant-numeric: tabular-nums;
 }
 
-.cyl-picker button {
-  padding: 6px 9px;
-  color: var(--fg);
-  font-size: 15px;
+.cyl-picker .icon-btn {
+  width: 40px;
+  height: 40px;
 }
 
 .volume {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-}
-
-.volume__mute {
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  padding: 0;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--fg);
-  cursor: pointer;
+  gap: 8px;
 }
 
 .volume__mute svg {
-  width: 18px;
-  height: 18px;
   fill: currentColor;
-  stroke: currentColor;
-  stroke-width: 1.4;
-  stroke-linecap: round;
 }
 
 .volume__mute .volume__waves,
@@ -381,8 +587,167 @@ body,
 }
 
 .volume input {
-  width: 84px;
+  width: 120px;
   accent-color: #e8e9ec;
+}
+
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--fg);
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.switch__knob {
+  position: relative;
+  width: 40px;
+  height: 24px;
+  border-radius: 12px;
+  background: #36383d;
+  transition: background 0.2s;
+}
+
+.switch__knob::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #c9ccd3;
+  transition: transform 0.2s;
+}
+
+.switch[aria-checked='true'] .switch__knob {
+  background: #2c6f8c;
+}
+
+.switch[aria-checked='true'] .switch__knob::after {
+  transform: translateX(16px);
+}
+
+/* ── Camera: reset and quick views (top-left, every layout) ──────────────── */
+
+.cam {
+  position: absolute;
+  top: max(12px, env(safe-area-inset-top));
+  left: max(12px, env(safe-area-inset-left));
+  z-index: 2;
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  max-width: calc(100% - 24px);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.cam__buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.cam .icon-btn {
+  --btn-h: 40px;
+}
+
+.cam__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-width: 280px;
+  animation: panel-in 0.2s ease-out;
+}
+
+.chip {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--ui-line);
+  border-radius: 999px;
+  background: var(--ui-bg);
+  backdrop-filter: blur(8px);
+  color: var(--fg);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    border-color 0.2s,
+    transform 0.2s;
+}
+
+/* ── Landscape phone: the driving layout ────────────────────────────────── */
+
+.thumbs {
+  position: absolute;
+  bottom: max(14px, env(safe-area-inset-bottom));
+  z-index: 2;
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+}
+
+.thumbs--right {
+  right: calc(max(14px, env(safe-area-inset-right)) + 4px);
+}
+
+.thumbs--left {
+  left: calc(max(14px, env(safe-area-inset-left)) + 4px);
+}
+
+.throttle-btn--thumb {
+  flex-direction: column;
+  gap: 6px;
+  width: 96px;
+  height: 96px;
+  padding: 0;
+  border-radius: 50%;
+  background: rgba(36, 38, 43, 0.88);
+  font-size: 10px;
+}
+
+.throttle-btn--thumb .throttle-btn__icon {
+  width: 24px;
+  height: 24px;
+}
+
+/* ── Toast (the silent-switch hint) ─────────────────────────────────────── */
+
+.toast {
+  position: absolute;
+  top: calc(max(12px, env(safe-area-inset-top)) + 60px);
+  left: 50%;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 6px 6px 14px;
+  border: 1px solid var(--ui-line);
+  border-radius: 12px;
+  background: rgba(18, 20, 25, 0.94);
+  font-size: 13px;
+  white-space: nowrap;
+  transform: translateX(-50%);
+  animation: panel-in 0.25s ease-out;
+}
+
+.toast__close {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 18px;
+  cursor: pointer;
 }
 
 /* Strokes mode: the followed cylinder's stroke, beside it in the scene. */
@@ -418,18 +783,75 @@ body,
   border-color: #ffb04a;
 }
 
-@media (max-width: 719.98px) {
-  .engine-panel {
-    gap: 8px 10px;
-    padding: 8px 10px;
+/* ── Phones (portrait and landscape) ────────────────────────────────────── */
+
+@media (max-width: 719.98px), (orientation: landscape) and (max-height: 500px) {
+  .app {
+    --bar-bottom: calc(max(6px, env(safe-area-inset-bottom)) + var(--credits-h, 16px) + 6px);
+    --btn-h: 44px;
   }
 
+  .bar {
+    gap: 6px;
+  }
+
+  .explode-btn {
+    min-width: 0;
+    padding: 0 20px;
+    font-size: 13px;
+    letter-spacing: 0.12em;
+  }
+
+  .xray-btn,
   .engine-btn {
-    padding: 15px 16px;
+    padding: 0 14px;
   }
 
-  .volume input {
-    width: 64px;
+  .engine-btn--icon {
+    padding: 0;
+  }
+
+  .bar--drive .throttle-btn {
+    flex: 1 1 auto;
+    min-width: 132px;
+  }
+
+  .seg button {
+    min-height: 44px;
+  }
+
+  .chip {
+    min-height: 40px;
+  }
+}
+
+/* Landscape phone: the gauges sit small at the top; the bar's row is clear of the thumbs. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .readout--hud {
+    top: max(8px, env(safe-area-inset-top));
+    padding: 2px 12px 2px 6px;
+  }
+
+  .readout--hud .readout__tach {
+    width: 60px;
+    height: 40px;
+  }
+
+  .readout--hud .readout__rpm {
+    top: 17px;
+    font-size: 11px;
+  }
+
+  .readout--hud .readout__unit--tach {
+    top: 30px;
+  }
+
+  .cam {
+    top: max(8px, env(safe-area-inset-top));
+  }
+
+  .cam__chips {
+    max-width: 200px;
   }
 }
 
@@ -628,23 +1050,71 @@ body,
     font-size: 19px;
   }
 
-  .app[data-inspecting] .controls {
-    bottom: calc(var(--sheet-h) + 14px);
+  .app[data-inspecting] .bar {
+    bottom: calc(var(--sheet-h) + 10px);
   }
 
-  /* The credit stays visible: it moves to the top while the sheet covers the bottom. */
+  /* The credit stays visible: it moves above the sheet, under the bar. */
   .app[data-inspecting] .credits {
-    top: max(10px, env(safe-area-inset-top));
-    bottom: auto;
+    bottom: calc(var(--sheet-h) + 4px);
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+
+.inspect__body {
+  touch-action: pan-y;
+}
+
+/* Desktop: the bar centres in the space beside the panel. */
+@media (min-width: 720px) {
+  .app[data-inspecting] .bar {
+    left: calc((100% - var(--panel-w)) / 2 + 8px);
+  }
+}
+
+/* Landscape phone: a narrower panel down the right, the bar and the thumbs beside it. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .app {
+    --panel-w: min(320px, 40vw);
   }
 
-  .explode-btn {
-    min-width: 0;
-    padding: 15px 30px;
+  .inspect {
+    top: max(8px, env(safe-area-inset-top));
+    right: max(8px, env(safe-area-inset-right));
+    bottom: max(8px, env(safe-area-inset-bottom));
+    width: calc(var(--panel-w) - 16px);
   }
 
-  .controls {
-    bottom: calc(max(10px, env(safe-area-inset-bottom)) + var(--credits-h, 62px) + 14px);
+  .inspect__head {
+    padding: 12px 48px 10px 16px;
+  }
+
+  .inspect__title {
+    font-size: 17px;
+  }
+
+  .inspect__body {
+    padding: 10px 16px 14px;
+  }
+
+  .inspect__desc {
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .app[data-inspecting] .bar {
+    left: calc((100% - var(--panel-w)) / 2);
+  }
+
+  /* Driving: the panel stops above the throttle (which stays under the thumb). */
+  .app[data-driving] .inspect {
+    bottom: calc(max(14px, env(safe-area-inset-bottom)) + 96px + 12px);
+  }
+
+  .app[data-inspecting] .credits[data-short] {
+    left: calc((100% - var(--panel-w)) / 2);
+    max-width: calc(100% - var(--panel-w) - 24px);
   }
 }
 
@@ -652,7 +1122,7 @@ body,
 
 .stats {
   position: absolute !important;
-  top: 12px !important;
+  top: 64px !important;
   left: 12px !important;
 }
 
@@ -764,6 +1234,66 @@ body,
 
 .credits a:hover {
   color: var(--fg);
+}
+
+/* Phones: one small line at the bottom centre; a tap opens the full credit with its links. */
+.credits[data-short] {
+  left: 50%;
+  bottom: max(4px, env(safe-area-inset-bottom));
+  max-width: calc(100% - 24px);
+  transform: translateX(-50%);
+}
+
+.credits__toggle {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 2px 4px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 10px;
+  line-height: 1.2;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.credits__more {
+  margin-left: 6px;
+}
+
+.credits[data-expanded] {
+  left: 8px;
+  right: 8px;
+  bottom: max(8px, env(safe-area-inset-bottom));
+  z-index: 5;
+  max-width: none;
+  padding: 10px 40px 10px 12px;
+  border: 1px solid var(--ui-line);
+  border-radius: 12px;
+  background: rgba(18, 20, 25, 0.96);
+}
+
+.credits__close {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 20px;
+  cursor: pointer;
+}
+
+/* Landscape phone while driving: the line fits between the thumbs. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .app[data-driving] .credits[data-short] {
+    max-width: calc(100% - 260px);
+  }
 }
 
 .dev-panel__report {
