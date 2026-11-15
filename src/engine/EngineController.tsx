@@ -10,6 +10,7 @@ import { refreshShadows } from '../scene/ShadowScheduler';
 import { gearState, reducedMotion, sim, useEngineStore } from '../state/engine';
 import { engineAudio } from './audio/engineAudio';
 import { BLUR_FROM, motionState, setPose } from './motion';
+import { dynoActive, dynoFrame, stopDyno } from './dyno';
 import { drivetrainSettled, kmh, stepSim } from './sim';
 
 const TAU = Math.PI * 2;
@@ -51,9 +52,12 @@ export function EngineController() {
     const shiftsBefore = sim.shifts;
     const limiterBefore = sim.limiter;
     const refusedBefore = sim.refused;
+    // 9A dyno run: the precomputed run plays back frame by frame (the sim isn't stepped meanwhile).
+    const dyno = !store.held && sim.phase === 'running' ? dynoFrame(dt) : (stopDyno(), null);
+    if (dyno) Object.assign(sim, structuredClone(dyno));
     for (let k = 0; k < steps; k++) {
       const h = dt / steps;
-      if (!store.held) stepSim(sim, { pedal: store.pedal ? 1 : 0, brake: store.brakePedal ? 1 : 0 }, h);
+      if (!store.held && !dyno) stepSim(sim, { pedal: store.pedal ? 1 : 0, brake: store.brakePedal ? 1 : 0, auto: store.autoShift }, h);
       if (!frame.frozen) {
         const turn = TAU * h * scale / 60;
         crank += sim.rpm * turn;
@@ -102,6 +106,8 @@ export function EngineController() {
       frame.pinion = sim.pinionIn;
     }
 
+    launchTimer(dt, store.held);
+
     // Mirror to the store for the UI (gauges, buttons) at a modest rate.
     frame.mirror += delta;
     const phaseChanged = store.phase !== sim.phase;
@@ -119,12 +125,56 @@ export function EngineController() {
         speedKmh: Math.abs(kmh(sim.speed)),
         clutch: sim.clutch,
         lever: { ...sim.lever },
+        launch: { ...launch },
+        dynoRunning: dynoActive(),
         ...(sim.phase === 'off' ? { pedal: false } : {}),
       });
     }
   });
 
   return null;
+}
+
+/**
+ * 9A launch timer: starts as the car leaves 0 km/h (forwards), stops at 200 km/h or when the
+ * car stops again; the session's best 0–100 and 0–200 are kept.
+ */
+const launch = { timing: false, t: 0, t100: null as number | null, t200: null as number | null, best100: null as number | null, best200: null as number | null, prev: 0, prevT: 0, t0: 0 };
+if (import.meta.env.DEV) Object.assign(window, { __launch: launch });
+/** The sim time at which the speed crossed `v` (km/h) between the last frame and this one. */
+const crossing = (v: number, prevV: number, nowV: number) => launch.prevT + ((v - prevV) / Math.max(1e-6, nowV - prevV)) * (sim.t - launch.prevT);
+function launchTimer(dt: number, held: boolean) {
+  const v = kmh(sim.speed);
+  const was = launch.prev;
+  const wasV = kmh(was);
+  const step = sim.t - launch.prevT;
+  const done = () => {
+    launch.prev = sim.speed;
+    launch.prevT = sim.t;
+  };
+  // No sim time passed (a playback frame shown twice): nothing to do.
+  if (step === 0 && !held) return;
+  // A dev pose (held, time going back, or a jump no car makes: over 3 g) isn't a launch.
+  if (held || step < 0 || Math.abs(sim.speed - was) > 30 * Math.max(step, dt, 1 / 60)) {
+    launch.timing = false;
+    return done();
+  }
+  // Timed on the sim's own clock (the same at any frame rate): from the frame before it moved.
+  if (!launch.timing && was === 0 && sim.speed > 0 && sim.gear >= 1) Object.assign(launch, { timing: true, t: 0, t100: null, t200: null, t0: launch.prevT });
+  if (launch.timing) {
+    launch.t = sim.t - launch.t0;
+    if (launch.t100 === null && v >= 100) {
+      launch.t100 = crossing(100, wasV, v) - launch.t0;
+      launch.best100 = Math.min(launch.best100 ?? Infinity, launch.t100);
+    }
+    if (launch.t200 === null && v >= 200) {
+      launch.t200 = crossing(200, wasV, v) - launch.t0;
+      launch.best200 = Math.min(launch.best200 ?? Infinity, launch.t200);
+      launch.timing = false;
+    }
+    if (sim.speed <= 0) launch.timing = false;
+  }
+  done();
 }
 
 const vibrate = (pattern: number | number[]) => {

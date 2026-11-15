@@ -13,6 +13,8 @@ import { TIME_SCALES, type TimeScaleName } from '../config/engine-sim';
 import { frame } from '../engine/EngineController';
 import { motionState, setPose } from '../engine/motion';
 import { sim, useEngineStore } from '../state/engine';
+import { startDyno, type DynoTimeline } from '../engine/dyno';
+import { useCameraFeel, type CameraProfileName } from '../state/cameraFeel';
 import { deriveShafts, gearboxRpm, kmh, placeGear, stepSim, type ClutchState } from '../engine/sim';
 import { engineAudio } from '../engine/audio/engineAudio';
 import { fitView } from '../scene/fitView';
@@ -73,6 +75,13 @@ export interface DevApi {
   pick(x: number, y: number): { point: Vec3; partId: string | null } | null;
   /** A world point on screen (CSS px). */
   project(point: Vec3): [number, number];
+  /**
+   * 9A: start the dyno run (the engine runs if it was off) and return its timeline: the same
+   * every time (computed at a fixed step, played back frame by frame).
+   */
+  dynoRun(): Omit<DynoTimeline, 'frames'> & { frames: number };
+  /** 9A: the camera feel profile (switch to `name`, if given); returns the one in use. */
+  cameraFeel(name?: CameraProfileName): CameraProfileName;
 }
 
 export interface EngineOptions {
@@ -276,6 +285,20 @@ export function DevApi() {
         let o: Object3D | null = hit.object;
         while (o && !o.userData.partId) o = o.parent;
         return { point: vec(hit.point), partId: (o?.userData.partId as string | undefined) ?? null };
+      },
+      cameraFeel(name) {
+        if (name) useCameraFeel.getState().setProfile(name);
+        return useCameraFeel.getState().profile;
+      },
+      dynoRun() {
+        const store = useEngineStore;
+        if (sim.phase !== 'running') Object.assign(sim, { phase: 'running', t: 10, rpm: 1000, firing: true, starter: false });
+        frame.frozen = false;
+        store.setState({ engineRunning: true, phase: 'running', held: false, pedal: false, brakePedal: false });
+        const tl = startDyno();
+        store.setState({ dynoRunning: true });
+        const { frames, ...rest } = tl;
+        return { ...rest, frames: frames.length };
       },
       project(point) {
         const rect = gl.domElement.getBoundingClientRect();

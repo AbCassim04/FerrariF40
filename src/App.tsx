@@ -11,6 +11,7 @@ import { useAppStore } from './state/store';
 import { CameraButtons } from './ui/CameraButtons';
 import { ControlBar } from './ui/ControlBar';
 import { Credits } from './ui/Credits';
+import { DynoGraph } from './ui/DynoGraph';
 import { DevPanel } from './ui/DevPanel';
 import { EngineKeys, VolumeSync } from './ui/EngineControls';
 import { HoverTooltip } from './ui/HoverTooltip';
@@ -51,6 +52,7 @@ export function App() {
       <ControlBar />
       <InspectPanel />
       <HoverTooltip />
+      <DynoGraph />
       <Credits />
       <SoundHint />
       <EngineKeys />

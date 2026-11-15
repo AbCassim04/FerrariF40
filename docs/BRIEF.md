@@ -724,3 +724,69 @@ docs/reference/f40/ would correct them (the folder is empty).
 - **Dev:** `__dev.engine({ gear, speedKmh, clutch, lever })` (lever: any gate position, for the
   clash sweep); the shot of exploded-and-running uses the held pose, so its gears are frozen;
   `scripts/dev/drive-test.mjs` measures 0–100 and top speed headlessly.
+
+*Phase 9A: feel: camera profiles, auto shift, dyno tools (owner's brief 2026-11-15)*
+- **Camera, diagnosis (from the 8D code):** (a) camera-controls' dolly-to-cursor moves the orbit
+  pivot toward the cursor on a plane at the pivot's depth, so after a few off-centre zooms the
+  car orbits round a point in empty space; (b) a flick carries on (τ 0.3 s) over 0.18 s of
+  damping, which reads as floaty; (c) the low-orbit limit is recomputed every frame from the
+  camera's height and eased (`rotatePolarTo(…, true)`), so near the ground zooming or panning
+  pushes the camera about. Two more found in the code: a trackpad pinch (a ctrl + wheel event)
+  went to camera-controls' ZOOM, which changes the lens (camera.zoom) instead of moving the
+  camera, and breaks the free-area centring; and when one finger of a pinch lifted,
+  camera-controls switched to one-finger rotate starting from the old two-finger midpoint (a
+  jump).
+- **Three profiles (`?cam=`, "Camera feel" in "more", remembered in localStorage), default
+  "anchored".** classic: 8D's pivot, inertia, damping and low-orbit floor. anchored: zoom still
+  goes to the cursor or pinch midpoint, then (0.22 s after the last wheel event, or when a pan
+  or pinch ends and the camera settles) the pivot is moved onto the car's surface under the
+  view's centre (the centre of the free area), else onto the point of that ray nearest the
+  car's centre; the camera doesn't move when it does (the focal offset takes up the
+  difference). No inertia; damping 0.1 s (0.035 s while dragging). grab: as anchored, and a
+  rotation pivots round the car's surface under the pointer as the drag starts. I chose
+  anchored as the default: the pivot is always on what you look at, and a rotation never
+  swings the view about a point you didn't pick; grab is powerful with a mouse but on a phone
+  a thumb that lands near the edge of the car swings the whole view about that edge.
+- **Fixed floor (anchored, grab):** the camera never goes below its pivot's height (polar
+  limit 88.9°, a constant) and the pivot never below 5 cm, so the camera can't reach the
+  ground at any zoom. To look under the exploded car, put the pivot low (double-tap a low part,
+  or grab one). classic keeps 8D's low orbit.
+- **All profiles (not only the new two), so classic is 8D plus these fixes:** the wheel is
+  handled by us: the radius scales by exp(0.0016 × pixels) (a 100 px notch ×1.17; a trackpad
+  scroll the same per pixel), a pinch (ctrlKey) by exp(0.012 × pixels) toward the fingers as a
+  dolly, never the lens; lines × 16 px, pages × 400; one event at most ×1.65. Once a second
+  finger lands, one finger doesn't rotate until all are up. Soft pan limits: the pivot may be
+  dragged 0.9 m past the car's box (the exploded extents when exploded) against a pull of 12 %
+  of the excess per 60 Hz frame, and eases back when let go (the old 6 m hard box stays as a
+  last stop). Anchor rays only hit the car (not the ground or the grid).
+- **Auto shift (a toggle beside the gear, and in "more", with the note "The real F40 is
+  manual-only; Auto shift just changes gear for you"; on at first on touch screens, off on
+  desktop).** Map (est): upshift at 2700 + 4950 × throttle^1.4 rpm (7650 flat out, 50 rpm under
+  the limiter); downshift below 1500 + 1800 × throttle rpm if the lower gear lands 700 rpm under
+  the upshift point; while braking, down a gear whenever the lower one lands under 4500 rpm
+  (blipped, heel-and-toe style), never up; kick-down when the pedal goes from under 0.55 to full
+  below 5200 rpm, straight to the lowest gear that stays under 7000; into 1st under 9 km/h (and
+  from N when the throttle is pressed at rest); R is left alone. A + / − press or a gate pick
+  holds it off for 3 s. The shifts are the manual ones (clutch, cut / blip, lever, clunk). With
+  the on/off throttle of a key or button, every press from a light foot is a kick-down.
+- **Dyno run** ("more" → Run; `__dev.dynoRun()`): computed once at a 1/240 s step and played
+  back at 60 frames a second (the sim's whole state per frame), so it is the same every time
+  whatever the frame rate; the engine sound and the moving parts follow the played state. 1 s
+  at idle in 1st, full throttle with upshifts at 7700 rpm, "top speed" once 5th has gained less
+  than 0.08 m/s² for 1.5 s (321.3 km/h at 58.3 s; the last 3 km/h to 324 take another minute),
+  then brakes at 0.6 with the auto downshifts, 2 s at rest: 72.6 s in all. Any throttle, brake,
+  shift or gate input (or Stop) cancels it and the sim carries on from there. In a slow browser
+  the playback slows down with it (frames are taken by elapsed time, at most 0.25 s a frame).
+- **Launch timer:** starts when the car leaves 0 km/h forwards, under the sim's own stepping
+  (not a held dev pose, nor a jump over 3 g); stops at 200 km/h or when the car stops; 0–100,
+  0–200 and the session's bests (not saved). Desktop: in the bar, bests dropped under 1440 px
+  wide and the timer under 1100 px; phones: a slim row under the gauges.
+- **Dyno graph** (toggle in "more"; on at first on desktop, off on phones): torque and power as
+  two small panels on one rpm axis rather than one chart with two y axes (two measures, two
+  scales); the curves are the sim's full-boost torque table and P = T × rpm / 7121; peaks
+  marked (577 Nm at 4000, 478 hp at 7000); a dot at the present rpm and output
+  (`engineTorque`); hover or touch reads any rpm. Top left under the camera buttons, marked as
+  UI in the way, so the framing keeps the engine clear of it. Colours: the dataviz reference
+  palette's blue and orange (dark steps), validated on the panel's surface (all checks pass).
+- **"More" is always there now** (it held only engine settings before), since Camera feel
+  applies with the engine off too.

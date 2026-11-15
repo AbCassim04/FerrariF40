@@ -45,8 +45,41 @@ export const SCENE = {
     narrowBackOff: 2.4,
     /** Looser framing for an inspected part, so the panel doesn't crowd it. */
     inspectPadding: 0.3,
-    /** Where panning may move the orbit target. */
+    /** Where panning may move the orbit target at most (a hard stop, well outside the soft limits). */
     targetBounds: { min: [-6, 0.05, -7] as Vec3, max: [6, 4, 7] as Vec3 },
+    /**
+     * 9A camera feel, three profiles to compare (all est). classic: the 8D behaviour (pivot
+     * follows zoom-to-cursor, flick inertia, a low-orbit limit from the camera's height).
+     * anchored: after a zoom or pan the pivot is put back on the surface under the view's
+     * centre; no inertia; crisp damping; a fixed floor. grab: as anchored, and a rotation
+     * pivots round the point under the pointer when it starts.
+     */
+    profiles: {
+      classic: { label: 'Classic', smoothTime: 0.18, draggingSmoothTime: 0.07, inertia: true, floor: 'low-orbit', anchor: false, grab: false },
+      anchored: { label: 'Anchored', smoothTime: 0.1, draggingSmoothTime: 0.035, inertia: false, floor: 'pivot', anchor: true, grab: false },
+      grab: { label: 'Grab', smoothTime: 0.1, draggingSmoothTime: 0.035, inertia: false, floor: 'pivot', anchor: true, grab: true },
+    },
+    defaultProfile: 'anchored' as 'classic' | 'anchored' | 'grab',
+    /**
+     * Fixed floor (anchored, grab): the camera never goes below the pivot's height (polar
+     * limit just above the horizontal), and the pivot never below `minTargetY`, so the camera
+     * stays above the ground at any zoom; no limit that moves with the camera.
+     */
+    pivotFloor: { maxPolar: Math.PI / 2 - 0.02, minTargetY: 0.05 },
+    /**
+     * Wheel and trackpad (all profiles): the radius scales by exp(pixels × k): a 100 px mouse
+     * notch is ×1.17; a trackpad scroll is the same per pixel; a trackpad pinch (ctrlKey) moves
+     * with the fingers (k larger, its deltas are small). One event moves at most `maxStep`.
+     */
+    wheel: { pixel: 0.0016, pinch: 0.012, lineHeight: 16, pageHeight: 400, maxStep: 0.5 },
+    /** After the last wheel event, this long before the pivot is re-anchored (ms). */
+    anchorIdleMs: 220,
+    /**
+     * Soft pan limits (all profiles): the pivot may be dragged past the car's box (exploded:
+     * the exploded extents) grown by `margin` (m), against a pull of `pull` of the excess per
+     * 60 Hz frame; let go, it eases back.
+     */
+    softBounds: { margin: 0.9, pull: 0.12 },
   },
   grid: { cellSize: 0.1, sectionSize: 1, fadeDistance: 28 },
   /**

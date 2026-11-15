@@ -25,7 +25,7 @@ export function ControlBar() {
 
   const viewing = (
     <>
-      {running && <MoreButton />}
+      <MoreButton />
       <ExplodeButton />
       <XrayToggle />
       <EngineButton />
@@ -50,7 +50,7 @@ export function ControlBar() {
                 <ThrottleButton variant="pill" />
               </>
             )}
-            {running && <MoreButton />}
+            <MoreButton />
           </div>
         </div>
       ) : layout === 'portrait' && driving ? (

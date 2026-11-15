@@ -1,7 +1,10 @@
 import { create } from 'zustand';
 import type { TimeScaleName } from '../config/engine-sim';
 import type { Side } from '../parts/engine/layout';
+import { DRIVE } from '../config/engine-sim';
 import { createSim, isRunning, selectGear, shiftBy, startEngine, stopEngine, type ClutchState, type EnginePhase, type GatePos } from '../engine/sim';
+import { dynoActive, startDyno, stopDyno } from '../engine/dyno';
+import { touchOnly } from './ui';
 
 /** The user prefers reduced motion: the display defaults to Slow and the engine doesn't rock. */
 export const reducedMotion = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -46,6 +49,14 @@ interface EngineStore {
   brakePedal: boolean;
   /** A shift was just refused (over-rev, reverse while rolling): the gear indicator flashes. */
   refused: boolean;
+  /** 9A: the gearbox shifts by itself (Auto on touch screens, Manual on desktop at first). */
+  autoShift: boolean;
+  /** 9A launch timer: this run's 0–100 / 0–200 (s; null until reached), the session's best, and whether a run is timing. */
+  launch: { timing: boolean; t: number; t100: number | null; t200: number | null; best100: number | null; best200: number | null };
+  /** 9A: the dyno graph is shown (off at first on phones). */
+  dynoGraph: boolean;
+  /** 9A: a dyno run is playing. */
+  dynoRunning: boolean;
 
   start: () => void;
   stop: () => void;
@@ -55,6 +66,10 @@ interface EngineStore {
   setVolume: (v: number) => void;
   toggleMute: () => void;
   setBrake: (on: boolean) => void;
+  setAutoShift: (on: boolean) => void;
+  setDynoGraph: (on: boolean) => void;
+  /** Start (or stop) the dyno run. */
+  dyno: (on: boolean) => void;
   /** Up or down the lever order R, N, 1…5. */
   shift: (dir: 1 | -1) => void;
   /** A gear straight from the gate. */
@@ -82,6 +97,10 @@ export const useEngineStore = create<EngineStore>()((set) => ({
   lever: { plane: 0, throw: 0 },
   brakePedal: false,
   refused: false,
+  autoShift: touchOnly,
+  launch: { timing: false, t: 0, t100: null, t200: null, best100: null, best200: null },
+  dynoGraph: !touchOnly,
+  dynoRunning: false,
 
   start: () => {
     startEngine(sim);
@@ -91,19 +110,41 @@ export const useEngineStore = create<EngineStore>()((set) => ({
     stopEngine(sim);
     set({ phase: sim.phase, pedal: false, held: false });
   },
-  setPedal: (pedal) => set({ pedal }),
+  // Any throttle, brake or shift input cancels a dyno run (the sim carries on from where it is).
+  setPedal: (pedal) => {
+    if (pedal) stopDyno();
+    set({ pedal, dynoRunning: dynoActive() });
+  },
   setTimeScale: (timeScale) => set({ timeScale }),
   setStrokeCylinder: (strokeCylinder) => set({ strokeCylinder }),
   setVolume: (volume) => set({ volume: Math.min(1, Math.max(0, volume)), muted: false }),
   toggleMute: () => set((s) => ({ muted: !s.muted })),
-  setBrake: (brakePedal) => set({ brakePedal }),
+  setBrake: (brakePedal) => {
+    if (brakePedal) stopDyno();
+    set({ brakePedal, dynoRunning: dynoActive() });
+  },
+  // A shift by hand holds the auto shift off for a few seconds.
   shift: (dir) => {
+    stopDyno();
+    sim.autoHold = DRIVE.auto.overrideS;
     shiftBy(sim, dir);
     set(gearState());
   },
   selectGear: (g) => {
+    stopDyno();
+    sim.autoHold = DRIVE.auto.overrideS;
     selectGear(sim, g);
     set(gearState());
+  },
+  setAutoShift: (autoShift) => {
+    sim.autoHold = 0;
+    set({ autoShift });
+  },
+  setDynoGraph: (dynoGraph) => set({ dynoGraph }),
+  dyno: (on) => {
+    if (on && sim.phase === 'running') startDyno();
+    else stopDyno();
+    set({ dynoRunning: dynoActive(), pedal: false, brakePedal: false });
   },
 }));
 

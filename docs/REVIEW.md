@@ -1,4 +1,87 @@
-# Build review: phase 8 (`wip/f40-motion`), then phases 2–4
+# Build review: phase 9 (`wip/f40-phase9`), phase 8, then phases 2–4
+
+## Phase 9: feel, exhaust, car details (`wip/f40-phase9`)
+
+Owner's brief 2026-11-15, three checkpoint commits. Every feature checked on desktop
+1440×900, iPhone 13 portrait and landscape, and Pixel 7 portrait (emulated: a second browser
+context with the device's size, pixel ratio, touch and user agent). Decisions in docs/BRIEF.md
+("Phase 9A" …).
+
+### 9A: camera profiles, auto shift, dyno tools
+
+**Camera.** Diagnosis and the three profiles are in BRIEF ("Phase 9A"). Default **anchored**.
+Switch with `?cam=classic|anchored|grab` or "more" → Camera feel (instant, remembered).
+
+Scripted checks (`scripts/dev/camera-check.js`, `scripts/dev/touch-check.js`, run with the
+Playwright MCP's `run_code` `filename`). Desktop 1440×900, from the front ¾ view: 5 zoom-ins
+(one 100 px wheel notch each) at (25 %, 30 %), (72 %, 35 %), (30 %, 68 %), (68 %, 62 %),
+(42 %, 40 %) of the canvas, then a 45° orbit (a left drag of 1/8 of the height). This review
+browser draws ~4 frames a second, so per-frame turns are also given per 60 Hz frame.
+
+| Profile | View turn while zooming (max) | Orbit turn per frame, max / median | Max per 60 Hz frame | Car centre on screen (x, y) | Pivot distance |
+|---|---|---|---|---|---|
+| classic | 0.00° | 4.42° / 4.38° | 0.17° | 0.54, 0.42 | 2.84 m |
+| anchored | 0.00° | 7.60° / 4.41° | 0.94° | 0.25, 0.46 | 2.08 m |
+| grab | 0.00° | 4.41° / 4.41° | 0.17° | 0.24, 0.46 | 2.04 m |
+
+All inside the middle 60 % (0.2–0.8). Zooming and re-anchoring never turn the view; the orbit
+is even (anchored's one 7.6° frame is two drag steps landing in one frame, 0.94° per 60 Hz
+frame). Anchored and grab end closer to the surface (their pivot is on it), so the car's centre
+sits further off the middle after the orbit. With two notches per zoom-in (a much deeper zoom,
+0.5 m from the body) and a 112° orbit, anchored and grab put the car's centre off screen:
+there the camera is looking at a hand's width of bodywork, and the orbit turns round it.
+
+iPhone 13 portrait, touch (CDP `Input.dispatchTouchEvent`), per profile: two fingers land 120 px
+apart left of centre, spread to 240 px, pan 80 px down together, then one lifts and the other
+drags 90 px sideways.
+
+| Profile | Point under the pinch, drift | View turn: 2nd finger lands / one lifts / one-finger drag after | Distance before → after |
+|---|---|---|---|
+| classic | 5 px | 0.00° / 0.00° / 0.00° | 17.6 → 15.2 m |
+| anchored | 5 px | 0.00° / 0.00° / 0.00° | 17.6 → 15.2 m |
+| grab | 4 px | 0.00° / 0.00° / 0.00° | 17.6 → 15.4 m |
+
+Before the fix, lifting one finger let camera-controls rotate from the old two-finger midpoint.
+Trackpad: ten ctrl + wheel events of −6 px (a pinch) moved the camera from 6.32 to 2.36 m with
+the lens untouched (`camera.zoom` stays 1; it used to change); ten +8 px scroll events ×1.14;
+a 100 px notch ×1.17.
+
+**Auto shift** (`scripts/dev/auto-test.mjs`, headless):
+- Flat out from N at rest: 1st at 0.2 s, 1→2 at 100 km/h, 2→3 at 155; the engine peaks at
+  7653 rpm (limiter 7750).
+- 35 % throttle: 1→2 at 50 km/h, 2→3 at 78; peak 3840 rpm.
+- Kick-down: cruising in 5th at 118 km/h, then full throttle: 5→2 at once (5786 rpm), then up
+  at 7650.
+- Braking at 0.8 from 200 km/h in 5th: 5→4 at 160 km/h, 4→3 at 120, 3→2 at 85, 2→1 at 53
+  (each ~4000–4300 rpm, blipped); at rest in 1st. Before the no-upshift-while-braking rule it
+  hunted 4↔5.
+- A manual shift holds it off for 3 s; then it carries on.
+
+**Dyno run** (`__dev.dynoRun()`): t 0–100 4.01 s, 0–200 10.88 s; shifts at 101 / 156 / 215 /
+284 km/h; top speed called at 321.3 km/h (58.3 s); braking 5→4 at 65 km/h (the dyno brakes at
+0.6), stopped at 70.6 s; 72.6 s in all, 4355 frames, computed in ~70 ms. Live in the page: the
+brake key cancels it and the car carries on (75 km/h in 1st in the test).
+
+**Launch timer:** on the sim's clock, interpolated between frames: the live dyno run read
+0–100 4.09 s, 0–200 10.88 s (the timeline: 4.01 from full throttle; the timer starts at the
+frame before the car moved, which at this browser's 4 fps is up to 0.25 s early).
+
+**Gates**
+- Typecheck and build pass. Clash: assembled vs body none, full explode none (no geometry
+  changed).
+- Perf, desktop 1440×900 top tier, unchanged from 8D-2: idle 255 calls / 0.81 M triangles;
+  running in 4th at 180 km/h 406–419 / 1.42–1.47 M; running exploded 407 / 1.42 M. The dyno
+  graph and timer are HTML / SVG.
+- Phones: medium tier (DPR 1.5) as before. HUD portrait 112–378 px (clear of the camera buttons
+  at 12–100); landscape graph ends at 195 px, above the − thumb at 212.
+
+**Screenshots** (docs/review/f40-phase9/): `9a-desktop-driving` (engine view, graph, timer
+after a dyno run), `9a-desktop-more`, `9a-iphone-portrait` and `-sheet`, `9a-iphone-landscape`
+(graph on), `9a-pixel7`.
+
+**Needs a real phone or trackpad:** how each camera profile feels under a finger and on a
+trackpad (pinch and two-finger scroll speeds); Auto shift's kick-down with a thumb on the
+throttle (every press from a light foot kicks down).
 
 ## Phase 8: a running engine and its sound (`wip/f40-motion`)
 Branch `wip/f40-motion` from `main` (phases 1–4 merged), one checkpoint commit per

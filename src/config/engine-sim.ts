@@ -189,6 +189,32 @@ export const DRIVE = {
   clutch: { launchRpm: [2500, 3500] as const, bite: 0.25, close: 1.0, slipTau: 0.12, lockTol: 60, openBelowRpm: 1100 },
   /** Shifts (est): clutch open and torque cut this long; a downshift blips to `blip` throttle; refused shifts flash this long. */
   shift: { time: 0.2, syncTau: 0.05, blip: 0.6, refusedFlash: 0.6 },
+  /**
+   * 9A auto shift (est map; the real F40 is manual-only). Upshift at `up` rpm, from `up[0]`
+   * with a light foot to `up[1]` flat out (× throttle^`upPower`); downshift when the engine
+   * falls below `down` (light → full) if the lower gear lands at least `hysteresis` under the
+   * upshift point; kick down when the pedal goes from under `kick.from` to full while the
+   * engine is below `kick.below`, straight to the lowest gear that stays under `kick.target`;
+   * into 1st below `firstBelow` km/h; manual presses hold the auto off for `overrideS`.
+   */
+  auto: {
+    up: [2700, 7650] as const,
+    upPower: 1.4,
+    down: [1500, 3300] as const,
+    hysteresis: 700,
+    kick: { from: 0.55, below: 5200, target: 7000 },
+    firstBelow: 9,
+    overrideS: 3,
+    /** Braking (brake over 0.2): down a gear whenever the lower one lands under `brakeDown` rpm (blipped, like heel-and-toe). */
+    brakeDown: 4500,
+  },
+  /**
+   * 9A dyno run (est): wait `waitS` at idle in 1st, then full throttle with upshifts at
+   * `shiftRpm`; top speed is called once 5th has gained less than `topAccel` m/s² for
+   * `topHoldS`; then brakes at
+   * `brake` (auto downshifts on the way down), holds `holdS` at rest. Played back at `fps`.
+   */
+  dyno: { waitS: 1, shiftRpm: 7700, topAccel: 0.08, topHoldS: 1.5, brake: 0.6, holdS: 2, fps: 60, maxSeconds: 240 },
   /** (est) Selector forks: a full travel in this long (s, real time). The lever goes through the gate in about the shift time. */
   forkTime: 0.15,
   /** (est) Brakes: deceleration at full pedal (g), and how fast the pedal goes on / off (s). */

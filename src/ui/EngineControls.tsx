@@ -5,6 +5,7 @@ import { cylinderNumber, firingAngle, SIDES, CYLINDERS } from '../parts/engine/l
 import { reducedMotion, sim, useEngineStore } from '../state/engine';
 import { useRealAllowed } from '../state/quality';
 import { useUiStore } from '../state/ui';
+import { AUTO_NOTE, AutoShiftSwitch, AutoShiftToggle, CameraFeelChoice, DynoGraphSwitch, DynoRunButton } from './Settings';
 
 const NON_TEXT_INPUTS = new Set(['checkbox', 'radio', 'button', 'range', 'color']);
 const isTextEntry = (t: EventTarget | null) =>
@@ -103,6 +104,7 @@ export function Readout({ variant }: { variant: 'bar' | 'hud' }) {
   const boost = useRef<HTMLSpanElement>(null);
   const gear = useRef<HTMLSpanElement>(null);
   const speed = useRef<HTMLSpanElement>(null);
+  const lap = useRef<(HTMLSpanElement | null)[]>([]);
   useEffect(() => {
     const draw = (s: ReturnType<typeof useEngineStore.getState>) => {
       tach.current?.setAttribute('d', arc(Math.min(1, s.rpm / TACH_MAX)));
@@ -112,6 +114,18 @@ export function Readout({ variant }: { variant: 'bar' | 'hud' }) {
       if (speed.current) speed.current.textContent = String(Math.round(s.speedKmh));
       root.current?.toggleAttribute('data-limiter', s.limiter);
       root.current?.toggleAttribute('data-refused', s.refused);
+      // Launch timer: this run (counting while it times), and the session's best.
+      const L = s.launch;
+      const fmt = (v: number | null) => (v === null ? '—' : v.toFixed(2));
+      const now = [L.t100 !== null ? fmt(L.t100) : L.timing ? L.t.toFixed(1) : '—', L.t200 !== null ? fmt(L.t200) : L.timing && L.t100 !== null ? L.t.toFixed(1) : '—'];
+      const best = [L.best100, L.best200];
+      [0, 1].forEach((k) => {
+        const v = lap.current[k * 2];
+        const b = lap.current[k * 2 + 1];
+        if (v) v.textContent = now[k];
+        if (b) b.textContent = best[k] === null ? '' : `best ${fmt(best[k])}`;
+      });
+      root.current?.toggleAttribute('data-timing', L.timing);
     };
     draw(useEngineStore.getState());
     return useEngineStore.subscribe(draw);
@@ -141,11 +155,23 @@ export function Readout({ variant }: { variant: 'bar' | 'hud' }) {
         </span>
         <span className="readout__unit">gear</span>
       </span>
+      <AutoShiftToggle />
       <span className="readout__cell readout__cell--speed">
         <span className="readout__value" ref={speed}>
           0
         </span>
         <span className="readout__unit">km/h</span>
+      </span>
+      <span className="readout__timer" aria-label="Launch timer: 0 to 100 and 0 to 200 km/h, and the session's best">
+        {['0–100', '0–200'].map((label, k) => (
+          <span key={label} className="readout__lap">
+            <span className="readout__lap-label">{label}</span>
+            <span className="readout__lap-value" ref={(el) => void (lap.current[k * 2] = el)}>
+              —
+            </span>
+            <span className="readout__lap-best" ref={(el) => void (lap.current[k * 2 + 1] = el)} />
+          </span>
+        ))}
       </span>
     </div>
   );
@@ -429,18 +455,37 @@ export function MorePanel({ extra, sheet }: { extra?: ReactNode; sheet: boolean 
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [open, setMore]);
-  useEffect(() => {
-    if (!running) setMore(false);
-  }, [running, setMore]);
   if (!shown) return null;
   return (
     <>
       {sheet && <div className="sheet-backdrop" data-open={visible || undefined} onClick={() => setMore(false)} />}
-      <section id="more-panel" className={sheet ? 'more more--sheet' : 'more more--card'} data-open={visible || undefined} data-occludes="" aria-label="Engine settings">
+      <section id="more-panel" className={sheet ? 'more more--sheet' : 'more more--card'} data-open={visible || undefined} data-occludes="" aria-label="Settings">
         {sheet && <button type="button" className="sheet__grabber" aria-label="Close" onClick={() => setMore(false)} />}
         {extra && <div className="more__row more__row--actions">{extra}</div>}
+        <div className="more__row">
+          <span className="more__label">Camera feel</span>
+          <CameraFeelChoice />
+        </div>
         {running && (
           <>
+            <div className="more__row">
+              <span className="more__label">
+                Auto shift
+                <span className="more__note">{AUTO_NOTE}</span>
+              </span>
+              <AutoShiftSwitch />
+            </div>
+            <div className="more__row">
+              <span className="more__label">
+                Dyno run
+                <span className="more__note">Full throttle from rest to top speed, then the brakes. Any input stops it.</span>
+              </span>
+              <DynoRunButton />
+            </div>
+            <div className="more__row">
+              <span className="more__label">Dyno graph</span>
+              <DynoGraphSwitch />
+            </div>
             {sheet && (
               <div className="more__row">
                 <span className="more__label">Gear</span>

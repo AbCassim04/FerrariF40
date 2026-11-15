@@ -81,6 +81,9 @@ export interface SimState {
   slipT: number;
   /** A second press during a shift (one step up or down), made as soon as that shift ends. */
   queued: 0 | 1 | -1;
+  /** 9A auto shift: seconds left of a manual override (auto waits), and the last pedal (kick-down). */
+  autoHold: number;
+  lastPedal: number;
   /** Selector sleeves (R–1, 2–3, 4–5): −1 toward the front gear of their pair, +1 toward the rear one. */
   sleeves: [number, number, number];
   /** The cabin lever in the gate, and the gate positions it still has to pass through. */
@@ -97,6 +100,8 @@ export interface SimInput {
   pedal: number;
   /** Brake pedal 0…1. */
   brake?: number;
+  /** 9A: the gearbox shifts by itself (see `autoShift`). */
+  auto?: boolean;
 }
 
 export function createSim(): SimState {
@@ -128,6 +133,8 @@ export function createSim(): SimState {
     accel: 0,
     slipT: 0,
     queued: 0,
+    autoHold: 0,
+    lastPedal: 0,
     sleeves: [0, 0, 0],
     lever: { ...GATE[0] },
     leverPath: [],
@@ -229,6 +236,49 @@ export function shiftBy(s: SimState, dir: 1 | -1) {
   return selectGear(s, g);
 }
 
+/** Auto shift's upshift point at this throttle (rpm). */
+export const autoUpRpm = (throttle: number) => D.auto.up[0] + (D.auto.up[1] - D.auto.up[0]) * Math.pow(clamp01(throttle), D.auto.upPower);
+
+/**
+ * 9A auto shift (a convenience: the real F40 is manual-only). The same shifts as by hand
+ * (clutch, cut or blip, lever, sound): up near the limiter flat out and earlier with a light
+ * foot, down as the revs fall, a kick-down to the lowest safe gear on a sudden full throttle,
+ * into 1st when stopping (or pulling away from N). R is left alone; never over-revs (the
+ * same refusals as a manual shift apply).
+ */
+function autoShift(s: SimState, pedal: number) {
+  const A = D.auto;
+  if (s.shift || s.autoHold > 0 || s.gear === -1) return;
+  const kmhNow = kmh(s.speed);
+  // Pulling away from N, or slowing to a stop in a higher gear: 1st.
+  if (s.gear === 0) {
+    if (pedal > 0.05 && Math.abs(kmhNow) < A.firstBelow) selectGear(s, 1);
+    return;
+  }
+  if (s.gear > 1 && kmhNow < A.firstBelow) {
+    selectGear(s, 1);
+    return;
+  }
+  // Kick-down: from a light foot to full, the lowest gear that stays under the target.
+  if (pedal > 0.95 && s.lastPedal < A.kick.from && s.rpm < A.kick.below) {
+    for (let g = 1; g < s.gear; g++)
+      if (gearboxRpm(g, s.speed) < A.kick.target) {
+        selectGear(s, g);
+        return;
+      }
+  }
+  const throttle = Math.max(pedal, s.throttle);
+  const up = autoUpRpm(throttle);
+  if (s.gear < 5 && s.clutch === 'locked' && s.rpm >= up && s.brake < 0.05) {
+    selectGear(s, s.gear + 1);
+    return;
+  }
+  const down = A.down[0] + (A.down[1] - A.down[0]) * throttle;
+  const lower = s.gear > 1 ? gearboxRpm(s.gear - 1, s.speed) : Infinity;
+  if (s.brake > 0.2 && lower < A.brakeDown) selectGear(s, s.gear - 1);
+  else if (s.rpm < down && lower < Math.min(up - A.hysteresis, S.limiterRpm - 250)) selectGear(s, s.gear - 1);
+}
+
 /** Through the gate: back across to the neutral line, along it to the new plane, then into the gear. */
 function gatePath(from: GatePos, to: GatePos): GatePos[] {
   const path: GatePos[] = [];
@@ -257,6 +307,9 @@ export function stepSim(s: SimState, input: SimInput, dt: number) {
   const st = S.start;
   const live = s.phase === 'catching' || s.phase === 'running';
   const T = D.shift.time;
+  s.autoHold = Math.max(0, s.autoHold - dt);
+  if (input.auto && s.phase === 'running') autoShift(s, clamp01(input.pedal));
+  s.lastPedal = clamp01(input.pedal);
 
   // Pedal → throttle (only while it runs). Shifts cut the torque (upshift) or blip (downshift).
   let pedal = live ? clamp01(input.pedal) : 0;
