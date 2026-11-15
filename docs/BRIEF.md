@@ -840,3 +840,89 @@ docs/reference/f40/ would correct them (the folder is empty).
   to × 1.35 from above or × 1.4 within 1.6 m of the engine bay; overall × (6 m / distance)^0.45,
   clamped 0.5–1.2 (never silent); pan ±25 % toward the side of the screen the tail is on. The
   offline review clips use the neutral mix; a new `orbit-5000` clip circles the car once.
+
+*Phase 9C: car details from the donor model (owner's brief 2026-11-15)*
+- **Donor:** "Ferrari F40 | www.vecarz.com" by Nic Cheung, CC BY 4.0, copied untouched to
+  `assets-src/models/f40/donor-vecarz.glb`. Everything taken from it goes through
+  `scripts/prep-donor.mjs` (rules in `scripts/donor-rules.mjs`) into `public/models/donor.opt.glb`
+  and reaches the scene only through `src/body/donor.ts`: delete the file and that module's
+  uses to remove it. Credits in README, `public/models/LICENSE.md` and the on-page line.
+- **Normalisation:** as our body: one uniform scale to the 2450 mm wheelbase measured between
+  the donor's tyre centres (2.4636 m → × 0.99448), wheelbase centred (z + 0.0876 m), ground y 0.
+- **UV test (badges, gauges, lamps):** our body model's `F40_Logos`, `F40_Display`,
+  `super_gauges`, `F40_Headlights` and `F40_Vehiclelight` have UVs (our optimised file drops
+  them) but no textures. Drawn over the donor's atlases (`scripts/dev/uv-overlay.mjs`,
+  `docs/review/f40-phase9/9c-uvtest-*.png`), the logo islands sit near the donor's artwork but
+  offset (the same layout family, a different revision: the shield island is ~60 px low, the
+  "ferrari" strip and the Pininfarina plate cut through their lettering), the gauge faces only
+  partly line up and the headlamp cover maps to the whole atlas. So the donor's own meshes were
+  transplanted (they carry matching UVs), and our `F40_Logos`, `super_gauges` and `F40_Strelki`
+  are hidden where the donor replaces them.
+- **Wheels and brakes (per corner: tyre, rim, centre-lock nut → `wheel-<c>`; disc →
+  `brake-disc-<c>`; caliper → new part `caliper-<c>`), replacing the body model's wheels and
+  plain discs (which had no calipers).** Fitted to DIMS: each corner scaled about its wheel
+  centre so the tyre has the real diameter (front 620.5 → 627.8 mm, × 1.0117; rear 662.7 →
+  666.3 mm, × 1.0054; widths come out 253.8 front (DIMS 245: the donor's sidewall bulges) and
+  335.8 rear), moved onto our half track (the donor's is 11–17 mm wider a side) and stood on
+  the ground: the front wheel centres are now 11 mm lower than the body model's (Ø 650 mm
+  all round), the rears 8 mm higher; the rear wheels and discs spin about the new centre. Discs
+  come out Ø 337 front / 334 rear (330 real). Explode: the wheel first, then (0.3 s later)
+  disc outward and caliper outward and up, clear of each other; clash-clean assembled, exploded
+  and at five times through stage 2.
+- **Tyres:** the donor's tyre material is fully metallic with a roughness map of 0–0.3 (mirror
+  tyres) and has no normal map. Its metal / roughness map was dropped (metallic 0, roughness
+  0.9) and a tread normal map made from its own tread texture (brightness as height, Sobel
+  slopes): only the donor's own pattern, nothing drawn.
+- **Brake glow:** a heat model per axle (ENGINE_SIM.brakes, est): pedal × road speed × gain
+  (front 0.0074, rear 0.005: roughly a 60/40 split), cooling over 28 s at rest, faster with
+  airflow; a stop at 0.8 from 200 km/h takes the fronts to about full heat, the rears to 0.6.
+  Glow on the exhaust's blackbody ramp (dark red → cherry → orange), only on the friction ring
+  (0.66–0.97 of the disc radius), above 0.22 heat. Front and rear discs have their own material.
+- **Badges:** the donor's badge meshes, each piece put on the panel under it (body-rules'
+  regions, reached through the body's normalisation), so they ride with their panels in the
+  explode; joined per material per panel. Found in the review (`9c-desktop-badge-*`): the
+  bonnet shield, the shields on the front wings, the door-lock strips with keyholes, the fuel
+  filler caps behind the doors, the "Disegno di Pininfarina" plates on the sills, the rear
+  "ferrari" lettering and the F40 badges on the wing endplates; four pieces around the side
+  windows (window trim mapped on the badge atlas) show no artwork from outside. No offsets
+  were needed: they sit on our surfaces with no visible gap. Our own `F40_Logos` meshes are
+  hidden. Nothing else was added where the donor has no artwork.
+- **Gauges:** the donor's gauge faces sample their atlas upside down (its badge material turns
+  the same kind of atlas by 180° with a texture transform; the gauge materials have none):
+  their v is flipped in the prep. Its seven fixed needles are left out. Our needles (one
+  instanced mesh on the cockpit part) pivot on the dial centres read from the donor's faces
+  (the fan centres): tach 0–10 000 rpm and speedo 0–360 km/h over ±120°, boost 0–1.5 bar
+  over ±60° on the small dial right of the tach (all est from the dial art), following the sim
+  with a 0.06 s lag; the other side gauge and the three console gauges (oil temperature, oil
+  pressure, fuel) are fixed at a warm cruise (est). Our `super_gauges` and `F40_Strelki` (needle
+  strip) are hidden. A "Cockpit" view chip looks from the driver's seat over the rim.
+- **Pop-up pods: split from the body model** (the brief's first choice). The lowered pod is
+  four separate pieces of our front clam (paint shell, chrome trim, lamp face, lens), now
+  `pod-l` / `pod-r` (body-rules `POD` box), children of the front clam (so they ride with it).
+  Lowered they are exactly as before. The raise was set from the donor's raised pods: lowered,
+  our lamp faces almost straight down; 82° about a transverse hinge (y 0.589, z 1.713) turns
+  it to face forward where the donor's raised lamp is, and brings the pod's top to within
+  12 mm of the donor's raised top. (A shape-only fit of the two pod shells,
+  `scripts/dev/pod-fit.mjs`, settles on 37° with 9 mm RMS: a box fits itself several ways, and
+  37° leaves the lamp facing the road. Logged, not used.) Up in 0.7 s, down in 0.6 s.
+- **Lights ("Lights" in "more", key L):** pods up, their lamps lit (emissive), a soft additive
+  beam cone ahead of each (one instanced mesh, only while lit); the parking lamps behind the
+  front covers and the tail lamps lit. Whatever the switch, the brake lamps follow the brake
+  pedal and the reverse lamps light in R. The body model's lamp materials are kept out of the
+  per-part merge (so they can glow: a few more draw calls); the pod lamps have their own copy.
+  No real light sources (they would cost every material). In dev builds the part-labels key
+  moved from L to N.
+- **Doors ("Doors" in "more", or click a door handle):** both open on their front hinges (the
+  explode's axis and 68°), 0.8 s eased, a light click as they unlatch and a soft thunk as they
+  shut (made on the spot in their own small audio context, so it works with the engine off).
+  The handle is an invisible 3 × 5 × 9 cm hit box at the top of each door's rear edge (est).
+  Only assembled: the switch is disabled while exploded, and pressing Explode with the doors
+  open eases them shut while the explode opens them (no jump). Not blocked: opening them while
+  the car is still reassembling (the explode's own door turn is closing then), which can swing
+  a door past its stop for a moment.
+- **Cockpit view:** a fixed pose (no backing off on narrow screens, unlike the engine view,
+  which would put the eye outside the windscreen on a phone).
+- **Credits:** README, `public/models/LICENSE.md` and the page's credit line (desktop: both
+  models with links; phones: "Models: Black Snow, Nic Cheung, CC BY 4.0, modified").
+- **Budget:** donor file 442 KB (textures WebP at 512 / 1024 px); peak draw calls 489 (running,
+  lights and flow on), see REVIEW "9C".

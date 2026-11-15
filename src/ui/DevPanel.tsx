@@ -30,7 +30,7 @@ export function DevPanel() {
       toggleSoloGroup(selectedId ? PARTS_BY_ID.get(selectedId)?.group : undefined);
     };
     const keys: Record<string, () => void> = {
-      l: s.toggleLabels,
+      n: s.toggleLabels,
       g: s.toggleGuides,
       k: s.toggleSegments,
       c: s.toggleClashes,
@@ -48,7 +48,7 @@ export function DevPanel() {
   return (
     <div className="dev-panel">
       <div className="dev-panel__title">Dev</div>
-      <Toggle label="Part ids" hotkey="L" checked={s.showLabels} onChange={s.toggleLabels} />
+      <Toggle label="Part ids" hotkey="N" checked={s.showLabels} onChange={s.toggleLabels} />
       <Toggle label="Guides" hotkey="G" checked={s.showGuides} onChange={s.toggleGuides} />
       <Toggle label="Segments" hotkey="K" checked={s.showSegments} onChange={s.toggleSegments} />
       <Toggle label="Clashes" hotkey="C" checked={s.showClashes} onChange={s.toggleClashes} />

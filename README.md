@@ -46,6 +46,10 @@ npm run build
   by [Black Snow](https://sketchfab.com/BlackSnow02) (Sketchfab),
   [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), modified (segmented into
   parts, rescaled, compressed). See `public/models/LICENSE.md`.
+- **Wheels, brakes, badges and gauge faces:** ["Ferrari F40 | www.vecarz.com"](https://sketchfab.com/3d-models/ferrari-f40-wwwvecarzcom-ee082e412b0a4b2090e8492117841e95)
+  by [Nic Cheung](https://sketchfab.com/heynic) (Sketchfab),
+  [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), modified (parts taken out,
+  rescaled and fitted to our car, textures re-encoded). See `public/models/LICENSE.md`.
 - **Studio lighting:** ["Studio Small 09"](https://polyhaven.com/a/studio_small_09) by
   Sergej Majboroda (Poly Haven), CC0.
 - Independent fan project. Not affiliated with or endorsed by Ferrari S.p.A. Ferrari and F40

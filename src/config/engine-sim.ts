@@ -77,6 +77,14 @@ export const ENGINE_SIM = {
    * orange only near the top; radiance rises with temperature^1.5 up to `peak` and the
    * reflections dull a little, so the metal's own colour stays visible under the glow.
    */
+  /**
+   * 9C brake heat (all est), per axle, 0…1: rises with brake pedal × road speed (the power the
+   * discs soak up) × `gain` (the front takes about 60 % of the braking), and cools with a time
+   * constant of `coolS` at rest, quicker with speed (× 1 / (1 + speed / `airMs`)). A stop at 0.8
+   * from 200 km/h heats the fronts to about 0.9, the rears to about 0.6. The friction ring is
+   * `ring` × the disc radius; the glow starts above `from` heat, peak radiance `peak`.
+   */
+  brakes: { gain: { front: 0.0074, rear: 0.005 }, coolS: 28, airMs: 25, from: 0.22, ring: [0.66, 0.97] as const, peak: 2.2 },
   glow: {
     /** Radiance at full temperature; it rises as temperature^`power`. */
     peak: 0.5,

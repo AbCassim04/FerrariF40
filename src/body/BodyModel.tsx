@@ -24,6 +24,7 @@ import { DIMS } from '../config/dims';
 import { registerMotion } from '../engine/motion';
 import { modelMotion } from '../engine/modelMotion';
 import { asset } from '../lib/asset';
+import { donorCopy, donorFor, replacedMaterials, useDonor } from './donor';
 import { BODY_PAINT, MODEL_FINISH, MODEL_GLASS, modelEnvLevels } from '../materials/materials';
 import { useAppStore } from '../state/store';
 
@@ -55,11 +56,17 @@ function useBody() {
 export function modelPartBuild(partId: string) {
   function ModelPart() {
     const { nodes } = useBody();
+    const donor = useDonor();
     const object = useMemo(() => {
       const src = nodes[partId];
-      if (!src) throw new Error(`body model has no node "${partId}"; re-run npm run prep:body`);
-      return mergeByFinish(src);
-    }, [nodes]);
+      // 9C: the donor replaces some parts outright (wheels, discs) or is a part of its own
+      // (calipers), and adds to others (badges on their panels, gauge faces in the cockpit).
+      const { replace, extras } = donorFor(donor, partId);
+      if (!src && !replace) throw new Error(`body model has no node "${partId}"; re-run npm run prep:body`);
+      const out = replace ? donorCopy(replace) : mergeByFinish(src, replacedMaterials(partId));
+      for (const extra of extras) out.add(donorCopy(extra));
+      return out;
+    }, [nodes, donor]);
     useSegmentColours(object, partId);
     // The rear wheels and the gear lever move with the drivetrain (8D-2).
     useLayoutEffect(() => {
@@ -162,7 +169,10 @@ const MERGED_FINISH = (() => {
 
 type Std = MeshStandardMaterial & Partial<MeshPhysicalMaterial>;
 /** Plain opaque standard materials can share the merged finish. */
+/** 9C: lamps keep their own material so engine/Lights.tsx can light them. */
+const LAMPS = new Set(['super_headlight', 'super_brakelight', 'super_reverselight', 'super_signal_L']);
 const mergeable = (m: Std) =>
+  !LAMPS.has(m.name) &&
   m.isMeshStandardMaterial && !m.isMeshPhysicalMaterial && !m.transparent && !m.map && !m.normalMap && !m.roughnessMap && !m.metalnessMap && !m.emissiveMap && !m.alphaMap && !m.aoMap && !m.vertexColors && m.side === DoubleSide && m.emissive.getHex() === 0 && m.envMapIntensity === 1 && !m.flatShading;
 
 /** Float copy of a mesh's geometry in the part root's frame (the model's attributes are quantised). */
@@ -186,12 +196,13 @@ function bakedGeometry(mesh: Mesh, toRoot: Matrix4) {
   return g;
 }
 
-function mergeByFinish(src: Object3D) {
+function mergeByFinish(src: Object3D, hide: Set<string> = new Set()) {
   const root = src.clone(true);
   root.updateMatrixWorld(true);
   const toRoot = root.matrixWorld.clone().invert();
   const meshes: Mesh[] = [];
-  root.traverse((o) => (o as Mesh).isMesh && meshes.push(o as Mesh));
+  // Meshes whose material the donor replaces are left out.
+  root.traverse((o) => (o as Mesh).isMesh && !hide.has(((o as Mesh).material as Material).name) && meshes.push(o as Mesh));
   const out = new Group();
   out.name = root.name;
   root.matrix.decompose(out.position, out.quaternion, out.scale);

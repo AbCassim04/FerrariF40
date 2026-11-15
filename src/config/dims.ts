@@ -992,6 +992,9 @@ export const EXPLODE = {
   wheelOut: 0.75,
   /** Discs follow the wheels part of the way (they live on the hubs). */
   discOut: 0.45,
+  /** 9C: calipers come off after the wheels, outward past the discs and up, clear of them (est); disc and caliper start `brakesDelay` s after the wheels. */
+  caliperOut: [0.62, 0.3, 0] as Vec3,
+  brakesDelay: 0.3,
   /**
    * The engine's front end tucks under the roof's trailing edge, so the powertrain first
    * slides back (stage 2), then lifts (stage 3). The edge reaches back to z ≈ −0.727 at the

@@ -94,6 +94,8 @@ export const SCENE = {
     engine: { position: [0.55, 2.35, -2.25] as Vec3, target: [0, 0.45, -0.85] as Vec3, fit: false },
     side: { position: [7.5, 0.9, 0] as Vec3, target: [0, 0.5, DIMS.body.centreZ] as Vec3, fit: true },
     rear34: { position: [-4.8, 2.4, -6.2] as Vec3, target: [0, 0.5, -0.4] as Vec3, fit: true },
+    /** 9C: from the driver's seat (left-hand drive) over the wheel to the instruments. */
+    cockpit: { position: [0.34, 1.0, 0.33] as Vec3, target: [0.32, 0.745, 0.69] as Vec3, fit: false, fixed: true },
   },
   /** `far`: only things within this height of the ground cast contact shadows (the lifted, exploded parts drop out of the pass). */
   contactShadows: { scale: 12, far: 1.2, blur: 2.2, opacity: 0.75, resolution: 1024 },

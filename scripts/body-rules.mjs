@@ -98,6 +98,13 @@ const REAR_CLAM_FRONT = -0.607;
 const TAIL_PIECES_BEHIND = -1.2;
 /** Rear clam mesh: the wing is everything above the endplates' cut, at the tail. */
 const WING = { y: 0.98, z: -1.8 };
+/**
+ * 9C pop-up headlamp pods (model space): the lowered pod is its own pieces (shell, chrome trim,
+ * lamp face and lens) inside this box, each side. They become `pod-l` / `pod-r`, riding on the
+ * front clam; engine/Lights.tsx raises them (the raise is fitted to the donor's raised pods).
+ */
+const POD = { absX: [0.53, 0.89], y: [0.41, 0.72], z: [1.63, 1.96] };
+const isPod = (piece) => inBoxAbs(piece.box, POD);
 /** Mirrors: separate pieces of the paint mesh, mounted on the doors. */
 const MIRROR = { absX: [0.82, 1.06], y: [0.72, 0.9], z: [0.55, 0.74] };
 /** Cabin rear window (between the cabin and the engine bay) and the quarter windows. */
@@ -205,6 +212,16 @@ function byRegion({ centroid: p }) {
   return 'body-shell';
 }
 
+/**
+ * The panel a point in car coordinates belongs to (9C places the donor's badges with it): back
+ * to model space through the body's normalisation (docs/body-report.md), then by region.
+ */
+export const BODY_NORMALISATION = { scale: 0.97145, translate: [-0.003, -0.006, -0.0191] };
+export const panelAt = (p) => {
+  const { scale, translate } = BODY_NORMALISATION;
+  return byRegion({ centroid: { x: p.x / scale - translate[0], y: p.y / scale - translate[1], z: p.z / scale - translate[2] } });
+};
+
 export const RULES = [
   // ── Wheels and brakes ───────────────────────────────────────────────────────
   { id: 'tyre', test: (c) => c.material === 'Scene_-_Root.002', split: ({ centroid }) => `wheel-${quadrant(centroid)}` },
@@ -255,6 +272,7 @@ export const RULES = [
     test: (c) => c.material === 'material' && c.box.max.z > 0,
     split: (piece) => {
       if (isMirror(piece)) return `door-${side(piece.centroid)}`;
+      if (isPod(piece)) return `pod-${side(piece.centroid)}`;
       // A few small pieces of this mesh sit on the tail.
       if (piece.centroid.z < TAIL_PIECES_BEHIND) return 'rear-clam';
       return TRIS;
@@ -273,7 +291,12 @@ export const RULES = [
 
   // ── Lamps and grilles ───────────────────────────────────────────────────────
   { id: 'tail', test: (c) => /^(super_brakelight|super_reverselight|F40_GridD)$/.test(c.material), part: () => 'rear-clam' },
-  { id: 'front-lamps', test: (c) => /^(F40_Headlights|F40_Window\.001|F40_Grid)$/.test(c.material), part: () => 'front-clam' },
+  {
+    id: 'front-lamps',
+    test: (c) => /^(F40_Headlights|F40_Window\.001|F40_Grid)$/.test(c.material),
+    // The pods' lenses go up with the pods.
+    split: (piece) => (isPod(piece) ? `pod-${side(piece.centroid)}` : 'front-clam'),
+  },
 
   // ── Cockpit ─────────────────────────────────────────────────────────────────
   // The gear lever moves through the gate (8D): its knob, collar and stick are their own part.
@@ -298,6 +321,8 @@ export const RULES = [
     test: (c) => /^(F40_Chrome|F40_Chrome\.001|F40_Logos|F40_Vehiclelight|super_headlight|super_signal_L)$/.test(c.material),
     split: (piece) => {
       if (isMirror(piece)) return `door-${side(piece.centroid)}`;
+      // The pods' chrome trim and lamp faces.
+      if (isPod(piece)) return `pod-${side(piece.centroid)}`;
       // The gear lever's chrome collar under the knob.
       if (inBox(piece.box, GEAR_LEVER)) return 'gear-lever';
       // Window seals: the windscreen frame and the quarter-window frames stay with the glass.

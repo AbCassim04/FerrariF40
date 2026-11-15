@@ -13,6 +13,7 @@ import { TIME_SCALES, type TimeScaleName } from '../config/engine-sim';
 import { frame } from '../engine/EngineController';
 import { motionState, setPose } from '../engine/motion';
 import { sim, useEngineStore } from '../state/engine';
+import { brakeHeat } from '../engine/brakeHeat';
 import { startDyno, type DynoTimeline } from '../engine/dyno';
 import { useCameraFeel, type CameraProfileName } from '../state/cameraFeel';
 import { deriveShafts, gearboxRpm, kmh, placeGear, stepSim, type ClutchState } from '../engine/sim';
@@ -47,6 +48,9 @@ export interface DevApi {
   setXray(on: boolean): Promise<void>;
   /** 9B: gas flow (on turns X-ray on, as the button does). */
   setFlow(on: boolean): Promise<void>;
+  /** 9C: lights (pods up, lamps lit) and doors (assembled only); they animate, so wait a second. */
+  setLights(on: boolean): Promise<void>;
+  setDoors(on: boolean): Promise<void>;
   setSolo(group: PartGroup | null): Promise<void>;
   /** Show only these parts (and their children); null shows everything. */
   setSoloParts(ids: string[] | null): Promise<void>;
@@ -110,6 +114,8 @@ export interface EngineOptions {
   lever?: { plane: number; throw: number };
   /** 9B: a flame held at this point of its life (0…1), strength 0…1, length (m) (screenshots; the sim is held). */
   flame?: { age: number; strength?: number; length?: number };
+  /** 9C: brake heat held at [front, rear] (0…1), or null to let it run. */
+  brakeHeat?: [number, number] | null;
 }
 
 const nextFrame = () => new Promise<void>((r) => requestAnimationFrame(() => r()));
@@ -173,6 +179,8 @@ export function DevApi() {
       clearSelection: () => instant(() => store.getState().select(null)),
       setXray: (on) => instant(() => store.setState(on ? { xray: true } : { xray: false, flow: false })),
       setFlow: (on) => instant(() => store.setState(on ? { flow: true, xray: true } : { flow: false })),
+      setLights: (on) => instant(() => store.setState({ lights: on })),
+      setDoors: (on) => instant(() => store.setState({ doors: on })),
       setSolo: (group) => instant(() => store.setState({ soloGroup: group })),
       setSoloParts: (ids) => instant(() => store.setState({ solo: ids?.join(',') ?? null })),
       setLabels: (on) => instant(() => store.setState({ showLabels: on })),
@@ -239,6 +247,7 @@ export function DevApi() {
           // The boost settling above stepped the car too: put the drivetrain where it was asked.
           placeGear(sim, g);
           if (o.lever) sim.lever = { ...o.lever };
+          if (o.brakeHeat !== undefined) brakeHeat.hold = o.brakeHeat ? { front: o.brakeHeat[0], rear: o.brakeHeat[1] } : null;
           if (o.flame) {
             const len = 0.1;
             Object.assign(sim, { pops: sim.pops + 1, popLength: len, popStrength: o.flame.strength ?? 1, popFlame: o.flame.length ?? 0.3, popAt: sim.t - o.flame.age * len });

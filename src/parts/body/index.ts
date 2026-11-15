@@ -1,4 +1,5 @@
 import { modelPartBuild } from '../../body/BodyModel';
+import { LIGHTS } from '../../config/details';
 import { DIMS, EXPLODE, type Vec3 } from '../../config/dims';
 import { BODY_DELAY } from '../../explode/timing';
 import { fmtDeg, fmtM, fmtMm } from '../../lib/format';
@@ -70,7 +71,8 @@ function wheel(c: Corner) {
     id: `wheel-${c}`,
     name: `Wheel (${cornerName(c)})`,
     group: 'wheels',
-    description: 'Five-spoke alloy wheel with a single centre-lock nut, on a low-profile tyre. The rears are much wider than the fronts to put the turbo torque down.',
+    description:
+      'Five-spoke alloy wheel with a single centre-lock nut, on a low-profile tyre. The rears are much wider than the fronts to put the turbo torque down. Wheel and tyre from the vecarz.com model (Nic Cheung, CC BY 4.0), fitted to the real sizes.',
     specs: {
       Tyre: `${widthMm}/${aspectPct} ZR${rimIn}`,
       Rim: `${(w.rimWidth / 0.0254).toFixed(0)} × ${rimIn} in`,
@@ -87,10 +89,39 @@ function disc(c: Corner) {
     id: `brake-disc-${c}`,
     name: `Brake disc (${cornerName(c)})`,
     group: 'suspension',
-    description: 'Ventilated iron brake disc, gripped by a four-piston aluminium caliper. The real discs are cross-drilled; the model’s are plain.',
+    description: 'Ventilated, cross-drilled iron brake disc, gripped by a four-piston aluminium caliper. Hard braking heats it until it glows. From the vecarz.com model (Nic Cheung, CC BY 4.0).',
     specs: { Diameter: fmtMm(axleOf(c).discDiameter, 0), Type: 'Ventilated, cross-drilled' },
     stage: 2,
+    delay: EXPLODE.brakesDelay,
     explodeOffset: [sideSign(c[1] as Side) * EXPLODE.discOut, 0, 0],
+  });
+}
+
+function caliper(c: Corner) {
+  const [x, y, z] = EXPLODE.caliperOut;
+  return modelPart({
+    id: `caliper-${c}`,
+    name: `Brake caliper (${cornerName(c)})`,
+    group: 'suspension',
+    description: 'Brembo four-piston aluminium caliper, bolted to the upright; it squeezes the disc between its pads. From the vecarz.com model (Nic Cheung, CC BY 4.0).',
+    specs: { Make: 'Brembo', Pistons: '4, aluminium body' },
+    stage: 2,
+    delay: EXPLODE.brakesDelay,
+    explodeOffset: [sideSign(c[1] as Side) * x, y, z],
+    contacts: [`brake-disc-${c}`],
+  });
+}
+
+/** 9C: the pop-up headlamp pods, split from the front clam; they ride on it (engine/Lights.tsx raises them). */
+function pod(s: Side) {
+  return modelPart({
+    id: `pod-${s}`,
+    name: `Headlamp pod (${sideName(s)})`,
+    group: 'body',
+    parent: 'front-clam',
+    description: 'Pop-up headlamp pod: it turns up out of the front clam when the lights are switched on, showing the main beam. Behind the clear covers below are the fixed parking and driving lamps.',
+    specs: { Raise: fmtDeg((LIGHTS.pod.raiseDeg * Math.PI) / 180) },
+    stage: 1,
   });
 }
 
@@ -197,4 +228,7 @@ export const bodyParts: PartDef[] = [
   }),
   ...CORNERS.map(wheel),
   ...CORNERS.map(disc),
+  ...CORNERS.map(caliper),
+  pod('l'),
+  pod('r'),
 ];

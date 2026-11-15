@@ -8,6 +8,7 @@ const CHIPS: [ViewName, string][] = [
   ['rear34', 'Rear ¾'],
   ['top', 'Top'],
   ['engine', 'Engine'],
+  ['cockpit', 'Cockpit'],
 ];
 
 /**

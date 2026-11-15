@@ -23,6 +23,9 @@ interface AppState {
   xray: boolean;
   /** 9B: gas flow shown in X-ray (turning it on turns X-ray on; X-ray off turns it off). */
   flow: boolean;
+  /** 9C: lights on (pods up, lamps lit) and doors open (assembled only). */
+  lights: boolean;
+  doors: boolean;
   /** Last camera preset requested; `seq` makes repeat requests distinct. */
   view: { name: ViewName; seq: number } | null;
   /**
@@ -60,6 +63,8 @@ interface AppState {
   hover: (id: string | null) => void;
   toggleXray: () => void;
   toggleFlow: () => void;
+  toggleLights: () => void;
+  toggleDoors: () => void;
   requestView: (name: ViewName) => void;
   requestCameraFit: (points: Vec3[] | null, slot: CameraSlot | null) => void;
   setClashReport: (report: string | null) => void;
@@ -80,6 +85,8 @@ export const useAppStore = create<AppState>()((set) => ({
   hoveredId: null,
   xray: flag('xray'),
   flow: false,
+  lights: flag('lights'),
+  doors: false,
   view: params.get('view') ? { name: params.get('view') as ViewName, seq: 0 } : null,
   cameraFit: null,
 
@@ -101,6 +108,9 @@ export const useAppStore = create<AppState>()((set) => ({
   hover: (id) => set({ hoveredId: id }),
   toggleXray: () => set((s) => ({ xray: !s.xray, flow: s.xray ? false : s.flow })),
   toggleFlow: () => set((s) => (s.flow ? { flow: false } : { flow: true, xray: true })),
+  toggleLights: () => set((s) => ({ lights: !s.lights })),
+  // Doors open only assembled; exploded they keep the explode pose.
+  toggleDoors: () => set((s) => (s.exploded ? s : { doors: !s.doors })),
   requestView: (name) => set((s) => ({ view: { name, seq: (s.view?.seq ?? 0) + 1 } })),
   requestCameraFit: (points, slot) => set((s) => ({ cameraFit: { points, slot, seq: (s.cameraFit?.seq ?? 0) + 1 } })),
   setClashReport: (clashReport) => set({ clashReport }),

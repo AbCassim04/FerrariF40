@@ -74,6 +74,8 @@ function presetPose(view: View, camera: PerspectiveCamera, area: Area, canvas: H
     const { position, target } = fitView(points, from, to, camera, padFor(controls.presetPadding, area, canvas), area);
     return { position, target, offset: centreOffset(position, target, camera, area) };
   }
+  // A view from a fixed spot (the cockpit): the same pose on every screen, no backing off.
+  if ('fixed' in view && view.fixed) return { position: from, target: to, offset: centreOffset(from, to, camera, area) };
   if (exploded()) {
     const points = engineCorners();
     if (points) {

@@ -3,6 +3,29 @@
 Where the project stands and how to work on it. The spec and decision log are in
 docs/BRIEF.md; read that first. The build plan: docs/F40-PLAN.md.
 
+## Status (2026-11-15, phase 9)
+- **Phase 9 on `wip/f40-phase9`** (from `main` = 8D, unattended, a commit per sub-phase, not
+  pushed). Summary, figures, shots: docs/REVIEW.md ("Phase 9"); decisions: docs/BRIEF.md
+  ("Phase 9A / 9B / 9C").
+- **9A feel:** camera profiles classic / anchored (default) / grab (`config/scene.ts`
+  `controls.profiles`, `scene/CameraRig.tsx`, `scene/cameraFeel.ts`, `?cam=`); auto shift in the
+  sim (`autoShift`, `DRIVE.auto`); dyno run (`engine/dyno.ts`, deterministic timeline played
+  back); launch timer; live dyno graph (`ui/DynoGraph.tsx`). Scripts: `scripts/dev/
+  camera-check.js`, `touch-check.js` (Playwright MCP `run_code` `filename`), `auto-test.mjs`.
+- **9B exhaust:** pops in the sim (`ENGINE_SIM.pops`, seeded), flames (`engine/Flames.tsx`),
+  synth pops (`SOUND.pops`); gas flow in X-ray (`engine/GasFlow.tsx`, "Flow" beside X-ray, the
+  flow pipes' faint `flow` ghost); positional sound (`engine/audio/position.ts`,
+  `SOUND.position`). Phone review: `scripts/dev/phone-shots.js`.
+- **9C car details:** the donor model ("Ferrari F40 | www.vecarz.com", Nic Cheung, CC BY 4.0)
+  goes through `npm run prep:donor` (`scripts/prep-donor.mjs`, rules `scripts/donor-rules.mjs`)
+  into `public/models/donor.opt.glb`, used only via `src/body/donor.ts` (wheels, discs,
+  calipers replace or join body parts; badges and gauge faces ride on their panels). Brake glow
+  (`materials/brakeGlow.ts`, `engine/brakeHeat.ts`), needles (`engine/Gauges.tsx`), lights and
+  pop-up pods (`engine/Lights.tsx`; pods split by body-rules `POD`, so `npm run prep:body` was
+  re-run), doors (`engine/Doors.tsx`), all figures in `config/details.ts`. Phone review:
+  `scripts/dev/phone-shots-9c.js`. Dev: `__dev.setFlow / setLights / setDoors`,
+  `__dev.engine({ flame, brakeHeat })`, `__dev.view('cockpit')`; dev part labels moved to key N.
+
 ## Status (2026-11-15, 8D)
 - **8D on `wip/f40-motion`** (unattended, a commit per half, not pushed): 8D-1 mobile layout
   (desktop / portrait / landscape-driving, `state/ui.ts`, `ui/ControlBar.tsx`), a freer camera
@@ -162,6 +185,9 @@ await __dev.clash({ at, focus, allPairs, skipBody, pairs, progress })  // clash 
 await __dev.engine({ running, rpm, throttle, timeScale, crankAngle, pinionIn, heat, blurDeg, free, cylinder })
 // rpm: run held at that speed; crankAngle (deg): pose the crank and freeze it (screenshots;
 // free: true lets it turn); running: false stops at once (static pose)
+await __dev.setFlow(on); await __dev.setLights(on); await __dev.setDoors(on)   // 9B / 9C toggles
+await __dev.engine({ flame: { age, strength, length }, brakeHeat: [front, rear] | null })  // 9B / 9C poses
+await __dev.dynoRun(); await __dev.cameraFeel('anchored')   // 9A
 await __dev.screenshotReady()     // → { frames, ms } once the timeline is idle, the camera has
                                   //   stopped, no shadow pass is pending, then 3 settled frames
 __dev.state()                     // selection, X-ray, solo, explode progress, __perf
@@ -191,6 +217,11 @@ small Playwright script (`chromium.launch` with the GPU options above, one `page
 animations at low frame rates: pose with `__dev.setProgress` rather than waiting.
 
 ## Known issues
+- `screenshotReady` doesn't settle while the car rolls (shadows keep re-rendering): pose the
+  engine with `crankAngle` (held) and `speedKmh: 0` for shots; measure perf while rolling with
+  a plain wait instead.
+- Editing a source file while a phone review script runs hot-reloads the phone page and stalls
+  the script: don't touch `src/` during `scripts/dev/phone-shots*.js`.
 - three ignores `material.envMapIntensity` when lighting comes from `scene.environment`;
   set levels through `EnvironmentLevels` (or `modelEnvLevels` for model materials).
 - `THREE.Clock` deprecation warning comes from inside R3F.

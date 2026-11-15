@@ -236,18 +236,18 @@ layout doesn't work there and the camera feels tight everywhere; mobile is now a
   distance falloff, slight pan; review clips camera-neutral plus one orbit clip
 
 *9C — car details (donor: "Ferrari F40 | www.vecarz.com", Nic Cheung, CC BY 4.0)*
-- [ ] Donor model copied untouched to assets-src/models/f40/; one script
+- [x] Donor model copied untouched to assets-src/models/f40/; one script
   (scripts/prep-donor.mjs) → one file; credits in README, LICENSE.md and on the page
-- [ ] Badges, gauge faces and lenses: donor atlases on our materials where the UVs line up,
+- [x] Badges, gauge faces and lenses: donor atlases on our materials where the UVs line up,
   else the donor's own meshes fitted onto our surfaces; badges ride with their panels
-- [ ] Wheels and brakes from the donor per corner (rim + nut, tyre with tread normals, disc,
+- [x] Wheels and brakes from the donor per corner (rim + nut, tyre with tread normals, disc,
   caliper), fitted to DIMS, in the explode, clash-clean; rear wheels and discs spin; brake glow
-- [ ] Cabin gauges with needles from the sim (tach, speedo, boost; oil / water / fuel static);
+- [x] Cabin gauges with needles from the sim (tach, speedo, boost; oil / water / fuel static);
   "cockpit" view chip
-- [ ] Lights: pop-up pods rise, lamps and beams, tail, brake and reverse lights; key L
-- [ ] Doors open and close on their front hinges (toggle or the handle), thunk; blocked while
+- [x] Lights: pop-up pods rise, lamps and beams, tail, brake and reverse lights; key L
+- [x] Doors open and close on their front hinges (toggle or the handle), thunk; blocked while
   the explode plays
-- [ ] Peak draw calls < ~500 with everything on; download budget for the donor ≤ ~2.5 MB
+- [x] Peak draw calls < ~500 with everything on; download budget for the donor ≤ ~2.5 MB
 
 ## Layout
 Figure 1 (engine bay, z −2.25…−0.25) and figure 2 (whole car) show the measured bays

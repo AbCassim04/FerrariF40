@@ -7,6 +7,9 @@ import { EngineController } from '../engine/EngineController';
 import { EngineEffects } from '../engine/EngineEffects';
 import { Flames } from '../engine/Flames';
 import { GasFlow } from '../engine/GasFlow';
+import { Doors } from '../engine/Doors';
+import { Gauges } from '../engine/Gauges';
+import { Lights } from '../engine/Lights';
 import { ExplodeController } from '../explode/ExplodeController';
 import { useAppStore } from '../state/store';
 import { CameraRig } from './CameraRig';
@@ -52,6 +55,9 @@ export function Experience() {
         <EngineEffects />
         <Flames />
         <GasFlow />
+        <Gauges />
+        <Lights />
+        <Doors />
         {DEV && showLabels && <PartLabels />}
         {DEV && <ClashCheck />}
         {DEV && showGhost && <EngineBayGhost />}

@@ -2,8 +2,8 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import { useLayout } from '../state/ui';
 
 /**
- * Attribution for the licensed body model (CC BY 4.0 requires credit, a licence link and a
- * note that it was modified), and the trademark disclaimer. Details from the model's asset
+ * Attribution for the licensed body model and the 9C donor model (CC BY 4.0 requires credit, a
+ * licence link and a note that it was modified), and the trademark disclaimer. Details from the model's asset
  * metadata.
  */
 const MODEL = {
@@ -13,6 +13,14 @@ const MODEL = {
   authorUrl: 'https://sketchfab.com/BlackSnow02',
   licence: 'CC BY 4.0',
   licenceUrl: 'https://creativecommons.org/licenses/by/4.0/',
+};
+
+/** 9C: wheels, brakes, badges and gauge faces from a second CC BY 4.0 model. */
+const DONOR = {
+  title: 'Ferrari F40 | www.vecarz.com',
+  source: 'https://sketchfab.com/3d-models/ferrari-f40-wwwvecarzcom-ee082e412b0a4b2090e8492117841e95',
+  author: 'Nic Cheung',
+  authorUrl: 'https://sketchfab.com/heynic',
 };
 
 /**
@@ -37,7 +45,7 @@ export function Credits() {
     <footer ref={ref} className="credits" data-short={short || undefined} data-expanded={(layout !== 'desktop' && expanded) || undefined}>
       {short ? (
         <button type="button" className="credits__toggle" aria-expanded="false" onClick={() => setExpanded(true)}>
-          Model: {MODEL.author}, {MODEL.licence}, modified · Fan project, not affiliated with Ferrari
+          Models: {MODEL.author}, {DONOR.author}, {MODEL.licence}, modified · Fan project, not affiliated with Ferrari
           <span className="credits__more" aria-hidden="true">
             ⓘ
           </span>
@@ -53,7 +61,15 @@ export function Credits() {
             <a href={MODEL.authorUrl} target="_blank" rel="noreferrer">
               {MODEL.author}
             </a>{' '}
-            (Sketchfab),{' '}
+            (Sketchfab); wheels, brakes, badges and gauges:{' '}
+            <a href={DONOR.source} target="_blank" rel="noreferrer">
+              {DONOR.title}
+            </a>{' '}
+            by{' '}
+            <a href={DONOR.authorUrl} target="_blank" rel="noreferrer">
+              {DONOR.author}
+            </a>{' '}
+            (Sketchfab); both{' '}
             <a href={MODEL.licenceUrl} target="_blank" rel="noreferrer">
               {MODEL.licence}
             </a>{' '}

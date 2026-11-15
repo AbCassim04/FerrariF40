@@ -86,6 +86,8 @@ export const SOUND = {
   gearbox: { pinionTeeth: 17, level: 0.004, loadGain: 3, harmonic: 0.35, fadeInRpm: 300 },
   road: { level: 0.09, refKmh: 324, power: 1.5, cutoff: [160, 820] as const, highpass: 35 },
   clunk: { freq: 92, decay: 0.035, level: 0.55, click: 0.18, clickBand: 2200, clickDecay: 0.003 },
+  /** 9C doors (est): closing, a low thump and the latch; opening, a light click. Gains, tone (Hz), decay (s). */
+  doors: { close: 0.5, open: 0.25, thumpHz: 85, clickHz: 900, decayS: 0.18, latch: 0.6, latchHz: 1800 },
   /**
    * 9B exhaust pops (est), one per pop the sim fires (with the flame): a short crack (band-
    * passed noise), a low thump, then a few ms of crackle; all × the pop's strength.

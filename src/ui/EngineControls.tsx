@@ -5,6 +5,7 @@ import { cylinderNumber, firingAngle, SIDES, CYLINDERS } from '../parts/engine/l
 import { reducedMotion, sim, useEngineStore } from '../state/engine';
 import { useRealAllowed } from '../state/quality';
 import { useUiStore } from '../state/ui';
+import { DoorsSwitch, LightsSwitch } from './DetailControls';
 import { AUTO_NOTE, AutoShiftSwitch, AutoShiftToggle, CameraFeelChoice, DynoGraphSwitch, DynoRunButton } from './Settings';
 
 const NON_TEXT_INPUTS = new Set(['checkbox', 'radio', 'button', 'range', 'color']);
@@ -465,6 +466,20 @@ export function MorePanel({ extra, sheet }: { extra?: ReactNode; sheet: boolean 
         <div className="more__row">
           <span className="more__label">Camera feel</span>
           <CameraFeelChoice />
+        </div>
+        <div className="more__row">
+          <span className="more__label">
+            Lights
+            {!sheet && <span className="more__note">Key L</span>}
+          </span>
+          <LightsSwitch />
+        </div>
+        <div className="more__row">
+          <span className="more__label">
+            Doors
+            <span className="more__note">{sheet ? 'Or tap a door handle' : 'Or click a door handle'}</span>
+          </span>
+          <DoorsSwitch />
         </div>
         {running && (
           <>

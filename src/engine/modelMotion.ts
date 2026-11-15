@@ -45,7 +45,8 @@ export function modelMotion(partId: string): ((mesh: Mesh) => Motion) | null {
     return (mesh) => {
       mesh.updateMatrix();
       // Forward roll is a positive turn about +x: ratio −1 of the wheel angle.
-      return { kind: 'spin', centre: new Vector3(0, W.centreY, W.axleZ), axis: new Vector3(1, 0, 0), ratio: -1, source: 'wheel', base: mesh.matrix.clone() };
+      // The donor's wheels (9C) stand on the ground: their centre is at the tyre's radius.
+      return { kind: 'spin', centre: new Vector3(0, W.radius, W.axleZ), axis: new Vector3(1, 0, 0), ratio: -1, source: 'wheel', base: mesh.matrix.clone() };
     };
   if (partId === 'gear-lever') return lever;
   return null;

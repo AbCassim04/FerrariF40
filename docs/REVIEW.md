@@ -140,6 +140,58 @@ shifts (13.05 s and 25.40 s, +9.5 / +9.7 dB); its peak rose from −4.0 to −2.
 **Needs a real phone:** whether the pops cut through on a phone speaker; how the positional mix
 feels on headphones while orbiting with a finger.
 
+### 9C: donor wheels and brakes, badges, gauges, lights, doors
+
+Decisions: BRIEF ("Phase 9C"). Donor: "Ferrari F40 | www.vecarz.com" by Nic Cheung, CC BY 4.0,
+modified; everything taken from it is in `public/models/donor.opt.glb` (442 KB), made by
+`npm run prep:donor`, and used only through `src/body/donor.ts`.
+
+**UV test** (`scripts/dev/uv-overlay.mjs`, `9c-uvtest-*.png`: our UV layout drawn over the
+donor's atlases): logos near but offset, gauge faces partly aligned, the headlamp cover mapped
+to the whole atlas, so the donor's own meshes were transplanted (with their UVs) and ours hidden.
+
+**What changed on screen**
+- Wheels: the donor's five-spoke split rims with centre-lock nuts and tyres (tread normal map
+  from its own tread texture, matte rubber), at the real sizes (627.8 / 666.3 mm), standing on
+  the ground; ventilated discs and Brembo calipers (new parts, each corner). Rear wheels and
+  discs spin with the road; calipers fixed. Explode: wheel first, then disc and caliper.
+- Brake glow front and rear (heat from pedal × speed, slow cooling), on the friction ring.
+- Badges on the bonnet, front wings, tail and wing endplates, riding with their panels.
+- Gauges: the donor's Veglia faces with our needles from the sim (tach, speedo, boost; the
+  side and console gauges fixed); "Cockpit" in the view chips.
+- Lights ("Lights" in "more", key L): pop-up pods turn up 82° and their lamps light with a
+  beam glow; parking and tail lamps; brake lamps with the pedal, reverse in R, any time.
+- Doors ("Doors" in "more", or click a door handle): open / close in 0.8 s with a thunk;
+  assembled only.
+
+**Gates**
+- Typecheck and build pass. Clash: assembled vs body none, full explode none, and none at
+  t = 0.9, 1.15, 1.4, 1.7, 2.05 s for the wheels, discs, calipers and pods.
+- Draw calls (desktop top tier, front ¾): idle 255 → 290 (0.81 → 0.76 M triangles: the donor's
+  tyres are lighter than the model's); running 406–419 → 471–487; running with lights 471–489;
+  running with lights and Flow 386–489; exploded, running, lights and Flow 387. Peak 489
+  (< 500). Phones: see below.
+- Download: models 1.906 MB → 2.367 MB (body 1.915 MB with the pods split + donor 0.452 MB);
+  JS 2,241.9 kB (751.0 kB gzip) at `main` → 2,288.3 kB (767.2 kB gzip) after phase 9.
+
+- Phones (`scripts/dev/phone-shots-9c.js`): the "more" sheet (portrait) and card (landscape)
+  list Lights and Doors after Camera feel, every switch on screen, no sideways scroll; on phones
+  the Lights note ("Key L") is left out and the Doors note says "tap". Draw calls running with
+  lights and Flow at the phone tier: 287 (iPhone 13 landscape, Pixel 7). The cockpit view is a
+  fixed pose (it used to back off on narrow screens, which put the eye outside the windscreen).
+
+**Screenshots** (docs/review/f40-phase9/, desktop 1440×900): `9c-desktop-badge-1…14` (every
+badge cluster, close up from outside), `9c-desktop-wheel-fl / fr / rl / rr` and
+`-wheel-fl-exploded / -wheel-rr-exploded`, `9c-desktop-brake-glow-warm / hot / max`,
+`9c-desktop-cockpit-idle / -cockpit-7000 / -gauges-7000` (3rd, 158 km/h, 1.0 bar),
+`9c-desktop-lamps-down / -lamps-rising / -lamps-up / -lights-on`, `9c-desktop-doors-open`,
+`9c-uvtest-*`. Phones (`9c-iphone13-portrait-…`, `9c-iphone13-landscape-…`,
+`9c-pixel7-portrait-…`): `more`, `cockpit-7000`, `lights-up`, `doors-open`, `wheel-hot`.
+
+**Needs a real phone or a person:** the door thunk and click on a phone speaker; whether the
+pod lamps read as lit in daylight-bright rooms (they are emissive only, no light cast); the
+badge close-ups on a high-DPI screen (512 px atlas).
+
 ## Phase 8: a running engine and its sound (`wip/f40-motion`)
 Branch `wip/f40-motion` from `main` (phases 1–4 merged), one checkpoint commit per
 sub-phase, not pushed. Built unattended; every judgement call is in docs/BRIEF.md under

@@ -11,6 +11,7 @@ import { gearState, reducedMotion, sim, useEngineStore } from '../state/engine';
 import { engineAudio } from './audio/engineAudio';
 import { BLUR_FROM, motionState, setPose } from './motion';
 import { updateSoundPosition } from './audio/position';
+import { updateBrakeHeat } from './brakeHeat';
 import { dynoActive, dynoFrame, stopDyno } from './dyno';
 import { drivetrainSettled, kmh, stepSim } from './sim';
 
@@ -110,6 +111,7 @@ export function EngineController() {
 
     launchTimer(dt, store.held);
     if (sim.phase !== 'off') updateSoundPosition(camera, dt);
+    updateBrakeHeat(dt);
 
     // Mirror to the store for the UI (gauges, buttons) at a modest rate.
     frame.mirror += delta;
