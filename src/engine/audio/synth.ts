@@ -28,6 +28,15 @@ export interface SynthParams {
   drive: number;
   /** Shifts so far: each new one sounds the dog engagement's clunk. */
   shifts: number;
+  /** 9B: pops so far (each new one: a crack, a thump, crackle) and the last one's strength 0…1. */
+  pops: number;
+  popStrength: number;
+  /** 9B camera position: exhaust gain, its brightness 0…1, induction / turbo gain, overall gain, pan −1…1. */
+  posExhaust: number;
+  posBright: number;
+  posIntake: number;
+  posGain: number;
+  posPan: number;
 }
 
 export interface Cylinder {
@@ -82,10 +91,13 @@ class Biquad {
     this.a2 = (1 - alpha) / a0;
     return this;
   }
+  /** The last output (the brightness blend reads the silencer's). */
+  lastOut = 0;
   process(x: number) {
     const y = this.b0 * x + this.z1;
     this.z1 = this.b1 * x - this.a1 * y + this.z2;
     this.z2 = this.b2 * x - this.a2 * y;
+    this.lastOut = y;
     return y;
   }
 }
@@ -141,7 +153,7 @@ export class EngineSynth {
   private rpm = 0;
   private throttle = 0;
   private boost = 0;
-  private target: SynthParams = { rpm: 0, throttle: 0, boost: 0, firing: false, starter: false, speed: 0, shaft: 0, drive: 0, shifts: 0 };
+  private target: SynthParams = { rpm: 0, throttle: 0, boost: 0, firing: false, starter: false, speed: 0, shaft: 0, drive: 0, shifts: 0, pops: 0, popStrength: 0, posExhaust: 1, posBright: 0, posIntake: 1, posGain: 1, posPan: 0 };
   private crank = 0;
   // Exhaust pulse states per bank: difference of two decays (attack / decay).
   private pd = [0, 0];
@@ -203,6 +215,16 @@ export class EngineSynth {
   private clickEnv = 0;
   private clickBand: Biquad;
   private shifts = 0;
+  // Pops (9B).
+  private pops = 0;
+  private popCrack = 0;
+  private popCrackle = 0;
+  private popBand: Biquad;
+  private popThump: Resonator;
+  private popThumpIn = 0;
+  private popThumpDrive: number;
+  // Camera position (9B), smoothed per sample.
+  private pos = { exhaust: 1, bright: 0, intake: 1, gain: 1, pan: 0 };
 
   constructor(sampleRate: number, cylinders: Cylinder[]) {
     this.sr = sampleRate;
@@ -227,6 +249,10 @@ export class EngineSynth {
     this.clunk = new Resonator(sampleRate, C.freq, C.decay);
     this.clunkDrive = Math.sin((TAU * C.freq) / sampleRate) / (THUD_LENGTH * sampleRate);
     this.clickBand = new Biquad(sampleRate).bandpass(C.clickBand, 2);
+    const Pp = SOUND.pops;
+    this.popBand = new Biquad(sampleRate).bandpass(Pp.crackHz, Pp.crackQ);
+    this.popThump = new Resonator(sampleRate, Pp.thumpHz, Pp.thumpDecay);
+    this.popThumpDrive = Math.sin((TAU * Pp.thumpHz) / sampleRate) / (THUD_LENGTH * sampleRate);
   }
 
   /**
@@ -245,6 +271,18 @@ export class EngineSynth {
       this.shaft = p.shaft;
       this.drive = p.drive;
       this.shifts = p.shifts;
+      this.pops = p.pops;
+      this.pos = { exhaust: p.posExhaust, bright: p.posBright, intake: p.posIntake, gain: p.posGain, pan: p.posPan };
+    }
+    // A new pop: crack, thump, crackle.
+    if (p.pops !== this.pops) {
+      if (p.pops > this.pops) {
+        const Pp = SOUND.pops;
+        this.popCrack = Pp.crack * p.popStrength;
+        this.popThumpIn = Pp.thump * p.popStrength;
+        this.popCrackle = p.popStrength;
+      }
+      this.pops = p.pops;
     }
     // A new shift: the dogs going in.
     if (p.shifts !== this.shifts) {
@@ -292,7 +330,14 @@ export class EngineSynth {
     const W = SOUND.gearbox;
     const Rd = SOUND.road;
     const C = SOUND.clunk;
+    const Pp = SOUND.pops;
+    const pos = this.pos;
     for (let s = 0; s < n; s++) {
+      pos.exhaust += (t.posExhaust - pos.exhaust) * k;
+      pos.bright += (t.posBright - pos.bright) * k;
+      pos.intake += (t.posIntake - pos.intake) * k;
+      pos.gain += (t.posGain - pos.gain) * k;
+      pos.pan += (t.posPan - pos.pan) * k;
       this.speed += (t.speed - this.speed) * k;
       this.shaft += (t.shaft - this.shaft) * k;
       this.drive += (t.drive - this.drive) * k;
@@ -348,7 +393,9 @@ export class EngineSynth {
         const list = q === 0 ? X.resonances.l : X.resonances.r;
         for (let r = 0; r < list.length; r++) x += this.res[q][r].process(pulse) * list[r].g;
         gateIn += x;
-        bank[q] = this.silencer[q].process(this.turbine[q].process(x)) * X.silencerGain * (X.flowFloor + (1 - X.flowFloor) * Math.min(1, speed));
+        // From behind (9B) some of the turbine's output comes through ahead of the silencer: brighter.
+        const turb = this.turbine[q].process(x);
+        bank[q] = (this.silencer[q].process(turb) + (turb - this.silencer[q].lastOut) * pos.bright * SOUND.position.bright) * X.silencerGain * (X.flowFloor + (1 - X.flowFloor) * Math.min(1, speed)) * pos.exhaust;
       }
       // Centre outlet: the wastegates bypass the turbines when boost nears its peak.
       const gate = this.gate.process(gateIn) * this.gateMix;
@@ -411,11 +458,25 @@ export class EngineSynth {
       this.clickEnv *= Math.exp(-1 / (C.clickDecay * sr));
       const clunk = this.clunk.process(this.clunkIn * this.clunkDrive) + this.clickBand.process(this.noise.next()) * this.clickEnv;
 
+      // Pops: a crack (band-passed noise), a thump, then crackle (random ticks, thinning out).
+      let pop = 0;
+      if (this.popCrack > 1e-4 || this.popCrackle > 1e-4 || Math.abs(this.popThumpIn) > 1e-6) {
+        this.popCrack *= Math.exp(-1 / (Pp.crackDecay * sr));
+        this.popThumpIn *= Math.exp(-1 / (THUD_LENGTH * sr));
+        this.popCrackle *= Math.exp(-1 / (Pp.crackleS * sr));
+        const tickNow = this.noise.next() * 0.5 + 0.5 < (Pp.crackleRate * this.popCrackle) / sr ? this.noise.next() * Pp.crackle * this.popCrackle : 0;
+        pop = this.popBand.process(this.noise.next() * this.popCrack + tickNow) + this.popThump.process(this.popThumpIn * this.popThumpDrive);
+      }
+
       // Mix: each bank leans to its side; everything else is centred.
       const w = X.width;
-      const centre = gate + induction + whistle + flutter + tick + belt + starter + thud + whine + road + clunk;
-      let l = bank[0] * (0.5 + w) + bank[1] * (0.5 - w) + centre * 0.5;
-      let r = bank[1] * (0.5 + w) + bank[0] * (0.5 - w) + centre * 0.5;
+      const intake = (induction + whistle + flutter) * pos.intake;
+      const centre = (gate + pop) * pos.exhaust + intake + tick + belt + starter + thud + whine + road + clunk;
+      // 9B: a slight pan toward where the car's rear is on screen, and the distance falloff.
+      const panL = (1 - pos.pan * SOUND.position.pan) * pos.gain;
+      const panR = (1 + pos.pan * SOUND.position.pan) * pos.gain;
+      let l = (bank[0] * (0.5 + w) + bank[1] * (0.5 - w) + centre * 0.5) * panL;
+      let r = (bank[1] * (0.5 + w) + bank[0] * (0.5 - w) + centre * 0.5) * panR;
       l = this.dc[0].process(l) * SOUND.master.outputGain;
       r = this.dc[1].process(r) * SOUND.master.outputGain;
       const g = this.compress(Math.max(Math.abs(l), Math.abs(r)));

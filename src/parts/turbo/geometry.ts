@@ -135,7 +135,7 @@ export function manifoldPivot(s: Side) {
 const mergeCentre = (s: Side) => sidePoint(s, X.merge[0], X.merge[1], X.mergeZ);
 
 /** Primary centreline from port (s, i) to its lane at the merge. */
-function primaryCurve(s: Side, i: number) {
+export function primaryCurve(s: Side, i: number) {
   const { p, dir } = exhaustPort(s, i);
   const [lx, ly] = X.lanes[i];
   const lane = (z: number) => sidePoint(s, lx, ly, z);
@@ -152,7 +152,7 @@ export function turbineInlet(s: Side) {
   return { at: sidePoint(s, T.x, TB.y - T.R[1], TB.z + T.exit), dir: zAxis.clone() };
 }
 
-function collectorCurve(s: Side) {
+export function collectorCurve(s: Side) {
   const m = mergeCentre(s);
   const start = m.clone().setZ(X.mergeZ - X.collector.length);
   const { at } = turbineInlet(s);
@@ -391,15 +391,16 @@ export function wastegateMeshes(s: Side): MeshSpec[] {
 }
 
 /** The two wastegate pipes: inboard and up over the gearbox to a Y, then back between the silencer cans to the centre tailpipe. */
-export function wastegatePipeMeshes(): MeshSpec[] {
+/** Centrelines of the wastegate pipes: a branch from each wastegate to the Y, and the pipe back from it to the centre tailpipe. */
+export function wastegatePipeCurves() {
   const P = E.wastegatePipe;
   const W = E.wastegate;
   const merge0 = new Vector3(0, P.y, P.mergeZ - 0.04);
-  const branches = SIDES.map((s) => {
+  const branch = (s: Side) => {
     const { at, dir } = wastegateOutlet(s);
     const start = at.clone().addScaledVector(dir, E.chargePipe.gap);
-    return tintedTube(pipeCurve([start, start.clone().addScaledVector(dir, 0.03), sidePoint(s, 0.14, P.y - 0.02, W.z - 0.005), sidePoint(s, 0.045, P.y, P.mergeZ - 0.02), merge0], 0.02), P.radius, 48);
-  });
+    return pipeCurve([start, start.clone().addScaledVector(dir, 0.03), sidePoint(s, 0.14, P.y - 0.02, W.z - 0.005), sidePoint(s, 0.045, P.y, P.mergeZ - 0.02), merge0], 0.02);
+  };
   // Back over the gearbox, then down between the silencer cans (behind the casing's end
   // cover) to the centre tailpipe, which butts on behind it.
   const TP = E.tailpipe;
@@ -408,6 +409,13 @@ export function wastegatePipeMeshes(): MeshSpec[] {
     [merge0, new Vector3(0, P.y, P.mergeZ - 0.12), new Vector3(0, P.y, P.downZ), new Vector3(0, (P.y + P.tipY) / 2 + 0.005, P.downZ - 0.045), new Vector3(0, P.tipY, end + 0.02), new Vector3(0, P.tipY, end)],
     0.015,
   );
+  return { merge0, branch, back };
+}
+
+export function wastegatePipeMeshes(): MeshSpec[] {
+  const P = E.wastegatePipe;
+  const { merge0, branch, back } = wastegatePipeCurves();
+  const branches = SIDES.map((s) => tintedTube(branch(s), P.radius, 48));
   const pipe = tubeAlong(back, P.radius * 1.15, false, 64, SEGMENTS.small);
   const joint = ringAt(merge0, zAxis, P.radius * 1.15, P.radius * 1.15 + E.bevel * 2, 0.03);
   const flanges = SIDES.map((s) => {
@@ -532,7 +540,7 @@ export function chargePipeMeshes(s: Side): MeshSpec[] {
 
 const TI = E.turboInlet;
 
-function inletCurve(s: Side) {
+export function inletCurve(s: Side) {
   const { at, dir } = compressorInlet(s);
   const F = TI.filter;
   const a = at.clone().addScaledVector(dir, CP.gap);
@@ -590,7 +598,7 @@ const TP = E.tailpipe;
 const NECK = 0.012;
 const canCentre = (s: Side) => sidePoint(s, (S.x[0] + S.x[1]) / 2, (S.y[0] + S.y[1]) / 2, (S.z[0] + S.z[1]) / 2);
 
-function downpipeCurve(s: Side) {
+export function downpipeCurve(s: Side) {
   const { at, dir } = turbineOutlet(s);
   const D = E.downpipe;
   const a = at.clone().addScaledVector(dir, CP.gap);
@@ -653,6 +661,17 @@ export function silencerMeshes(): MeshSpec[] {
  * Three tailpipes in a row in the rear valance's exhaust mouth: the outer two drop from the
  * necks under the cans and turn back, the centre one runs on from the wastegate pipe.
  */
+/** An outer tailpipe's bend: from the outlet neck's face under the can, down and in, then back into the tip (which starts at `to`). */
+export function tailpipeBend(s: Side) {
+  const start = TP.exitZ + TP.length;
+  const from = sidePoint(s, S.outlet.x, S.y[0] - NECK - CP.gap, S.outlet.z);
+  const to = sidePoint(s, TP.sideX, TP.y, start + 0.008);
+  return { from, to, curve: pipeCurve([from, from.clone().setY(from.y - 0.02), sidePoint(s, (S.outlet.x + TP.sideX) / 2, TP.y + 0.012, S.outlet.z - 0.012), to], 0.008) };
+}
+
+/** The silencer's inlet neck face (where the downpipe ends) and its can's centre. */
+export const silencerPath = (s: Side) => ({ inlet: downpipeCurve(s).getPointAt(1), centre: canCentre(s), outlet: tailpipeBend(s).from });
+
 export function tailpipeMeshes(): MeshSpec[] {
   const r = TP.radius;
   const tip = (len: number) =>
@@ -667,10 +686,8 @@ export function tailpipeMeshes(): MeshSpec[] {
   const tips: BufferGeometry[] = [];
   const bends: BufferGeometry[] = [];
   for (const s of SIDES) {
-    // From the outlet neck's face under the can, down and in, then back into the tip.
-    const from = sidePoint(s, S.outlet.x, S.y[0] - NECK - CP.gap, S.outlet.z);
-    const to = sidePoint(s, TP.sideX, TP.y, start + 0.008);
-    bends.push(tubeAlong(pipeCurve([from, from.clone().setY(from.y - 0.02), sidePoint(s, (S.outlet.x + TP.sideX) / 2, TP.y + 0.012, S.outlet.z - 0.012), to], 0.008), r - TP.lip, false, 40, SEGMENTS.small * 2));
+    const { curve, to } = tailpipeBend(s);
+    bends.push(tubeAlong(curve, r - TP.lip, false, 40, SEGMENTS.small * 2));
     const g = tip(TP.length + 0.008);
     g.applyMatrix4(along(to, zAxis.clone().negate()));
     tips.push(g);

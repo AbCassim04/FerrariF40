@@ -5,6 +5,8 @@ import { SCENE } from '../config/scene';
 import { DevApi } from '../dev/DevApi';
 import { EngineController } from '../engine/EngineController';
 import { EngineEffects } from '../engine/EngineEffects';
+import { Flames } from '../engine/Flames';
+import { GasFlow } from '../engine/GasFlow';
 import { ExplodeController } from '../explode/ExplodeController';
 import { useAppStore } from '../state/store';
 import { CameraRig } from './CameraRig';
@@ -48,6 +50,8 @@ export function Experience() {
         <InspectController />
         <EngineController />
         <EngineEffects />
+        <Flames />
+        <GasFlow />
         {DEV && showLabels && <PartLabels />}
         {DEV && <ClashCheck />}
         {DEV && showGhost && <EngineBayGhost />}

@@ -21,6 +21,8 @@ interface AppState {
   selectedId: string | null;
   hoveredId: string | null;
   xray: boolean;
+  /** 9B: gas flow shown in X-ray (turning it on turns X-ray on; X-ray off turns it off). */
+  flow: boolean;
   /** Last camera preset requested; `seq` makes repeat requests distinct. */
   view: { name: ViewName; seq: number } | null;
   /**
@@ -57,6 +59,7 @@ interface AppState {
   select: (id: string | null) => void;
   hover: (id: string | null) => void;
   toggleXray: () => void;
+  toggleFlow: () => void;
   requestView: (name: ViewName) => void;
   requestCameraFit: (points: Vec3[] | null, slot: CameraSlot | null) => void;
   setClashReport: (report: string | null) => void;
@@ -76,6 +79,7 @@ export const useAppStore = create<AppState>()((set) => ({
   selectedId: params.get('inspect'),
   hoveredId: null,
   xray: flag('xray'),
+  flow: false,
   view: params.get('view') ? { name: params.get('view') as ViewName, seq: 0 } : null,
   cameraFit: null,
 
@@ -95,7 +99,8 @@ export const useAppStore = create<AppState>()((set) => ({
   toggleExploded: () => set((s) => ({ exploded: !s.exploded })),
   select: (id) => set({ selectedId: id }),
   hover: (id) => set({ hoveredId: id }),
-  toggleXray: () => set((s) => ({ xray: !s.xray })),
+  toggleXray: () => set((s) => ({ xray: !s.xray, flow: s.xray ? false : s.flow })),
+  toggleFlow: () => set((s) => (s.flow ? { flow: false } : { flow: true, xray: true })),
   requestView: (name) => set((s) => ({ view: { name, seq: (s.view?.seq ?? 0) + 1 } })),
   requestCameraFit: (points, slot) => set((s) => ({ cameraFit: { points, slot, seq: (s.cameraFit?.seq ?? 0) + 1 } })),
   setClashReport: (clashReport) => set({ clashReport }),

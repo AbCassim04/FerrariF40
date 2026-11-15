@@ -11,6 +11,7 @@ import { useAppStore } from './state/store';
 import { CameraButtons } from './ui/CameraButtons';
 import { ControlBar } from './ui/ControlBar';
 import { Credits } from './ui/Credits';
+import { FlowCaption } from './ui/FlowCaption';
 import { DynoGraph } from './ui/DynoGraph';
 import { DevPanel } from './ui/DevPanel';
 import { EngineKeys, VolumeSync } from './ui/EngineControls';
@@ -55,6 +56,7 @@ export function App() {
       <DynoGraph />
       <Credits />
       <SoundHint />
+      <FlowCaption />
       <EngineKeys />
       <VolumeSync />
       {import.meta.env.DEV && !HIDE_DEV_PANEL && <DevPanel />}

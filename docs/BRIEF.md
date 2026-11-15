@@ -790,3 +790,53 @@ docs/reference/f40/ would correct them (the folder is empty).
   palette's blue and orange (dark steps), validated on the panel's surface (all checks pass).
 - **"More" is always there now** (it held only engine settings before), since Camera feel
   applies with the engine off too.
+
+*Phase 9B: exhaust: flames, gas flow, positional sound (owner's brief 2026-11-15)*
+- **When it pops (est):** the sim arms a burst when the throttle is over 0.6 with boost over the
+  flutter threshold (0.5 bar), and fires it when the throttle falls under 0.25 above 5000 rpm;
+  a shift's throttle cut pops only 40 % of the time (seeded), or every flat-out run would crackle
+  at every upshift. The limiter fires one as it cuts in. 1–3 pops over 0.15–0.5 s, each
+  0.06–0.11 s, the flame 0.24–0.5 m at full strength; at most one burst per 2.2 s (1.4 s on the
+  limiter). The randomness is a xorshift seeded in the sim state, so a dyno run or a review clip
+  replays the same pops.
+- **Flame:** one instanced lathe mesh (2 instances, the outer tips only; one draw call, drawn only
+  while a pop lasts), additive and soft-edged (brightness × facing^2.2), blue-white at the base
+  for the first 45 % of its life, yellow → orange → a red tip; out in 15 % of its life, then
+  shrinking. It rides on the tailpipes part, so it follows the explode. The warm light (a point
+  light, #ff8a3c, 6 cd × strength, 1.6 m reach) stays in the scene at zero between pops
+  (toggling a light recompiles every shader), and only above the low tier: on the low tier it
+  is removed (one recompile if the tier drops mid-session). Reduced motion: flames × 0.6, no
+  light.
+- **Pops in the synth** (SOUND.pops, est): per sim pop, a band-passed noise crack (1.3 kHz, 22 ms),
+  a 62 Hz thump and 140 ms of thinning crackle, × the pop's strength, in the exhaust's mix (so
+  they get the positional exhaust gain). The click counter in the review analysis skips 60 ms
+  after each sim pop (they're meant to be transients).
+- **Gas flow is a picture, not a gas model (all est).** Two merged tube meshes (exhaust and
+  intake) along the parts' own centrelines (the curve functions are now exported from the turbo
+  and intake geometry; the wastegate pipe and outer tailpipe bends were split out into
+  `wastegatePipeCurves` / `tailpipeBend`, same geometry). Every vertex carries its part's index
+  and the vertex shader uses that part's world matrix, so exploded, each segment flows where its
+  part is. Exhaust: a pulse leaves each port at exhaust-valve opening (the sound's pulse angle
+  after that cylinder's firing TDC, so the real firing order) and reaches 1.2 × the route length
+  in a 720° cycle, hot white → orange → dull red by distance; the four primaries of a bank are
+  drawn as their mean length so their pulses meet the collector in order. The wastegate takes
+  pulses only as it opens (from 82 % of max boost, the sound's threshold) and then the turbine
+  route dims by up to 45 %. Intake: a banded stream at a speed from rpm and throttle (3 m/s at
+  7000 flat out, × the display speed), cool blue → warm after the compressor → cool after the
+  intercooler; each runner pulses from intake opening (350° after firing TDC, est). Engine off:
+  the routes show faintly. 2 draw calls while on; built the first time Flow is turned on, hidden
+  (no draw calls) when off.
+- **Flow ghosts:** with Flow on, the pipes the flow runs through (manifolds, downpipes,
+  wastegates, inlets, charge pipes, intercoolers, silencer, tailpipes, wastegate pipe, plenum,
+  runners, throttle bodies) turn to a fainter ghost than X-ray's (base 0.002, rim 0.1), so the
+  intercooler fins and silencer cans don't glare over the flow; the turbos stay solid (their
+  nested housings stacked into a white blur).
+- **Flow toggle:** beside X-ray in every layout; turning it on turns X-ray on; turning X-ray off
+  turns Flow off. The caption "Third pipe: wastegate. It only flows at full boost." shows the
+  first time Flow is turned on per device (localStorage `f40.flowCaption`), for 8 s.
+- **Positional sound (SOUND.position, est), from the live camera each frame, eased over 0.25 s:**
+  exhaust × 1.35 from straight behind, × 0.72 from straight ahead; from behind some of the
+  turbine's output skips the silencer (brighter, up to 55 %); induction, whistle and flutter up
+  to × 1.35 from above or × 1.4 within 1.6 m of the engine bay; overall × (6 m / distance)^0.45,
+  clamped 0.5–1.2 (never silent); pan ±25 % toward the side of the screen the tail is on. The
+  offline review clips use the neutral mix; a new `orbit-5000` clip circles the car once.

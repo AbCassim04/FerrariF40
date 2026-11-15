@@ -2,7 +2,7 @@ import { useEngineStore } from '../state/engine';
 import { useLayout, useUiStore } from '../state/ui';
 import { BrakeButton, EngineButton, GateDiagram, MoreButton, MorePanel, Readout, ShiftButton, ThrottleButton } from './EngineControls';
 import { ExplodeButton } from './ExplodeButton';
-import { XrayToggle } from './XrayToggle';
+import { FlowToggle, XrayToggle } from './XrayToggle';
 
 /**
  * The controls, laid out per screen (phone-first):
@@ -28,6 +28,7 @@ export function ControlBar() {
       <MoreButton />
       <ExplodeButton />
       <XrayToggle />
+      <FlowToggle />
       <EngineButton />
     </>
   );
@@ -38,6 +39,7 @@ export function ControlBar() {
         <div className="bar" data-occludes="">
           <ExplodeButton />
           <XrayToggle />
+          <FlowToggle />
           <div className="bar__engine" data-running={running || undefined}>
             <EngineButton />
             {driving && (
@@ -87,6 +89,7 @@ export function ControlBar() {
             <>
               <ExplodeButton />
               <XrayToggle />
+              <FlowToggle />
             </>
           ) : undefined
         }

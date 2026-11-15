@@ -1,4 +1,4 @@
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect } from 'react';
 import { MathUtils } from 'three';
 import { BLUR, ENGINE_SIM, TIME_SCALES } from '../config/engine-sim';
@@ -10,6 +10,7 @@ import { refreshShadows } from '../scene/ShadowScheduler';
 import { gearState, reducedMotion, sim, useEngineStore } from '../state/engine';
 import { engineAudio } from './audio/engineAudio';
 import { BLUR_FROM, motionState, setPose } from './motion';
+import { updateSoundPosition } from './audio/position';
 import { dynoActive, dynoFrame, stopDyno } from './dyno';
 import { drivetrainSettled, kmh, stepSim } from './sim';
 
@@ -27,6 +28,7 @@ const MIRROR_HZ = 20;
  * and settled it returns at once: motion costs nothing.
  */
 export function EngineController() {
+  const camera = useThree((s) => s.camera);
   useEffect(() => {
     // Hidden tab: the sim pauses (and the sound ducks; see the audio engine).
     const onVisibility = () => engineAudio.setHidden(document.hidden);
@@ -107,6 +109,7 @@ export function EngineController() {
     }
 
     launchTimer(dt, store.held);
+    if (sim.phase !== 'off') updateSoundPosition(camera, dt);
 
     // Mirror to the store for the UI (gauges, buttons) at a modest rate.
     frame.mirror += delta;

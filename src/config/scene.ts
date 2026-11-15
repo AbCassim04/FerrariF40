@@ -124,6 +124,8 @@ export const SCENE = {
   ghosts: {
     xray: { base: 0.008, rim: 0.34, tintMix: 0.25, cool: '#a9c8dc' },
     isolate: { base: 0.004, rim: 0.11, tintMix: 0.5 },
+    /** 9B: the pipes the gas flows through, with Flow on: fainter, so stacked fins and cans don't glare over the flow. */
+    flow: { base: 0.002, rim: 0.1, tintMix: 0.45 },
   },
   /**
    * Quality tiers (8D, est). Phones start at `phoneStart`; any device drops a tier when its

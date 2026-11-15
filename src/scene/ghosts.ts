@@ -13,10 +13,17 @@ export type GhostKind = keyof typeof SCENE.ghosts;
 /** X-ray: body panels and the tub; wheels and brakes stay solid. */
 const isXrayPart = (def: PartDef) => def.source === 'model' && def.group !== 'wheels' && def.group !== 'suspension';
 
-/** The ghost a mesh wears, if any. Inspecting outranks X-ray. While the engine runs, X-ray also sees through its casings. */
-function ghostFor(def: PartDef, mesh: Mesh, xray: boolean, selectedId: string | null, running: boolean): GhostKind | null {
+/** 9B: the pipes the gas flows through; with Flow on they turn to ghosts so the flow inside shows (not the turbos: their nested housings stack into a glare). */
+export const FLOW_PARTS = new Set(
+  ['exhaust-manifold', 'downpipe', 'wastegate', 'turbo-inlet', 'charge-pipes', 'intercooler'].flatMap((id) => [`${id}-l`, `${id}-r`]).concat(['silencer', 'tailpipes', 'wastegate-pipe', 'intake-plenum', 'intake-runners-l', 'intake-runners-r', 'throttle-bodies']),
+);
+
+/** The ghost a mesh wears, if any. Inspecting outranks X-ray. While the engine runs, X-ray also sees through its casings; with Flow on, through the pipes. */
+function ghostFor(def: PartDef, mesh: Mesh, xray: boolean, selectedId: string | null, running: boolean, flow: boolean): GhostKind | null {
   if (selectedId) return def.id === selectedId ? null : 'isolate';
-  return xray && (isXrayPart(def) || (running && mesh.userData.xrayShell)) ? 'xray' : null;
+  if (!xray) return null;
+  if (flow && FLOW_PARTS.has(def.id)) return 'flow';
+  return isXrayPart(def) || (running && mesh.userData.xrayShell) ? 'xray' : null;
 }
 
 const COOL = new Color(SCENE.ghosts.xray.cool);
@@ -93,12 +100,13 @@ function ghostOf(m: Material, kind: GhostKind) {
 }
 
 /** Puts every part in the right state: solid, an X-ray ghost or an isolation ghost. */
-export function applyGhosts(xray: boolean, selectedId: string | null, running = false) {
+export function applyGhosts(xray: boolean, selectedId: string | null, running = false, flow = false) {
   for (const def of PARTS) {
     partObjects.get(def.id)?.content.traverse((o) => {
       const mesh = o as Mesh;
-      if (!mesh.isMesh) return;
-      const kind = ghostFor(def, mesh, xray, selectedId, running);
+      // Effects riding on a part (the flames) keep their own material.
+      if (!mesh.isMesh || mesh.userData.effect) return;
+      const kind = ghostFor(def, mesh, xray, selectedId, running, flow);
       let original = originals.get(mesh);
       if (!kind) {
         if (original) {

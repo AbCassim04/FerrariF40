@@ -25,6 +25,13 @@ export const SYNTH_PARAMS = [
   { name: 'shaft', defaultValue: 0, minValue: -5000, maxValue: 12000, automationRate: 'k-rate' },
   { name: 'drive', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
   { name: 'shifts', defaultValue: 0, minValue: 0, maxValue: 1e9, automationRate: 'k-rate' },
+  { name: 'pops', defaultValue: 0, minValue: 0, maxValue: 1e9, automationRate: 'k-rate' },
+  { name: 'popStrength', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
+  { name: 'posExhaust', defaultValue: 1, minValue: 0, maxValue: 3, automationRate: 'k-rate' },
+  { name: 'posBright', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
+  { name: 'posIntake', defaultValue: 1, minValue: 0, maxValue: 3, automationRate: 'k-rate' },
+  { name: 'posGain', defaultValue: 1, minValue: 0, maxValue: 2, automationRate: 'k-rate' },
+  { name: 'posPan', defaultValue: 0, minValue: -1, maxValue: 1, automationRate: 'k-rate' },
 ] as const;
 export type SynthParamName = (typeof SYNTH_PARAMS)[number]['name'];
 
@@ -49,6 +56,13 @@ class EngineProcessor extends AudioWorkletProcessor {
       shaft: p.shaft[0],
       drive: p.drive[0],
       shifts: Math.round(p.shifts[0]),
+      pops: Math.round(p.pops[0]),
+      popStrength: p.popStrength[0],
+      posExhaust: p.posExhaust[0],
+      posBright: p.posBright[0],
+      posIntake: p.posIntake[0],
+      posGain: p.posGain[0],
+      posPan: p.posPan[0],
     });
     const out = outputs[0];
     if (out.length >= 2) this.synth.process(out[0], out[1]);

@@ -31,7 +31,7 @@ import { blocksView } from '../scene/picking';
  *   __dev.getCamera()                       → { position, target, offset }
  *   await __dev.setProgress(t)              explode timeline at t (0…1), posed directly
  *   await __dev.select(id) / clearSelection()
- *   await __dev.setXray(on) / setSolo(group | null) / setLabels(on) / setGhost(on) / setSegments(on)
+ *   await __dev.setXray(on) / setFlow(on) / setSolo(group | null) / setLabels(on) / setGhost(on) / setSegments(on)
  *   await __dev.view(name) / fit()          camera preset / frame everything visible
  *   await __dev.screenshotReady()           resolves once nothing moves and shadows and
  *                                           post-processing have settled
@@ -45,6 +45,8 @@ export interface DevApi {
   select(partId: string): Promise<void>;
   clearSelection(): Promise<void>;
   setXray(on: boolean): Promise<void>;
+  /** 9B: gas flow (on turns X-ray on, as the button does). */
+  setFlow(on: boolean): Promise<void>;
   setSolo(group: PartGroup | null): Promise<void>;
   /** Show only these parts (and their children); null shows everything. */
   setSoloParts(ids: string[] | null): Promise<void>;
@@ -106,6 +108,8 @@ export interface EngineOptions {
   clutch?: ClutchState;
   /** The lever anywhere in the gate (plane −1…1, throw −1…1): clash sweeps along its paths. */
   lever?: { plane: number; throw: number };
+  /** 9B: a flame held at this point of its life (0…1), strength 0…1, length (m) (screenshots; the sim is held). */
+  flame?: { age: number; strength?: number; length?: number };
 }
 
 const nextFrame = () => new Promise<void>((r) => requestAnimationFrame(() => r()));
@@ -167,7 +171,8 @@ export function DevApi() {
         return instant(() => store.getState().select(id));
       },
       clearSelection: () => instant(() => store.getState().select(null)),
-      setXray: (on) => instant(() => store.setState({ xray: on })),
+      setXray: (on) => instant(() => store.setState(on ? { xray: true } : { xray: false, flow: false })),
+      setFlow: (on) => instant(() => store.setState(on ? { flow: true, xray: true } : { flow: false })),
       setSolo: (group) => instant(() => store.setState({ soloGroup: group })),
       setSoloParts: (ids) => instant(() => store.setState({ solo: ids?.join(',') ?? null })),
       setLabels: (on) => instant(() => store.setState({ showLabels: on })),
@@ -234,6 +239,10 @@ export function DevApi() {
           // The boost settling above stepped the car too: put the drivetrain where it was asked.
           placeGear(sim, g);
           if (o.lever) sim.lever = { ...o.lever };
+          if (o.flame) {
+            const len = 0.1;
+            Object.assign(sim, { pops: sim.pops + 1, popLength: len, popStrength: o.flame.strength ?? 1, popFlame: o.flame.length ?? 0.3, popAt: sim.t - o.flame.age * len });
+          }
           Object.assign(sim, { speed: v, clutch, rpm, refused: 0 });
           deriveShafts(sim);
           store.setState({ engineRunning: true, phase: 'running', rpm, throttle: sim.throttle, boost: sim.boost, held: true, gear: g, speedKmh: Math.abs(kmh(v)), clutch, lever: { ...sim.lever }, refused: false });

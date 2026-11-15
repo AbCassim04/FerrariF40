@@ -10,3 +10,14 @@ export function XrayToggle() {
     </button>
   );
 }
+
+/** 9B: gas flow inside the pipes (turns X-ray on if it's off). */
+export function FlowToggle() {
+  const flow = useAppStore((s) => s.flow);
+  const toggle = useAppStore((s) => s.toggleFlow);
+  return (
+    <button type="button" className="xray-btn flow-btn" aria-pressed={flow} onClick={toggle} title="Gas flow: exhaust pulses and intake air, in X-ray">
+      Flow
+    </button>
+  );
+}

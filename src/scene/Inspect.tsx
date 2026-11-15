@@ -23,7 +23,8 @@ export function InspectController() {
   /** Last selection framed; only real changes move the camera (StrictMode re-runs effects). */
   const framed = useRef<string | null>(null);
 
-  useEffect(() => applyGhosts(xray, selectedId, running), [xray, selectedId, running]);
+  const flow = useAppStore((s) => s.flow);
+  useEffect(() => applyGhosts(xray, selectedId, running, flow), [xray, selectedId, running, flow]);
 
   useEffect(() => {
     if (selectedId === framed.current) return;

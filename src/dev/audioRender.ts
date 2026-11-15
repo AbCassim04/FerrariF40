@@ -1,5 +1,7 @@
 import { SOUND } from '../config/sound';
+import { PerspectiveCamera, Vector3 } from 'three';
 import { createSynthNode, masterChain, setSynth, synthValues } from '../engine/audio/engineAudio';
+import { positionMix, type SoundPosition } from '../engine/audio/position';
 import { deriveShafts, gearboxRpm, createSim, kmh, placeGear, shiftBy, startEngine, stepSim, type SimState } from '../engine/sim';
 
 /**
@@ -42,6 +44,22 @@ export interface Clip {
   car?: { gear: number; kmh: number };
   /** Lever moves at these times: one step up or down. */
   shifts?: { t: number; dir: 1 | -1 }[];
+  /** 9B: the camera's mix at time t (the orbit clip); every other clip is camera-neutral. */
+  position?: (t: number) => SoundPosition;
+}
+
+/** 9B orbit: a camera circling the car once over `seconds` at `radius` m, 1.4 m up, looking at its centre. */
+function orbitPosition(seconds: number, radius = 6): (t: number) => SoundPosition {
+  const cam = new PerspectiveCamera(40, 16 / 9, 0.1, 100);
+  const look = new Vector3(0, 0.55, 0.09);
+  return (t) => {
+    const a = (t / seconds) * Math.PI * 2;
+    // Starts in front of the car (+z), goes round its left side to the back and on.
+    cam.position.set(Math.sin(a) * radius, 1.4, Math.cos(a) * radius);
+    cam.lookAt(look);
+    cam.updateMatrixWorld();
+    return positionMix(cam.position, cam);
+  };
 }
 
 const steady = (rpm: number, pedal: number): Clip => ({
@@ -122,6 +140,30 @@ export const CLIPS: Clip[] = [
       { t: 4.6, dir: -1 },
     ],
   },
+  // 9B: pops and the camera's position.
+  {
+    name: 'liftoff-pops',
+    title: 'Lift-off at 7000 rpm on full boost: flutter and exhaust pops',
+    seconds: 4,
+    from: 7000,
+    drive: (t) => (t < 1.5 ? { pedal: 1, hold: 7000 } : { pedal: 0 }),
+  },
+  {
+    name: 'limiter-pops',
+    title: 'Up to the limiter and held there: pops as it cuts in',
+    seconds: 6,
+    from: 6200,
+    drive: (t) => (t < 4.5 ? { pedal: 1, hold: t < 0.3 ? 6200 : undefined } : { pedal: 0 }),
+  },
+  {
+    name: 'orbit-5000',
+    title: 'Steady 5000 rpm, half throttle, the camera circling the car once (front, left, rear, right)',
+    seconds: 12,
+    from: 5000,
+    drive: () => ({ pedal: 0.5, hold: 5000 }),
+    steady: 5000,
+    position: orbitPosition(12),
+  },
   {
     name: 'start',
     title: 'Start: pinion in, cranking, catch, flare, idle',
@@ -179,9 +221,13 @@ export async function renderClip(clip: Clip) {
   const queued = [...(clip.shifts ?? [])];
   let gear = sim.gear;
   let refused = 0;
+  const popTimes: number[] = [];
+  let pops = sim.pops;
   for (let k = 0; k < steps; k++) {
     const t = k * DT;
-    setSynth(node, synthValues(sim), t);
+    setSynth(node, synthValues(sim, clip.position?.(t)), t);
+    if (sim.pops !== pops) popTimes.push(t);
+    pops = sim.pops;
     if (k % 12 === 0) trace.push({ t, rpm: sim.rpm, boost: sim.boost, throttle: sim.throttle, shaft: sim.outputRpm, gear: sim.gear });
     const d = clip.drive(t);
     if (d.start && sim.phase === 'off') startEngine(sim);
@@ -205,7 +251,7 @@ export async function renderClip(clip: Clip) {
   log.endKmh = +kmh(sim.speed).toFixed(1);
   if (log.slip) log.slip.rpm = [Math.round(log.slip.rpm[0]), Math.round(log.slip.rpm[1])];
   const buffer = await ctx.startRendering();
-  return { buffer, trace, log: clip.car ? log : undefined };
+  return { buffer, trace, log: clip.car ? log : undefined, popTimes };
 }
 
 // ─── Analysis ────────────────────────────────────────────────────────────────
@@ -292,6 +338,10 @@ export interface Checks {
   levelA?: number;
   /** The clip's amplitude-modulation check (see Clip.am); `dipsPerSecond` counts drops of 6 dB or more in the 10 ms level. */
   am?: { what: string; hz: number; db: number; dipsPerSecond?: number };
+  /** 9B: pops the sim fired (clip time, s) and how far each stands above the 0.2 s before it in the 0.8–3 kHz band (dB, the loudest 10 ms within 40 ms). */
+  pops?: { t: number; db: number }[];
+  /** 9B orbit: A-weighted level (dB) of the front, left, rear and right quarters of the orbit, relative to the front. */
+  orbit?: { front: number; left: number; rear: number; right: number; leftRightBalance: { left: number; right: number } };
 }
 
 /** Drops of 6 dB or more below the median in the level of 10 ms frames, per second (fuel cuts). */
@@ -370,7 +420,7 @@ function aWeight(f: number) {
   return 20 * Math.log10(ra) + 2;
 }
 
-export function analyse(buffer: AudioBuffer, clip: Clip): Checks {
+export function analyse(buffer: AudioBuffer, clip: Clip, popTimes: number[] = []): Checks {
   const L = buffer.getChannelData(0);
   const R = buffer.getChannelData(1);
   const n = L.length;
@@ -411,7 +461,9 @@ export function analyse(buffer: AudioBuffer, clip: Clip): Checks {
   const median = sorted[sorted.length >> 1] || 1e-9;
   // A frame far above the norm, and far above its own neighbours (not a gradual build-up).
   let clicks = 0;
-  for (let k = 1; k < hf.length - 1; k++) if (hf[k] > 12 * median && hf[k] > 1e-3 && hf[k] > 4 * Math.max(hf[k - 1], hf[k + 1])) clicks++;
+  // A pop is meant to be a transient: frames within 60 ms after one aren't counted as clicks.
+  const popFrame = (k: number) => popTimes.some((t) => k * frame >= t * SR - frame && k * frame <= (t + 0.06) * SR);
+  for (let k = 1; k < hf.length - 1; k++) if (hf[k] > 12 * median && hf[k] > 1e-3 && hf[k] > 4 * Math.max(hf[k - 1], hf[k + 1]) && !popFrame(k)) clicks++;
 
   const checks: Checks = {
     peakDbfs: +(20 * Math.log10(peak + 1e-12)).toFixed(2),
@@ -420,6 +472,36 @@ export function analyse(buffer: AudioBuffer, clip: Clip): Checks {
     clicks,
     blockEdgeRatio: +(stepEdge / Math.max(1, edges) / (stepAll / (n - 1))).toFixed(3),
   };
+  if (popTimes.length) {
+    const mono = new Float64Array(n);
+    for (let i = 0; i < n; i++) mono[i] = (L[i] + R[i]) / 2;
+    const band = bandpass(mono, 800, 3000);
+    const level = (from: number, to: number) => {
+      let e = 0;
+      const a = Math.max(0, Math.floor(from * SR));
+      const b = Math.min(n, Math.floor(to * SR));
+      for (let i = a; i < b; i++) e += band[i] * band[i];
+      return 10 * Math.log10(e / Math.max(1, b - a) + 1e-20);
+    };
+    checks.pops = popTimes.map((t) => {
+      let peak = -Infinity;
+      for (let u = t; u < t + 0.04; u += 0.005) peak = Math.max(peak, level(u, u + 0.01));
+      return { t: +t.toFixed(3), db: +(peak - level(t - 0.2, t - 0.01)).toFixed(1) };
+    });
+  }
+  if (clip.position) {
+    // Quarters of the orbit centred on the front, left, rear and right (shifted by an eighth).
+    const eL = [0, 0, 0, 0];
+    const eR = [0, 0, 0, 0];
+    for (let i = 0; i < n; i++) {
+      const k = Math.floor(((i / n + 1 / 8) % 1) * 4);
+      eL[k] += L[i] * L[i];
+      eR[k] += R[i] * R[i];
+    }
+    const db = (k: number) => 10 * Math.log10(eL[k] + eR[k] + 1e-20);
+    const bal = (k: number) => +(10 * Math.log10((eL[k] + 1e-20) / (eR[k] + 1e-20))).toFixed(1);
+    checks.orbit = { front: 0, left: +(db(1) - db(0)).toFixed(1), rear: +(db(2) - db(0)).toFixed(1), right: +(db(3) - db(0)).toFixed(1), leftRightBalance: { left: bal(1), right: bal(3) } };
+  }
   if (clip.am) {
     const mono = new Float64Array(n);
     for (let i = 0; i < n; i++) mono[i] = (L[i] + R[i]) / 2;
@@ -673,8 +755,8 @@ export function download(blob: Blob, name: string) {
 export async function renderAudio(names?: string[], save = false) {
   const report: Record<string, Checks & { seconds: number; drive?: DriveLog }> = {};
   for (const clip of CLIPS.filter((c) => !names || names.includes(c.name))) {
-    const { buffer, trace, log } = await renderClip(clip);
-    report[clip.name] = { seconds: clip.seconds, ...analyse(buffer, clip), ...(log && { drive: log }) };
+    const { buffer, trace, log, popTimes } = await renderClip(clip);
+    report[clip.name] = { seconds: clip.seconds, ...analyse(buffer, clip, popTimes), ...(log && { drive: log }) };
     if (save) {
       download(wav(buffer), `${clip.name}.wav`);
       download(await spectrogram(buffer, clip, trace), `${clip.name}.png`);

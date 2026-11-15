@@ -83,6 +83,63 @@ after a dyno run), `9a-desktop-more`, `9a-iphone-portrait` and `-sheet`, `9a-iph
 trackpad (pinch and two-finger scroll speeds); Auto shift's kick-down with a thumb on the
 throttle (every press from a light foot kicks down).
 
+### 9B: flames, gas flow, positional sound
+
+Decisions and every figure: BRIEF ("Phase 9B"). All estimates (est).
+
+**Flames.** Lifting off on boost above 5000 rpm (and the limiter cutting in) fires 1–3 pops
+over 0.15–0.5 s from the two outer tailpipes (seeded, so a dyno run replays the same pops); a
+shift's cut pops 40 % of the time. Each pop is a soft additive flame, blue-white at the base
+turning orange, and a warm light on the rear bodywork. It rides with the tailpipes in the
+explode. Reduced motion: smaller, no light; no light on the low tier. To see one: rev past
+5000 with boost showing, then let go; or hold the throttle on the limiter.
+
+**Gas flow** ("Flow" beside X-ray; turns X-ray on): exhaust pulses leave each port at exhaust
+opening in the firing order, down the primaries, through the collector, turbine, downpipe,
+silencer and out of the outer tailpipes, white-hot to dull red. From 82 % of max boost the
+wastegate opens and pulses also run to the centre tailpipe (a one-time caption says so). Intake:
+blue from the filters, warm after the compressors, cool after the intercoolers, then down each
+runner as its intake valve opens. The Strokes speed shows the pulses one by one. The flow pipes
+turn to a faint ghost, and the turbos stay solid.
+
+**Positional sound:** exhaust louder and brighter from behind, induction and turbo louder from
+above or near the engine bay, distance falloff, a slight pan toward the tail's side of the
+screen; eased over 0.25 s and never silent.
+
+**Audio checks** (docs/review/f40-phase9/audio/, offline render, numbers from the review analysis):
+
+| Clip | Peak / RMS dBFS | Clicks | What it checks |
+|---|---|---|---|
+| `liftoff-pops` | −2.6 / −18.0 | 0 | 3 pops at 1.58, 1.72, 1.94 s, +11.0, +7.0, +14.8 dB over the 0.2 s before (0.8–3 kHz) |
+| `limiter-pops` | −2.4 / −16.9 | 0 | 7 pops (each time the limiter cuts in, at most every 1.4 s), +5.2 to +11.7 dB |
+| `orbit-5000` | −9.3 / −19.2 | 0 | steady 5000 rpm, camera circling once: vs the front quarter, left +2.6 dB, rear +4.4, right +2.5; left quarter R louder by 3.5 dB (tail on screen right), right quarter L louder by 1.1 dB |
+
+Every other clip is camera-neutral (the neutral mix). `run-1-5` now also pops at two of its
+shifts (13.05 s and 25.40 s, +9.5 / +9.7 dB); its peak rose from −4.0 to −2.5 dBFS. Listen to
+`liftoff-pops` first, then `orbit-5000` (headphones: the pan is slight on purpose).
+
+**Gates**
+- Typecheck and build pass. Clash: assembled vs body none, full explode none (the wastegate pipe
+  and tailpipe bends were refactored into shared curve functions; same geometry).
+- Draw calls, desktop top tier, measured with the same view and state: Flow +2 (X-ray 251 → 253
+  assembled, 252 → 254 exploded); a flame +1 while it shows (255 → 256); nothing when off. The
+  busiest frame, running with X-ray and Flow, 423 calls / 1.49 M triangles (running without them
+  407–419 / 1.42–1.47 M, as in 9A).
+
+- Phones (`scripts/dev/phone-shots.js`, emulated): the Flow button sits beside X-ray in the bar
+  with the engine off (iPhone 13 portrait at x 196, Pixel 7 at 215, landscape at 461), in the
+  "more" sheet while driving in portrait (with Explode and X-ray), and in the bar while driving
+  in landscape; no overlaps with other buttons, no sideways scroll on any of them.
+
+**Screenshots** (docs/review/f40-phase9/): `9b-desktop-flames-assembled`,
+`9b-desktop-flames-exploded`, `9b-desktop-flow-assembled-idle`, `-flow-assembled-boost`,
+`-flow-exploded-boost`, `wip-flow-gate` (the centre wastegate path, close); per phone
+(`9b-iphone13-portrait-…`, `9b-iphone13-landscape-…`, `9b-pixel7-portrait-…`): `flames`,
+`flow-boost`, `flow-exploded`, and `more-sheet` (portrait).
+
+**Needs a real phone:** whether the pops cut through on a phone speaker; how the positional mix
+feels on headphones while orbiting with a finger.
+
 ## Phase 8: a running engine and its sound (`wip/f40-motion`)
 Branch `wip/f40-motion` from `main` (phases 1–4 merged), one checkpoint commit per
 sub-phase, not pushed. Built unattended; every judgement call is in docs/BRIEF.md under

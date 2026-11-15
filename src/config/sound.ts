@@ -87,6 +87,29 @@ export const SOUND = {
   road: { level: 0.09, refKmh: 324, power: 1.5, cutoff: [160, 820] as const, highpass: 35 },
   clunk: { freq: 92, decay: 0.035, level: 0.55, click: 0.18, clickBand: 2200, clickDecay: 0.003 },
   /**
+   * 9B exhaust pops (est), one per pop the sim fires (with the flame): a short crack (band-
+   * passed noise), a low thump, then a few ms of crackle; all × the pop's strength.
+   */
+  pops: { crack: 2.4, crackHz: 1300, crackQ: 0.7, crackDecay: 0.022, thump: 1.2, thumpHz: 62, thumpDecay: 0.06, crackle: 0.9, crackleS: 0.14, crackleRate: 900 },
+  /**
+   * 9B sound by camera position (all est), computed on the main thread from where the camera
+   * is relative to the car and smoothed over `smoothS`: the exhaust louder (`exhaust`, at most
+   * ×) and brighter from behind; induction and turbo louder from above or near the engine bay;
+   * a gentle distance falloff (× (refM / d)^`falloff`, clamped); and a slight pan toward the
+   * side of the screen the car's rear is on. Never silent; the offline review clips stay
+   * camera-neutral except the orbit clip.
+   */
+  position: {
+    smoothS: 0.25,
+    exhaust: { behind: 1.35, front: 0.72 },
+    bright: 0.55,
+    intake: { above: 1.35, nearBay: 1.4, nearM: 1.6 },
+    falloff: 0.45,
+    refM: 6,
+    gain: [0.5, 1.2] as const,
+    pan: 0.25,
+  },
+  /**
    * Master, inside the worklet: DC block, a stereo-linked compressor (dB; attack and release
    * in s; makeup gain dB), then a soft limiter whose ceiling is the loudest sample possible
    * (0.85 = −1.4 dBFS). Only the volume (≤ 1) comes after it.

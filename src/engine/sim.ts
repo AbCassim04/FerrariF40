@@ -58,6 +58,16 @@ export interface SimState {
   liftOff: number;
   /** Boost at that moment (how hard the flutter is). */
   liftOffBoost: number;
+  /** 9B exhaust pops: pops still to come (sim time, strength 0…1), pops so far, the last one's time / strength / length (s) / flame (m), when the last burst began, and the seed. */
+  popQueue: { at: number; strength: number }[];
+  pops: number;
+  popAt: number;
+  popStrength: number;
+  popLength: number;
+  popFlame: number;
+  burstAt: number;
+  seed: number;
+  popArmed: boolean;
 
   /** Selected gear: −1 R, 0 N, 1…5. */
   gear: number;
@@ -120,6 +130,15 @@ export function createSim(): SimState {
     torque: 0,
     liftOff: Infinity,
     liftOffBoost: 0,
+    popQueue: [],
+    pops: 0,
+    popAt: -Infinity,
+    popStrength: 0,
+    popLength: 0,
+    popFlame: 0,
+    burstAt: -Infinity,
+    seed: 0x2f40,
+    popArmed: false,
     gear: 0,
     shift: null,
     clutch: 'locked',
@@ -322,6 +341,13 @@ export function stepSim(s: SimState, input: SimInput, dt: number) {
     s.liftOff = 0;
     s.liftOffBoost = s.boost;
   } else s.liftOff += dt;
+  // Pops (9B): armed on boost at a wide throttle; lifting off (the foot, or a shift's cut)
+  // lights unburnt fuel in the hot exhaust. A shift's cut pops only sometimes.
+  if (s.throttle > 0.6 && s.boost > S.flutterBoost) s.popArmed = true;
+  else if (s.popArmed && s.throttle < 0.25) {
+    s.popArmed = false;
+    if (s.rpm > S.pops.liftRpm && (!s.shift || rand(s) < S.pops.shiftChance)) burst(s, Math.min(1, s.boost / S.maxBoost), S.pops.gapS);
+  }
   const brakeIn = clamp01(input.brake ?? 0);
   s.brake = brakeIn > s.brake ? Math.min(brakeIn, s.brake + dt / D.brake.rise) : Math.max(brakeIn, s.brake - dt / D.brake.fall);
 
@@ -379,7 +405,10 @@ export function stepSim(s: SimState, input: SimInput, dt: number) {
       s.starter = false;
       s.pinionIn = Math.max(0, s.pinionIn - dt / st.pinionOut);
       // Limiter: cut at the limit, restore below the resume speed.
-      if (s.rpm >= S.limiterRpm) s.limiter = true;
+      if (s.rpm >= S.limiterRpm) {
+        if (!s.limiter) burst(s, 0.75, S.pops.limiterGapS);
+        s.limiter = true;
+      }
       else if (s.rpm <= S.limiterResumeRpm) s.limiter = false;
       s.firing = !s.limiter;
       if (coupled) {
@@ -487,7 +516,39 @@ export function stepSim(s: SimState, input: SimInput, dt: number) {
   const heatTarget = s.firing ? clamp01(s.load * (s.rpm / S.limiterRpm) * 1.15) : 0;
   s.heat = approach(s.heat, heatTarget, heatTarget > s.heat ? S.heatTau : S.coolTau, dt);
   s.torque = approach(s.torque, Math.max(-1, Math.min(1, pull)), S.rock.tau, dt);
+  // Pops fall due: the flame and the sound both key off `pops` changing.
+  while (s.popQueue.length && s.popQueue[0].at <= s.t) {
+    const p = s.popQueue.shift()!;
+    s.pops++;
+    s.popAt = p.at;
+    s.popStrength = p.strength;
+    s.popLength = lerp(S.pops.length[0], S.pops.length[1], rand(s));
+    s.popFlame = lerp(S.pops.flame[0], S.pops.flame[1], rand(s)) * (0.6 + 0.4 * p.strength);
+  }
   return s;
+}
+
+/** Seeded random 0…1 (xorshift32), kept in the sim so a replayed run pops the same. */
+function rand(s: SimState) {
+  let x = s.seed | 0 || 1;
+  x ^= x << 13;
+  x ^= x >>> 17;
+  x ^= x << 5;
+  s.seed = x >>> 0;
+  return s.seed / 4294967296;
+}
+
+const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+
+/** A burst of 1–3 pops over the next 0.15–0.5 s, unless one went off too recently. */
+function burst(s: SimState, strength: number, gap: number) {
+  if (s.t - s.burstAt < gap || s.phase !== 'running') return;
+  s.burstAt = s.t;
+  const P = S.pops;
+  const n = P.count[0] + Math.floor(rand(s) * (P.count[1] - P.count[0] + 1));
+  const spread = lerp(P.spread[0], P.spread[1], rand(s));
+  for (let k = 0; k < n; k++) s.popQueue.push({ at: s.t + 0.02 + (n === 1 ? 0 : (spread * k) / (n - 1)) * (0.75 + 0.5 * rand(s)), strength: strength * (0.7 + 0.3 * rand(s)) });
+  s.popQueue.sort((a, b) => a.at - b.at);
 }
 
 /** The engine turning free (neutral, clutch open, shifting): speed follows the throttle with inertia. Returns the torque reaction. */

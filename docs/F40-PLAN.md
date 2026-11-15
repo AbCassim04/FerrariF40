@@ -225,14 +225,14 @@ layout doesn't work there and the camera feels tight everywhere; mobile is now a
   graph (hp and Nm against rpm, live dot, peaks marked; off by default on phones)
 
 *9B — exhaust*
-- [ ] Lift-off and limiter flames from the two outer tailpipes (1–3 pops, blue-white → orange,
+- [x] Lift-off and limiter flames from the two outer tailpipes (1–3 pops, blue-white → orange,
   warm light on the bodywork, rate-limited, reduced-motion variant, ≤ +2 draw calls) with
   matching pops in the synth
-- [ ] Gas flow in X-ray ("Flow"): exhaust pulses per firing along the primaries, collector,
+- [x] Gas flow in X-ray ("Flow"): exhaust pulses per firing along the primaries, collector,
   turbine, downpipe, outer tailpipes; wastegate to the centre pipe only at full boost (caption
   once); intake cool → warm → cool into the plenum and runners; display time scale; assembled
   and exploded; ≤ +6 draw calls, nothing when off
-- [ ] Positional sound: exhaust from behind, induction and turbo from above / near the bay,
+- [x] Positional sound: exhaust from behind, induction and turbo from above / near the bay,
   distance falloff, slight pan; review clips camera-neutral plus one orbit clip
 
 *9C — car details (donor: "Ferrari F40 | www.vecarz.com", Nic Cheung, CC BY 4.0)*

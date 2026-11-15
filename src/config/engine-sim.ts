@@ -34,6 +34,32 @@ export const ENGINE_SIM = {
   bleedTau: 0.35,
   /** Boost above which lifting off sets off compressor flutter (8C). */
   flutterBoost: 0.5,
+  /**
+   * 9B exhaust pops (est): lifting off on boost (over `flutterBoost`, at a throttle over 0.6)
+   * above `liftRpm`, or the limiter cutting in, sets off `count` pops spread over `spread` s,
+   * each `length` s with a flame `flame` m long at full strength; a shift's throttle cut does
+   * so only with a `shiftChance` chance. At most one burst per `gapS` (`limiterGapS` on the
+   * limiter), so it stays special. The timing is random but seeded, so a dyno run replays the
+   * same pops.
+   */
+  pops: { liftRpm: 5000, count: [1, 3] as const, spread: [0.15, 0.5] as const, length: [0.06, 0.11] as const, flame: [0.24, 0.5] as const, gapS: 2.2, limiterGapS: 1.4, shiftChance: 0.4 },
+  /**
+   * 9B gas flow (all est, a picture, not a gas model): flow tubes `radius` × the pipe's radius,
+   * sampled every `step` m; an exhaust pulse has a `front` and a `tail` (m) and reaches
+   * `exhaustReach` × the route's length in a 720° cycle (so each is out of the tailpipe before
+   * its cylinder fires again); a faint `base` glow marks the route; intake air moves at
+   * `airSpeed` m/s at 7000 rpm, full throttle (at the display speed), and each runner's pulse
+   * starts at `intakeOpensDeg` after firing TDC and runs `runnerLength` m in 200°; engine off,
+   * the routes show at `offLevel`.
+   */
+  flow: { radius: 0.45, step: 0.012, tail: 0.12, front: 0.015, base: 0.05, exhaustReach: 1.2, airSpeed: 3, intakeOpensDeg: 350, runnerLength: 0.22, offLevel: 0.35 },
+  /**
+   * 9B flame per pop (est): out to full length in `rise` of its life, then shrinking; the
+   * blue-white core gone by `coolAt`; radius `width` m at full strength; each side's length
+   * varies by up to ±`sideVary`; reduced motion: × `reducedScale`, no light. The light: a
+   * warm point on the rear bodywork, `intensity` cd at full strength, reaching `distance` m.
+   */
+  flames: { rise: 0.15, coolAt: 0.45, intensity: 1.25, width: 0.04, sideVary: 0.12, reducedScale: 0.6, light: { color: '#ff8a3c', intensity: 6, distance: 1.6 } },
   /** The throttle pedal itself: seconds from closed to open and back. */
   pedalRise: 0.12,
   pedalFall: 0.08,

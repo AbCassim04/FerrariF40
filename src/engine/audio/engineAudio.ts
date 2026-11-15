@@ -5,6 +5,7 @@ import { kmh, overallRatio, type SimState } from '../sim';
 import type { SynthParamName } from './processor';
 import type { Cylinder } from './synth';
 import processorUrl from './processor.ts?worker&url';
+import { NEUTRAL_POSITION, soundPosition, type SoundPosition } from './position';
 
 /**
  * The engine's sound: an AudioWorklet synth (./synth.ts) driven by the sim's state once a
@@ -40,7 +41,7 @@ export async function createSynthNode(ctx: BaseAudioContext) {
 }
 
 /** The synth's inputs from the sim. */
-export const synthValues = (sim: SimState): Record<SynthParamName, number> => ({
+export const synthValues = (sim: SimState, pos: SoundPosition = NEUTRAL_POSITION): Record<SynthParamName, number> => ({
   rpm: sim.rpm,
   throttle: sim.throttle,
   boost: sim.boost,
@@ -51,6 +52,13 @@ export const synthValues = (sim: SimState): Record<SynthParamName, number> => ({
   // Torque through the box as a share of the engine's peak (the drive force back through the overall ratio).
   drive: sim.gear === 0 ? 0 : Math.min(1, (Math.abs(sim.drive) * DRIVE.rollingRadius) / (Math.abs(overallRatio(sim.gear)) * PEAK_TORQUE)),
   shifts: sim.shifts,
+  pops: sim.pops,
+  popStrength: sim.popStrength,
+  posExhaust: pos.exhaust,
+  posBright: pos.bright,
+  posIntake: pos.intake,
+  posGain: pos.gain,
+  posPan: pos.pan,
 });
 const PEAK_TORQUE = Math.max(...DRIVE.torque.map(([, nm]) => nm));
 
@@ -158,7 +166,7 @@ export const engineAudio = {
       offFor = 0;
       if (ctx.state === 'suspended' && !hidden) void ctx.resume();
     }
-    setSynth(node, synthValues(sim), ctx.currentTime);
+    setSynth(node, synthValues(sim, soundPosition), ctx.currentTime);
   },
   setHidden(h: boolean) {
     hidden = h;
