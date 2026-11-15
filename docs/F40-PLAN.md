@@ -190,21 +190,22 @@ layout doesn't work there and the camera feels tight everywhere; mobile is now a
   still visible under it; none at idle
 
 **8D-2 — gears and the drivetrain (rolling road)**
-- [ ] Sim: gears N, 1–5, R (ratios from dims, est), final drive for 324 km/h at ≈ 7000 rpm in
+- [x] Sim: gears N, 1–5, R (ratios from dims, est), final drive for 324 km/h at ≈ 7000 rpm in
   5th on the 335/35 ZR17 rear, torque curve (577 Nm @ 4000, 478 hp @ 7000, ref) shaped by boost,
   mass, rolling resistance and drag (top speed 324 ± 5 km/h, 0–100 ≈ 4 s ± 0.5); engine loaded
   in gear; automatic clutch (slip on pull-away, open on shifts with a torque cut, rev-matching
   blips on downshifts, over-rev downshifts refused, R only when stopped); brake; coasting
-- [ ] Controls: Space / W throttle, S brake, E / ↑ up, Q / ↓ down; on-screen + / − and a gate
+- [x] Controls: Space / W throttle, S brake, E / ↑ up, Q / ↓ down; on-screen + / − and a gate
   diagram (open gate, dog-leg first) that selects; thumb layout in landscape; HUD gear + km/h
-- [ ] Motion: input and transfer as before; sleeves on the secondary shaft slide to lock the
-  selected gear; selector forks (1–2, 3–4, 5–R) animate; secondary shaft, pinion, crown wheel,
-  diff, driveshafts and rear wheels turn at the right ratios; the cabin gear lever moves
-  through the gate; the same motion exploded
-- [ ] Sound: upshift torque cut (+ flutter on boost), dog-engagement clunk, gearbox whine from
+- [x] Motion: input and transfer as before; sleeves on the secondary shaft slide to lock the
+  selected gear; selector forks (R–1, 2–3, 4–5 — the dog-leg gate's planes, not the brief's
+  1–2 / 3–4 / 5–R; see BRIEF) animate; secondary shaft, pinion, crown wheel, diff, driveshafts
+  and rear wheels turn at the right ratios; the cabin gear lever moves through the gate; the
+  same motion exploded
+- [x] Sound: upshift torque cut (+ flutter on boost), dog-engagement clunk, gearbox whine from
   the secondary shaft, tyre / rolling-road roar; offline clips 1→5 run, downshift with blip,
   pull-away with slip, refused downshift
-- [ ] Clash: the moving gearbox in each gear (sleeves, forks), assembled and exploded; the
+- [x] Clash: the moving gearbox in each gear (sleeves, forks), assembled and exploded; the
   lever through the gate. Perf: in gear at speed, exploded and running. Dev API
   `__dev.engine({ gear, speedKmh, clutch })`
 

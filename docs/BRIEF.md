@@ -650,3 +650,77 @@ docs/reference/f40/ would correct them (the folder is empty).
   own frame).
 - **Dev:** the frame-rate meter sits below the camera buttons and hides with `?panel=0`;
   `__dev.pick(x, y)` / `__dev.project(p)` for gesture checks.
+
+*8D-2: gears and the drivetrain on a rolling road (owner's brief 2026-11-15)*
+- **Selector forks grouped R–1, 2–3, 4–5, not the brief's example 1–2 / 3–4 / 5–R (est
+  layout).** The pairs sit on the shafts in order R, 1…5 front to back (the casing tapers to the
+  rear, so the biggest gears go where it is deepest), each sleeve sits between an adjacent pair,
+  and one fork per plane of the dog-leg gate is how such a box is built: R and 1st share the left
+  plane, 2–3 the middle, 4–5 the right. 1–2 / 3–4 / 5–R would need gears out of order or forks
+  reaching past each other.
+- **No reverse idler.** At 85 mm centres and a 3.4 ratio there is no room between the R pair
+  for an idler, so reverse is drawn as a pair whose secondary gear turns with the shaft while R
+  is engaged; the direction change an idler makes is not shown in the gears (the wheels do turn
+  backwards).
+- **What turns:** input and transfer gears, primary and secondary gears (secondary ones idle at
+  their own speed until locked), the three sleeves, the pinion, the crown wheel (now toothed, 41
+  teeth, est), both driveshafts, the rear wheels and rear discs. The shafts themselves are smooth
+  cylinders and stay static (a smooth turning cylinder looks the same). The pinion is drawn as a
+  straight-cut gear (r 26 × 30 mm, est) in the gears' instanced mesh, so it costs no draw call;
+  the real one is a spiral bevel.
+- **Sleeves and forks (est):** sleeves Ø36 / Ø60 × 16 mm with a 4 × 3 mm groove and 8 dogs a
+  face, travel 12 mm (they stop ~1 mm short of the gear face); a 12 mm rail on the right of the
+  secondary shaft (x −85 mm, z −1.375…−1.765) with three forks whose half-ring shoes sit in the
+  grooves. The rail's ends are held by casing webs that aren't modelled (contact declared).
+- **Forks, sleeves and the lever move in real time** (shift 0.2 s, forks ~0.15 s), not at the
+  display time scale: at Slow × 1/20 a shift would take 4 s and the lever would trail the gear
+  readout and the sound. Shafts, gears and wheels turn at the display time scale like the engine.
+- **The cabin lever is split from the model** (`scripts/body-rules.mjs`: the knob material
+  F40_Sheft plus the Cockpit / Chrome primitives inside a small box round the stick): a clean
+  split, 3 primitives, 408 triangles. It tilts about a pivot 0.27 m under the plate (est) onto
+  each measured slot's centre, 25 mm fore and aft at the plate. The model's stick (~Ø11.4 mm)
+  nearly fills its slots (11.6 mm), so the plane offsets were set by a triangle clash sweep of
+  39 poses along the gate: all clear except the reverse half of the left slot, which the model
+  narrows to ~9.5 mm (a lockout tab): in R and on the way there the stick grazes its inner edge
+  by up to ~1.5 mm, most of it under the plate. Not fixable without editing the licensed gate.
+- **Drivetrain figures:** gear ratios from dims, unchanged (3.1, 2.0, 1.45, 1.1, 0.88, R 3.4,
+  est); transfer pair 70 / 55 = 1.273 (dims); final drive computed as 2.350 so 5th gives
+  324 km/h at 7000 rpm on a rolling radius of 0.3232 m (335/35 ZR17 × 0.97, est). Mass 1240 kg
+  (1100 dry, ref, + 140 fluids and driver, est); 58 % on the rear, CG 0.45 m, wheelbase 2.45 m;
+  rolling resistance 0.012; CdA 0.687 m² (tuned so drag absorbs full power at 324 km/h);
+  driveline efficiency 0.9; rear grip μ 1.2 with load transfer (tuned: 0–100 4.00 s; μ 1.3 gave
+  3.69 s); engine inertia 0.25 kg·m², wheels and driveline 4.4 kg·m². Torque curve (est): 160 Nm
+  at 800 rpm rising to 577 at 4000, 486 at 7000 (478 hp), 420 at the 7750 limiter; off throttle
+  20 + 0.006 × rpm Nm of friction (engine braking).
+- **Automatic clutch (est):** pulling away in 1st or R it slips with the engine held at
+  2500–3500 rpm (light → full throttle), bites over 0.25 s and closes over 1.0 × (1 + 4 ×
+  throttle³) s, bringing the engine down to the gearbox's speed (flat out it nearly holds the
+  launch speed: 0–100 unchanged); locks within 60 rpm. In gear below 1100 rpm and off throttle it
+  opens, so the engine never stalls (stopped in gear = idle). Shifts take 0.2 s: the clutch opens,
+  upshifts cut the throttle (the existing lift-off flutter fires on boost), downshifts that need
+  revs blip to 60 % throttle, and the engine syncs to the new gear (τ 0.05 s). Refused, with a
+  0.6 s flash: a downshift that would pass the 7750 rpm limiter, R unless below 0.15 m/s, 1–5
+  while rolling backwards, and pressing past either end of R, N, 1…5. A second press during a
+  shift is remembered (one deep) and made when the first ends. Brakes up to 1.1 g (rise 0.1 s).
+- **0–100 measured with upshifts at 7700 rpm** (just under the limiter); at 7500 it is 4.31 s.
+- **Controls:** Space / W throttle, S brake, E / ↑ up, Q / ↓ down (the arrows are left alone when
+  the volume slider has focus). Desktop bar: Stop, tach / boost / gear / km/h, −, a compact gate
+  (no labels at that size: hover titles, and the gear is in the readout), +, Brake, Throttle,
+  More. Portrait: More, Stop, Brake, −, +, Throttle in the bar (all ≥ 44 px), the labelled gate
+  in the bottom sheet; the gauges moved top right, clear of the camera buttons. Landscape: − over
+  the brake under the left thumb, + over the throttle under the right; no gate (the brief's thumb
+  layout). The gate selects any gear directly (the lever goes back across the neutral line and
+  along the planes), subject to the same refusals. km/h shows the speed without sign (R reads
+  positive).
+- **Haptics:** `navigator.vibrate` 12 ms on each shift, 20 ms at the limiter, 8-40-8 ms on a
+  refused shift. Android only (iOS Safari has no vibrate).
+- **Sound (est):** gearbox whine at the final drive's tooth mesh, secondary shaft × 17 (pinion
+  teeth for 41 / 2.35), level 0.004 × (1 + 3 × torque share), second harmonic 0.35; rolling-road
+  roar: noise low-passed at 160 → 820 Hz with road speed, level 0.09 × (v / 324)^1.5; clunk on
+  each completed shift into gear (not on refused ones): a 92 Hz knock (35 ms) and a 2.2 kHz click
+  (3 ms). The torque share is the drive force back through the overall ratio over 577 Nm.
+- **X-ray while running now also opens the gearbox casing, bellhousing and diff housing** (they
+  are X-ray shells like the block and heads), so the turning gears show.
+- **Dev:** `__dev.engine({ gear, speedKmh, clutch, lever })` (lever: any gate position, for the
+  clash sweep); the shot of exploded-and-running uses the held pose, so its gears are frozen;
+  `scripts/dev/drive-test.mjs` measures 0–100 and top speed headlessly.

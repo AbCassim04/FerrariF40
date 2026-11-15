@@ -13,7 +13,7 @@ import { TIME_SCALES, type TimeScaleName } from '../config/engine-sim';
 import { frame } from '../engine/EngineController';
 import { motionState, setPose } from '../engine/motion';
 import { sim, useEngineStore } from '../state/engine';
-import { stepSim } from '../engine/sim';
+import { deriveShafts, gearboxRpm, kmh, placeGear, stepSim, type ClutchState } from '../engine/sim';
 import { engineAudio } from '../engine/audio/engineAudio';
 import { fitView } from '../scene/fitView';
 import { refreshShadows, shadowState } from '../scene/ShadowScheduler';
@@ -90,6 +90,13 @@ export interface EngineOptions {
   blurDeg?: number;
   /** Strokes mode's cylinder: bank and index from the timing end. */
   cylinder?: { s: 'l' | 'r'; i: number };
+  /** 8D-2: put the gearbox in this gear (−1 R, 0 N, 1…5) at once, sleeves and lever there. */
+  gear?: number;
+  /** Road speed (km/h); with the clutch locked in gear the engine speed follows from it. */
+  speedKmh?: number;
+  clutch?: ClutchState;
+  /** The lever anywhere in the gate (plane −1…1, throw −1…1): clash sweeps along its paths. */
+  lever?: { plane: number; throw: number };
 }
 
 const nextFrame = () => new Promise<void>((r) => requestAnimationFrame(() => r()));
@@ -200,17 +207,27 @@ export function DevApi() {
         if (o.timeScale) store.setState({ timeScale: o.timeScale });
         if (o.cylinder) store.setState({ strokeCylinder: o.cylinder });
         if (o.running === false) {
-          Object.assign(sim, { phase: 'off', t: 0, rpm: 0, throttle: 0, boost: 0, firing: false, limiter: false, pinionIn: 0, starter: false, load: 0, heat: 0, torque: 0 });
-          store.setState({ engineRunning: false, phase: 'off', rpm: 0, boost: 0, throttle: 0, held: false, pedal: false });
+          Object.assign(sim, { phase: 'off', t: 0, rpm: 0, throttle: 0, boost: 0, firing: false, limiter: false, pinionIn: 0, starter: false, load: 0, heat: 0, torque: 0, speed: 0, refused: 0 });
+          placeGear(sim, o.gear ?? 0);
+          deriveShafts(sim);
+          store.setState({ engineRunning: false, phase: 'off', rpm: 0, boost: 0, throttle: 0, held: false, pedal: false, gear: sim.gear, speedKmh: 0, lever: { ...sim.lever } });
           frame.frozen = false;
-          setPose({ crank: o.crankAngle !== undefined ? (o.crankAngle * Math.PI) / 180 : DIMS_CRANK_PHASE, pinionIn: 0, highlight: null, blur: 0 });
-        } else if (o.running || o.rpm !== undefined) {
-          const rpm = o.rpm ?? 1000;
+          setPose({ crank: o.crankAngle !== undefined ? (o.crankAngle * Math.PI) / 180 : DIMS_CRANK_PHASE, pinionIn: 0, highlight: null, blur: 0, input: 0, output: 0, wheel: 0, sleeves: [...sim.sleeves], lever: { ...sim.lever } });
+        } else if (o.running || o.rpm !== undefined || o.gear !== undefined || o.speedKmh !== undefined) {
+          const g = o.gear ?? sim.gear;
+          const v = o.speedKmh !== undefined ? ((g === -1 ? -1 : 1) * o.speedKmh) / 3.6 : sim.speed;
+          const clutch = o.clutch ?? (g === 0 ? 'locked' : gearboxRpm(g, v) >= 1100 ? 'locked' : 'open');
+          const rpm = o.rpm ?? (g !== 0 && clutch === 'locked' ? gearboxRpm(g, v) : 1000);
           Object.assign(sim, { phase: 'running', t: 10, rpm, throttle: o.throttle ?? 0, firing: true, limiter: false, starter: false });
           if (o.boost !== undefined) sim.boost = o.boost;
           else for (let k = 0; k < 120; k++) stepSim(sim, { pedal: o.throttle ?? 0 }, 0.05), (sim.rpm = rpm);
           if (o.heat !== undefined) sim.heat = o.heat;
-          store.setState({ engineRunning: true, phase: 'running', rpm, throttle: sim.throttle, boost: sim.boost, held: true });
+          // The boost settling above stepped the car too: put the drivetrain where it was asked.
+          placeGear(sim, g);
+          if (o.lever) sim.lever = { ...o.lever };
+          Object.assign(sim, { speed: v, clutch, rpm, refused: 0 });
+          deriveShafts(sim);
+          store.setState({ engineRunning: true, phase: 'running', rpm, throttle: sim.throttle, boost: sim.boost, held: true, gear: g, speedKmh: Math.abs(kmh(v)), clutch, lever: { ...sim.lever }, refused: false });
         }
         if (o.pinionIn !== undefined) sim.pinionIn = o.pinionIn;
         if (o.crankAngle !== undefined) {
@@ -218,6 +235,8 @@ export function DevApi() {
           const { strokeCylinder: c, timeScale } = store.getState();
           setPose({
             crank: (o.crankAngle * Math.PI) / 180,
+            sleeves: [...sim.sleeves],
+            lever: { ...sim.lever },
             pinionIn: sim.pinionIn,
             pinion: motionState.pinion,
             highlight: timeScale === 'strokes' ? `${c.s}${c.i}` : null,
@@ -228,7 +247,25 @@ export function DevApi() {
         refreshShadows();
         await frames(3);
         const s = store.getState();
-        return { phase: s.phase, rpm: Math.round(sim.rpm), throttle: sim.throttle, boost: +sim.boost.toFixed(3), heat: +sim.heat.toFixed(3), crankDeg: +((motionState.crank * 180) / Math.PI).toFixed(2), timeScale: s.timeScale, scale: TIME_SCALES[s.timeScale].scale, pinionIn: sim.pinionIn };
+        return {
+          phase: s.phase,
+          rpm: Math.round(sim.rpm),
+          throttle: sim.throttle,
+          boost: +sim.boost.toFixed(3),
+          heat: +sim.heat.toFixed(3),
+          crankDeg: +((motionState.crank * 180) / Math.PI).toFixed(2),
+          timeScale: s.timeScale,
+          scale: TIME_SCALES[s.timeScale].scale,
+          pinionIn: sim.pinionIn,
+          gear: sim.gear,
+          speedKmh: +kmh(sim.speed).toFixed(1),
+          clutch: sim.clutch,
+          inputRpm: Math.round(sim.inputRpm),
+          outputRpm: Math.round(sim.outputRpm),
+          wheelRpm: Math.round(sim.wheelRpm),
+          sleeves: sim.sleeves.map((v) => +v.toFixed(2)),
+          lever: sim.lever,
+        };
       },
       pick(x, y) {
         const rect = gl.domElement.getBoundingClientRect();

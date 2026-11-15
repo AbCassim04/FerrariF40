@@ -20,6 +20,14 @@ export interface SynthParams {
   firing: boolean;
   /** Starter motor driving the crank. */
   starter: boolean;
+  /** 8D-2: road speed, km/h (the rolling road's roar). */
+  speed: number;
+  /** Secondary shaft speed, rpm (the gearbox whine's pitch). */
+  shaft: number;
+  /** Torque through the gearbox, share of peak 0…1 (the whine grows under load). */
+  drive: number;
+  /** Shifts so far: each new one sounds the dog engagement's clunk. */
+  shifts: number;
 }
 
 export interface Cylinder {
@@ -133,7 +141,7 @@ export class EngineSynth {
   private rpm = 0;
   private throttle = 0;
   private boost = 0;
-  private target: SynthParams = { rpm: 0, throttle: 0, boost: 0, firing: false, starter: false };
+  private target: SynthParams = { rpm: 0, throttle: 0, boost: 0, firing: false, starter: false, speed: 0, shaft: 0, drive: 0, shifts: 0 };
   private crank = 0;
   // Exhaust pulse states per bank: difference of two decays (attack / decay).
   private pd = [0, 0];
@@ -182,6 +190,19 @@ export class EngineSynth {
   private wasStarter = false;
   private block = 0;
   private gateMix = 0;
+  // Drivetrain (8D-2).
+  private speed = 0;
+  private shaft = 0;
+  private drive = 0;
+  private whinePhase = 0;
+  private roadLow: Biquad;
+  private roadHigh: Biquad;
+  private clunk: Resonator;
+  private clunkIn = 0;
+  private clunkDrive: number;
+  private clickEnv = 0;
+  private clickBand: Biquad;
+  private shifts = 0;
 
   constructor(sampleRate: number, cylinders: Cylinder[]) {
     this.sr = sampleRate;
@@ -200,6 +221,12 @@ export class EngineSynth {
     this.thud = new Resonator(sampleRate, 75, 0.05);
     this.thumpDrive = Math.sin((TAU * X.thump.freq) / sampleRate) / (X.decay * sampleRate);
     this.thudDrive = Math.sin((TAU * 75) / sampleRate) / (THUD_LENGTH * sampleRate);
+    const C = SOUND.clunk;
+    this.roadLow = new Biquad(sampleRate).lowpass(SOUND.road.cutoff[0]);
+    this.roadHigh = new Biquad(sampleRate).highpass(SOUND.road.highpass);
+    this.clunk = new Resonator(sampleRate, C.freq, C.decay);
+    this.clunkDrive = Math.sin((TAU * C.freq) / sampleRate) / (THUD_LENGTH * sampleRate);
+    this.clickBand = new Biquad(sampleRate).bandpass(C.clickBand, 2);
   }
 
   /**
@@ -214,6 +241,18 @@ export class EngineSynth {
       this.throttle = p.throttle;
       this.boost = Math.max(0, p.boost);
       this.spool = Math.min(1, this.boost / 1.1);
+      this.speed = p.speed;
+      this.shaft = p.shaft;
+      this.drive = p.drive;
+      this.shifts = p.shifts;
+    }
+    // A new shift: the dogs going in.
+    if (p.shifts !== this.shifts) {
+      if (p.shifts > this.shifts) {
+        this.clunkIn = SOUND.clunk.level;
+        this.clickEnv = SOUND.clunk.click;
+      }
+      this.shifts = p.shifts;
     }
     const F = SOUND.flutter;
     if (p.throttle > 0.6 && p.boost > F.fromBoost) this.armed = true;
@@ -250,7 +289,13 @@ export class EngineSynth {
     if (t.starter && !this.wasStarter) this.thudIn = St.engageThud;
     this.wasStarter = t.starter;
 
+    const W = SOUND.gearbox;
+    const Rd = SOUND.road;
+    const C = SOUND.clunk;
     for (let s = 0; s < n; s++) {
+      this.speed += (t.speed - this.speed) * k;
+      this.shaft += (t.shaft - this.shaft) * k;
+      this.drive += (t.drive - this.drive) * k;
       this.rpm += (t.rpm - this.rpm) * k;
       this.throttle += (t.throttle - this.throttle) * k;
       this.boost += (Math.max(0, t.boost) - this.boost) * k;
@@ -353,9 +398,22 @@ export class EngineSynth {
       this.thudIn *= Math.exp(-1 / (THUD_LENGTH * sr));
       const thud = this.thud.process(this.thudIn * this.thudDrive);
 
+      // Gearbox whine: the final drive's tooth mesh, louder under load.
+      const shaftAbs = Math.abs(this.shaft);
+      this.whinePhase += ((shaftAbs / 60) * W.pinionTeeth / sr) * TAU;
+      if (this.whinePhase > TAU) this.whinePhase -= TAU;
+      const whine = (Math.sin(this.whinePhase) + W.harmonic * Math.sin(2 * this.whinePhase)) * W.level * (1 + W.loadGain * this.drive) * Math.min(1, shaftAbs / W.fadeInRpm);
+      // Rolling road: low noise, louder and brighter with speed.
+      const v = Math.min(1.2, Math.abs(this.speed) / Rd.refKmh);
+      const road = v > 1e-4 ? this.roadHigh.process(this.roadLow.process(this.noise.next())) * Rd.level * v ** Rd.power * 4 : 0;
+      // Clunk: the dogs engaging, a short low knock and a small click.
+      this.clunkIn *= Math.exp(-1 / (THUD_LENGTH * sr));
+      this.clickEnv *= Math.exp(-1 / (C.clickDecay * sr));
+      const clunk = this.clunk.process(this.clunkIn * this.clunkDrive) + this.clickBand.process(this.noise.next()) * this.clickEnv;
+
       // Mix: each bank leans to its side; everything else is centred.
       const w = X.width;
-      const centre = gate + induction + whistle + flutter + tick + belt + starter + thud;
+      const centre = gate + induction + whistle + flutter + tick + belt + starter + thud + whine + road + clunk;
       let l = bank[0] * (0.5 + w) + bank[1] * (0.5 - w) + centre * 0.5;
       let r = bank[1] * (0.5 + w) + bank[0] * (0.5 - w) + centre * 0.5;
       l = this.dc[0].process(l) * SOUND.master.outputGain;
@@ -390,5 +448,8 @@ export class EngineSynth {
     const T = SOUND.turbo;
     this.whistle.bandpass(T.fromHz + (T.toHz - T.fromHz) * this.spool, T.q);
     this.gateMix = Math.max(0, (b - X.wastegateFrom) / (1 - X.wastegateFrom)) * X.wastegateLevel;
+    const Rd = SOUND.road;
+    const v = Math.min(1, Math.abs(this.speed) / Rd.refKmh);
+    this.roadLow.lowpass(Rd.cutoff[0] + (Rd.cutoff[1] - Rd.cutoff[0]) * v);
   }
 }

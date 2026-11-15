@@ -1,3 +1,5 @@
+import { DIMS } from './dims';
+
 /**
  * The running engine's behaviour: a physics-lite model, every figure tunable here.
  * (ref) = a real F120A figure, (est) = estimate. Times in seconds, speeds in rpm.
@@ -109,3 +111,105 @@ export const FLASH = { minSeconds: 0.09, crankDegrees: 50, intensity: 2.2 } as c
  * five copies put the main pass at ~1.56 M triangles, a live shadow pass on top would be ~2 M).
  */
 export const BLUR = { copies: 5, coverage: 0.92, maxSpanDeg: 360, shadowHz: 2 } as const;
+
+/**
+ * 8D-2: the drivetrain on a rolling road. The car stays on its stand (the rear wheels drive
+ * rollers, the fronts are still), and the sim works out road speed as if it were driving.
+ * (ref) = published F40 figure, (est) = estimate or tuned so the acceptance figures land.
+ */
+const G = DIMS.transaxle.gears;
+/** The drop from the input shaft to the primary shaft (the transfer pair): part of every gear's overall ratio. */
+const TRANSFER = (G.primaryY - G.transferInput) / G.transferInput;
+/** (ref) 335/35 ZR17 rear tyre: 17 in rim + 35 % of 335 mm sidewall; rolling (dynamic) radius ≈ 97 % of that (est). */
+const ROLLING_RADIUS = ((17 * 25.4) / 2 / 1000 + 0.335 * 0.35) * 0.97;
+/** (ref) Top speed 324 km/h, reached at (est) 7000 rpm (peak power) in 5th. */
+const TOP_KMH = 324;
+const TOP_RPM = 7000;
+
+export const DRIVE = {
+  /** Gear ratios as drawn in the gearbox (dims, est), and the transfer drop applied on top of each. */
+  ratios: [G.reverse, ...G.ratios] as readonly number[],
+  transfer: TRANSFER,
+  rollingRadius: ROLLING_RADIUS,
+  topKmh: TOP_KMH,
+  topRpm: TOP_RPM,
+  /** Final drive (pinion : crown), chosen so 5th at `topRpm` is `topKmh` (est). */
+  finalDrive: (TOP_RPM / 60) * 2 * Math.PI * ROLLING_RADIUS / ((TOP_KMH / 3.6) * G.ratios[4] * TRANSFER),
+  /** (ref) 1100 kg dry, + fluids and a driver (est). */
+  massKg: 1100 + 60 + 80,
+  /** (est) Static share of the weight on the rear axle, the centre of gravity's height, the wheelbase (ref). */
+  rearShare: 0.58,
+  cgHeight: 0.45,
+  wheelbase: 2.45,
+  /** (est) Rolling resistance coefficient. */
+  crr: 0.012,
+  /** Aero drag area Cd·A (m²), tuned so the top speed lands at 324 km/h (est; Cd 0.34 × ~1.95 m²). */
+  cdA: 0.6866,
+  airDensity: 1.225,
+  /** (est) Drivetrain efficiency (gearbox, final drive, joints). */
+  efficiency: 0.9,
+  /** (est) Rear tyres' grip: the most drive force they take is μ × the rear axle's load (with load transfer). Tuned for 0–100 ≈ 4 s. */
+  tractionMu: 1.2,
+  /** (est) Rotating inertia, kg·m²: crank, flywheel, twin-plate clutch, damper; and the four wheels with hubs and discs. */
+  engineInertia: 0.25,
+  wheelInertia: 4.4,
+  /**
+   * (est, shaped to the ref figures 577 Nm at 4000 rpm and 478 hp at 7000) Full-throttle,
+   * steady-boost torque curve [rpm, Nm]. Below full boost (spool lag, or rpm the turbos can't
+   * yet fill) the torque drops with the boost as the sim's `offBoostPull` share sets.
+   */
+  torque: [
+    [800, 160],
+    [1000, 190],
+    [1500, 230],
+    [2000, 280],
+    [2500, 350],
+    [3000, 450],
+    [3500, 540],
+    [4000, 577],
+    [4500, 575],
+    [5000, 568],
+    [5500, 555],
+    [6000, 540],
+    [6500, 515],
+    [7000, 486],
+    [7500, 445],
+    [7750, 420],
+    [8500, 360],
+  ] as readonly (readonly [number, number])[],
+  /** (est) Friction and pumping with the throttle shut, Nm: what engine braking pulls with. */
+  friction: { base: 20, perRpm: 0.006 },
+  /**
+   * Automatic clutch (est): pulling away in 1st or R it slips with the engine held at
+   * `launchRpm` (light → full throttle) and bites over `bite` s until the gearbox catches up
+   * (the engine is brought down to the gearbox over `close` s, × (1 + 4·throttle³));
+   * on each shift it opens for `shiftTime` with a torque cut; below `openBelowRpm` (in gear,
+   * off throttle) it opens so the engine never stalls.
+   */
+  clutch: { launchRpm: [2500, 3500] as const, bite: 0.25, close: 1.0, slipTau: 0.12, lockTol: 60, openBelowRpm: 1100 },
+  /** Shifts (est): clutch open and torque cut this long; a downshift blips to `blip` throttle; refused shifts flash this long. */
+  shift: { time: 0.2, syncTau: 0.05, blip: 0.6, refusedFlash: 0.6 },
+  /** (est) Selector forks: a full travel in this long (s, real time). The lever goes through the gate in about the shift time. */
+  forkTime: 0.15,
+  /** (est) Brakes: deceleration at full pedal (g), and how fast the pedal goes on / off (s). */
+  brake: { maxG: 1.1, rise: 0.1, fall: 0.08 },
+  /** Below this road speed (m/s) a stopped car is stopped (no creeping from rounding). */
+  stopSpeed: 0.05,
+  /** Reverse only below this road speed (m/s). */
+  reverseBelow: 0.15,
+} as const;
+
+/** Gate positions (driver's view): plane −1 right … +1 left, throw +1 up (forward) / −1 down. Dog-leg: R up-left, 1 down-left. */
+export const GATE: Record<number, { plane: number; throw: number }> = {
+  [-1]: { plane: 1, throw: 1 },
+  0: { plane: 0, throw: 0 },
+  1: { plane: 1, throw: -1 },
+  2: { plane: 0, throw: 1 },
+  3: { plane: 0, throw: -1 },
+  4: { plane: -1, throw: 1 },
+  5: { plane: -1, throw: -1 },
+};
+
+/** Gears in lever order: R, N, 1…5 (N sits below 1st and above R). */
+export const GEAR_ORDER = [-1, 0, 1, 2, 3, 4, 5] as const;
+export const gearLabel = (g: number) => (g === -1 ? 'R' : g === 0 ? 'N' : String(g));

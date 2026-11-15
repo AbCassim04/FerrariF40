@@ -21,6 +21,10 @@ export const SYNTH_PARAMS = [
   { name: 'boost', defaultValue: 0, minValue: -1, maxValue: 3, automationRate: 'k-rate' },
   { name: 'firing', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
   { name: 'starter', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
+  { name: 'speed', defaultValue: 0, minValue: -100, maxValue: 400, automationRate: 'k-rate' },
+  { name: 'shaft', defaultValue: 0, minValue: -5000, maxValue: 12000, automationRate: 'k-rate' },
+  { name: 'drive', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
+  { name: 'shifts', defaultValue: 0, minValue: 0, maxValue: 1e9, automationRate: 'k-rate' },
 ] as const;
 export type SynthParamName = (typeof SYNTH_PARAMS)[number]['name'];
 
@@ -35,7 +39,17 @@ class EngineProcessor extends AudioWorkletProcessor {
     this.synth = new EngineSynth(sampleRate, options.processorOptions.cylinders);
   }
   process(_inputs: Float32Array[][], outputs: Float32Array[][], p: Record<SynthParamName, Float32Array>) {
-    this.synth.set({ rpm: p.rpm[0], throttle: p.throttle[0], boost: p.boost[0], firing: p.firing[0] > 0.5, starter: p.starter[0] > 0.5 });
+    this.synth.set({
+      rpm: p.rpm[0],
+      throttle: p.throttle[0],
+      boost: p.boost[0],
+      firing: p.firing[0] > 0.5,
+      starter: p.starter[0] > 0.5,
+      speed: p.speed[0],
+      shaft: p.shaft[0],
+      drive: p.drive[0],
+      shifts: Math.round(p.shifts[0]),
+    });
     const out = outputs[0];
     if (out.length >= 2) this.synth.process(out[0], out[1]);
     else if (out.length === 1) {

@@ -19,6 +19,7 @@ interface ModelPartSpec {
   description: string;
   specs?: Record<string, string>;
   stage: Stage;
+  contacts?: string[];
   parent?: string;
   explodeOffset?: Vec3;
   explodeRotation?: Vec3;
@@ -124,6 +125,17 @@ export const bodyParts: PartDef[] = [
     description: 'Two composite bucket seats, the instrument binnacle, steering wheel and pedals. Built for lightness: no carpets and no sound system.',
     specs: { Seats: '2', Drive: 'Left-hand (as modelled)' },
     stage: 1,
+  }),
+  modelPart({
+    id: 'gear-lever',
+    name: 'Gear lever',
+    group: 'transmission',
+    description:
+      'The gated gear lever: a polished knob on a thin stick, moved through an open metal gate with a dog-leg first (reverse and first on the left plane, then 2–3 and 4–5). A rod carries each movement back to the gearbox.',
+    specs: { Gate: 'Open, dog-leg first', Pattern: 'R–1 · 2–3 · 4–5' },
+    stage: 1,
+    // Its stick passes down through the gate plate into the boot (the cockpit's).
+    contacts: ['interior'],
   }),
   modelPart({
     id: 'undertray',

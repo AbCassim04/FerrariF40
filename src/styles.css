@@ -418,6 +418,126 @@ body,
   }
 }
 
+/* ── Gears: gear and speed in the readout, − / +, the brake, the gate ────────── */
+
+.readout__cell--gear {
+  min-width: 22px;
+}
+
+.readout__gear {
+  font-family: var(--mono);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+  transition: color 0.15s;
+}
+
+.readout__cell--speed {
+  min-width: 34px;
+}
+
+.readout[data-refused] .readout__gear,
+.gate[data-refused] .gate__lever {
+  color: #ff5a36;
+  fill: #ff5a36;
+  animation: refused 0.6s ease-out;
+}
+
+@keyframes refused {
+  0%,
+  50% {
+    opacity: 0.25;
+  }
+  25%,
+  75%,
+  100% {
+    opacity: 1;
+  }
+}
+
+.shift-btn svg {
+  stroke-width: 2.2;
+}
+
+.brake-btn[aria-pressed='true'] {
+  border-color: #7fd6ff;
+  background: #1d3442;
+}
+
+.gate {
+  width: 60px;
+  height: 64px;
+  overflow: visible;
+  touch-action: manipulation;
+}
+
+.gate--compact {
+  width: 44px;
+  height: 46px;
+}
+
+.gate__slot {
+  fill: none;
+  stroke: #4c5058;
+  stroke-width: 7;
+  stroke-linecap: round;
+}
+
+.gate__end {
+  fill: #8a8f98;
+  pointer-events: none;
+}
+
+.gate__pos[data-current] .gate__end {
+  fill: var(--fg);
+}
+
+.gate__hit {
+  fill: transparent;
+  cursor: pointer;
+}
+
+.gate__pos:hover .gate__hit {
+  fill: rgba(127, 214, 255, 0.12);
+}
+
+.gate__label {
+  fill: var(--muted);
+  font-family: var(--mono);
+  font-size: 8px;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.gate__pos[data-current] .gate__label {
+  fill: var(--fg);
+}
+
+.gate__lever {
+  fill: #e8e9ec;
+  pointer-events: none;
+}
+
+.gate--compact .gate__label {
+  display: none;
+}
+
+/* Desktop narrower than the full bar: the throttle and brake keep their icons and key hints. */
+@media (min-width: 720px) and (max-width: 1239.98px) {
+  .bar__engine .throttle-btn__label {
+    display: none;
+  }
+
+  .bar__engine .throttle-btn {
+    padding: 0 12px;
+  }
+
+  .explode-btn {
+    min-width: 0;
+    padding: 0 22px;
+  }
+}
+
 /* ── "More": a card above the bar (desktop), a bottom sheet (phones) ────────── */
 
 .more {
@@ -523,6 +643,16 @@ body,
 .more__row--actions {
   justify-content: center;
   padding-bottom: 6px;
+}
+
+.more--sheet .gate {
+  width: 84px;
+  height: 90px;
+  margin: 4px 8px;
+}
+
+.more--sheet .gate__label {
+  font-size: 7px;
 }
 
 .more__label {
@@ -719,6 +849,16 @@ body,
   height: 24px;
 }
 
+.thumbs .shift-btn {
+  --btn-h: 56px;
+  font-size: 22px;
+}
+
+.thumbs .shift-btn svg {
+  width: 24px;
+  height: 24px;
+}
+
 /* ── Toast (the silent-switch hint) ─────────────────────────────────────── */
 
 .toast {
@@ -813,7 +953,30 @@ body,
 
   .bar--drive .throttle-btn {
     flex: 1 1 auto;
-    min-width: 132px;
+    min-width: 96px;
+    padding: 0 12px;
+  }
+
+  /* Portrait driving bar: Stop and the brake are square keys, the throttle takes what is left. */
+  .bar--drive .engine-btn--icon,
+  .bar--drive .shift-btn {
+    flex: none;
+    width: 44px;
+  }
+
+  .bar--drive .brake-btn {
+    flex: none;
+    width: 50px;
+    min-width: 0;
+    padding: 0;
+  }
+
+  .bar--drive .brake-btn .throttle-btn__label {
+    display: none;
+  }
+
+  .readout--hud .readout__gear {
+    font-size: 22px;
   }
 
   .seg button {
@@ -822,6 +985,15 @@ body,
 
   .chip {
     min-height: 40px;
+  }
+}
+
+/* Portrait phone: the gauges sit top right, clear of the camera buttons on the left. */
+@media (max-width: 719.98px) and (orientation: portrait) {
+  .readout--hud {
+    left: auto;
+    right: max(12px, env(safe-area-inset-right));
+    transform: none;
   }
 }
 

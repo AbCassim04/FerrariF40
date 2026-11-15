@@ -7,10 +7,10 @@ import { heatUniform } from '../materials/heatGlow';
 import { PINION_RATIO } from '../parts/engine/geometry/electrics';
 import { partObjects } from '../scene/partObjects';
 import { refreshShadows } from '../scene/ShadowScheduler';
-import { reducedMotion, sim, useEngineStore } from '../state/engine';
+import { gearState, reducedMotion, sim, useEngineStore } from '../state/engine';
 import { engineAudio } from './audio/engineAudio';
 import { BLUR_FROM, motionState, setPose } from './motion';
-import { stepSim } from './sim';
+import { drivetrainSettled, kmh, stepSim } from './sim';
 
 const TAU = Math.PI * 2;
 /** The sim is stepped in slices no longer than this (a slow frame or a returning tab doesn't jump). */
@@ -35,7 +35,7 @@ export function EngineController() {
 
   useFrame((_, delta) => {
     const store = useEngineStore.getState();
-    const idle = sim.phase === 'off' && sim.pinionIn === 0 && sim.heat < 1e-3 && Math.abs(sim.torque) < 1e-4;
+    const idle = sim.phase === 'off' && sim.pinionIn === 0 && sim.heat < 1e-3 && Math.abs(sim.torque) < 1e-4 && drivetrainSettled(sim);
     if (idle && !frame.dirty) return;
     frame.dirty = false;
     if (document.hidden) return;
@@ -44,21 +44,44 @@ export function EngineController() {
     const steps = Math.ceil(dt / MAX_DT);
     const before = motionState.crank;
     let crank = motionState.crank;
+    // The drivetrain's angles turn at the display time scale too (8D-2).
+    let { input, output, wheel } = motionState;
+    const was = { input, output, wheel };
     const scale = TIME_SCALES[store.timeScale].scale;
+    const shiftsBefore = sim.shifts;
+    const limiterBefore = sim.limiter;
+    const refusedBefore = sim.refused;
     for (let k = 0; k < steps; k++) {
       const h = dt / steps;
-      if (!store.held) stepSim(sim, { pedal: store.pedal ? 1 : 0 }, h);
-      if (!frame.frozen) crank += (sim.rpm / 60) * TAU * h * scale;
+      if (!store.held) stepSim(sim, { pedal: store.pedal ? 1 : 0, brake: store.brakePedal ? 1 : 0 }, h);
+      if (!frame.frozen) {
+        const turn = TAU * h * scale / 60;
+        crank += sim.rpm * turn;
+        input += sim.inputRpm * turn;
+        output += sim.outputRpm * turn;
+        wheel += sim.wheelRpm * turn;
+      }
     }
     const strokes = store.timeScale === 'strokes';
+    const real = store.timeScale === 'real' && sim.phase !== 'off';
     setPose({
       crank,
+      input,
+      output,
+      wheel,
+      travel: { crank: crank - before, input: input - was.input, output: output - was.output, wheel: wheel - was.wheel },
+      sleeves: [sim.sleeves[0], sim.sleeves[1], sim.sleeves[2]],
+      lever: { ...sim.lever },
       pinionIn: sim.pinionIn,
       pinion: sim.pinionIn > 0 ? -PINION_RATIO * crank : motionState.pinion,
       highlight: strokes ? `${store.strokeCylinder.s}${store.strokeCylinder.i}` : null,
       // A frozen dev pose keeps the blur it was given (screenshots of Real mode).
-      blur: frame.frozen ? motionState.blur : store.timeScale === 'real' && sim.phase !== 'off' ? Math.abs(crank - before) : 0,
+      blur: frame.frozen ? motionState.blur : real ? Math.abs(crank - before) : 0,
     });
+    // Haptics where supported (Android): a tick on each shift and at the limiter, a double tick on a refused shift.
+    if (sim.shifts !== shiftsBefore) vibrate(12);
+    else if (sim.limiter && !limiterBefore) vibrate(20);
+    else if (sim.refused > 0 && refusedBefore === 0) vibrate([8, 40, 8]);
 
     rock();
     glow();
@@ -66,12 +89,13 @@ export function EngineController() {
     // Shadows follow the moving parts (a frozen dev pose lets them settle). In Real the moving
     // parts are blurred copies that cast none: only the rock and the pinion matter, throttled.
     frame.sinceShadow += dt;
-    const real = motionState.blur > BLUR_FROM;
+    const blurring = motionState.blur > BLUR_FROM;
     // Entering or leaving Real: once, so the hidden originals' shadows go (or come back).
-    if (real !== frame.wasReal) frame.sinceShadow = Infinity;
-    frame.wasReal = real;
-    const shadowsMoved = frame.sinceShadow === Infinity || real ? Math.abs(frame.rock - frame.shadowRock) > 1e-4 || frame.pinion !== sim.pinionIn : crank !== before || frame.pinion !== sim.pinionIn;
-    if (shadowsMoved && (!real || frame.sinceShadow >= 1 / BLUR.shadowHz)) {
+    if (blurring !== frame.wasReal) frame.sinceShadow = Infinity;
+    frame.wasReal = blurring;
+    const moved = crank !== before || wheel !== was.wheel || sim.shift !== null;
+    const shadowsMoved = frame.sinceShadow === Infinity || blurring ? Math.abs(frame.rock - frame.shadowRock) > 1e-4 || frame.pinion !== sim.pinionIn : moved || frame.pinion !== sim.pinionIn;
+    if (shadowsMoved && (!blurring || frame.sinceShadow >= 1 / BLUR.shadowHz)) {
       refreshShadows();
       frame.sinceShadow = 0;
       frame.shadowRock = frame.rock;
@@ -91,6 +115,10 @@ export function EngineController() {
         boost: sim.boost,
         limiter: sim.limiter,
         crankAngle: crank,
+        ...gearState(),
+        speedKmh: Math.abs(kmh(sim.speed)),
+        clutch: sim.clutch,
+        lever: { ...sim.lever },
         ...(sim.phase === 'off' ? { pedal: false } : {}),
       });
     }
@@ -98,6 +126,10 @@ export function EngineController() {
 
   return null;
 }
+
+const vibrate = (pattern: number | number[]) => {
+  if (typeof navigator !== 'undefined' && 'vibrate' in navigator) navigator.vibrate(pattern);
+};
 
 /** Frame bookkeeping: `dirty` forces one more update (a dev pose), `frozen` holds the visual crank (dev screenshots). */
 export const frame = { dirty: false, frozen: false, mirror: 0, rock: 0, glow: -1, pinion: 0, sinceShadow: 0, shadowRock: 0, wasReal: false };

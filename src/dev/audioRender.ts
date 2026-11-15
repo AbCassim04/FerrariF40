@@ -1,6 +1,6 @@
 import { SOUND } from '../config/sound';
 import { createSynthNode, masterChain, setSynth, synthValues } from '../engine/audio/engineAudio';
-import { createSim, startEngine, stepSim, type SimState } from '../engine/sim';
+import { deriveShafts, gearboxRpm, createSim, kmh, placeGear, shiftBy, startEngine, stepSim, type SimState } from '../engine/sim';
 
 /**
  * Dev only: offline renders of the engine sound (OfflineAudioContext with the same worklet
@@ -18,6 +18,10 @@ interface Drive {
   hold?: number;
   /** Press Start. */
   start?: boolean;
+  /** 8D-2: brake pedal 0…1. */
+  brake?: number;
+  /** Shift up by itself at this engine speed (the 1→5 run). */
+  upAt?: number;
 }
 
 export interface Clip {
@@ -34,6 +38,10 @@ export interface Clip {
    * between `from` and `to` s, optionally within a frequency band first.
    */
   am?: { from: number; to: number; lo: number; hi: number; band?: [number, number]; what: string; dips?: boolean };
+  /** 8D-2: start in this gear at this road speed (km/h), clutch locked if it can be. */
+  car?: { gear: number; kmh: number };
+  /** Lever moves at these times: one step up or down. */
+  shifts?: { t: number; dir: 1 | -1 }[];
 }
 
 const steady = (rpm: number, pedal: number): Clip => ({
@@ -73,6 +81,47 @@ export const CLIPS: Clip[] = [
     drive: (t) => (t < 4.5 ? { pedal: 1, hold: t < 0.3 ? 6500 : undefined } : { pedal: 0 }),
     am: { from: 1.2, to: 4.4, lo: 1.5, hi: 15, what: 'limiter cuts (the sim cuts 4.4 times a second, 32 ms each)', dips: true },
   },
+  // 8D-2: the drivetrain on the rolling road.
+  {
+    name: 'run-1-5',
+    title: 'Full throttle from rest, 1st to 5th (upshifts at 7700 rpm)',
+    seconds: 30,
+    from: 1000,
+    car: { gear: 1, kmh: 0 },
+    drive: (t) => (t < 0.6 ? { pedal: 0 } : { pedal: 1, upAt: 7700 }),
+  },
+  {
+    name: 'downshift-blip',
+    title: 'Off throttle in 4th at 150 km/h: braking, then 4→3 and 3→2, each with a blip',
+    seconds: 7,
+    from: 1000,
+    car: { gear: 4, kmh: 150 },
+    drive: (t) => ({ pedal: t > 5.4 ? 0.35 : 0, brake: t > 0.5 && t < 2.4 ? 0.5 : 0 }),
+    shifts: [
+      { t: 2.6, dir: -1 },
+      { t: 4.2, dir: -1 },
+    ],
+  },
+  {
+    name: 'pullaway-slip',
+    title: 'Pulling away in 1st at half throttle: the clutch slips, then locks',
+    seconds: 6,
+    from: 1000,
+    car: { gear: 1, kmh: 0 },
+    drive: (t) => ({ pedal: t < 0.8 ? 0 : t < 4.5 ? 0.5 : 0 }),
+  },
+  {
+    name: 'refused-downshift',
+    title: '3rd at 180 km/h: 3→2 refused (would over-rev), brake, then 3→2 accepted with a blip',
+    seconds: 7,
+    from: 1000,
+    car: { gear: 3, kmh: 180 },
+    drive: (t) => ({ pedal: t < 0.9 ? 0.6 : 0, brake: t > 1.6 && t < 4 ? 0.7 : 0 }),
+    shifts: [
+      { t: 1.0, dir: -1 },
+      { t: 4.6, dir: -1 },
+    ],
+  },
   {
     name: 'start',
     title: 'Start: pinion in, cranking, catch, flare, idle',
@@ -88,6 +137,18 @@ interface TracePoint {
   rpm: number;
   boost: number;
   throttle: number;
+  /** Secondary shaft rpm (the gearbox whine). */
+  shaft: number;
+  gear: number;
+}
+
+/** What the sim did in a drivetrain clip (for the report: shift points, refusals, slip). */
+interface DriveLog {
+  shifts: { t: number; from: number; to: number; kmh: number; rpm: number }[];
+  refused: number[];
+  slip?: { from: number; to: number; rpm: [number, number] };
+  kmh100?: number;
+  endKmh: number;
 }
 
 export async function renderClip(clip: Clip) {
@@ -104,19 +165,47 @@ export async function renderClip(clip: Clip) {
       sim.rpm = d.hold ?? clip.from;
     }
   }
+  if (clip.car) {
+    // In gear at speed: the engine tied to the road (or idling with the clutch open, stopped).
+    const v = clip.car.kmh / 3.6;
+    placeGear(sim, clip.car.gear);
+    const gb = gearboxRpm(clip.car.gear, v);
+    Object.assign(sim, { speed: v, clutch: gb >= 1100 ? 'locked' : 'open', rpm: gb >= 1100 ? gb : 1000, boost: 0, throttle: 0 });
+    deriveShafts(sim);
+  }
   const trace: TracePoint[] = [];
+  const log: DriveLog = { shifts: [], refused: [], endKmh: 0 };
   const steps = Math.ceil(clip.seconds / DT);
+  const queued = [...(clip.shifts ?? [])];
+  let gear = sim.gear;
+  let refused = 0;
   for (let k = 0; k < steps; k++) {
     const t = k * DT;
     setSynth(node, synthValues(sim), t);
-    if (k % 12 === 0) trace.push({ t, rpm: sim.rpm, boost: sim.boost, throttle: sim.throttle });
+    if (k % 12 === 0) trace.push({ t, rpm: sim.rpm, boost: sim.boost, throttle: sim.throttle, shaft: sim.outputRpm, gear: sim.gear });
     const d = clip.drive(t);
     if (d.start && sim.phase === 'off') startEngine(sim);
-    stepSim(sim, { pedal: d.pedal }, DT);
+    while (queued.length && queued[0].t <= t) shiftBy(sim, queued.shift()!.dir);
+    if (d.upAt && !sim.shift && sim.gear >= 1 && sim.gear < 5 && sim.rpm >= d.upAt) shiftBy(sim, 1);
+    stepSim(sim, { pedal: d.pedal, brake: d.brake ?? 0 }, DT);
     if (d.hold !== undefined) sim.rpm = d.hold;
+    if (clip.car) {
+      if (sim.gear !== gear) log.shifts.push({ t: +t.toFixed(2), from: gear, to: sim.gear, kmh: +kmh(sim.speed).toFixed(1), rpm: Math.round(sim.rpm) });
+      gear = sim.gear;
+      if (sim.refused > refused) log.refused.push(+t.toFixed(2));
+      refused = sim.refused;
+      if (sim.clutch === 'slip') {
+        if (!log.slip) log.slip = { from: +t.toFixed(2), to: +t.toFixed(2), rpm: [sim.rpm, sim.rpm] };
+        log.slip.to = +t.toFixed(2);
+        log.slip.rpm = [Math.min(log.slip.rpm[0], sim.rpm), Math.max(log.slip.rpm[1], sim.rpm)];
+      }
+      if (log.kmh100 === undefined && kmh(sim.speed) >= 100) log.kmh100 = +t.toFixed(2);
+    }
   }
+  log.endKmh = +kmh(sim.speed).toFixed(1);
+  if (log.slip) log.slip.rpm = [Math.round(log.slip.rpm[0]), Math.round(log.slip.rpm[1])];
   const buffer = await ctx.startRendering();
-  return { buffer, trace };
+  return { buffer, trace, log: clip.car ? log : undefined };
 }
 
 // ─── Analysis ────────────────────────────────────────────────────────────────
@@ -507,6 +596,38 @@ export async function spectrogram(buffer: AudioBuffer, clip: Clip, trace: TraceP
   };
   line(4, []);
   line(2, [5, 4]);
+  // 8D-2: the gearbox whine (secondary shaft × pinion teeth), dotted, and the gear along the top.
+  const drivetrain = trace.some((p) => p.shaft > 1);
+  if (drivetrain) {
+    g.setLineDash([1.5, 3]);
+    g.strokeStyle = INK;
+    g.lineWidth = 1.5;
+    g.beginPath();
+    let on = false;
+    for (const p of trace) {
+      const f = (Math.abs(p.shaft) / 60) * SOUND.gearbox.pinionTeeth;
+      if (f < fLo) {
+        on = false;
+        continue;
+      }
+      const x = pad.l + (p.t / dur) * pw;
+      if (on) g.lineTo(x, yOf(f));
+      else g.moveTo(x, yOf(f));
+      on = true;
+    }
+    g.stroke();
+    g.setLineDash([]);
+    g.fillStyle = INK;
+    g.font = '600 11px Inter, system-ui, sans-serif';
+    g.textAlign = 'center';
+    g.textBaseline = 'top';
+    let last = NaN;
+    for (const p of trace) {
+      if (p.gear === last) continue;
+      last = p.gear;
+      g.fillText(p.gear === 0 ? 'N' : p.gear === -1 ? 'R' : String(p.gear), pad.l + (p.t / dur) * pw + 6, pad.t + 4);
+    }
+  }
 
   // Title and legend.
   g.textAlign = 'left';
@@ -530,6 +651,9 @@ export async function spectrogram(buffer: AudioBuffer, clip: Clip, trace: TraceP
     g.fillStyle = INK;
     g.fillText(label, x + 28, 42);
   };
+  if (drivetrain) {
+    legend(lx - 180, [1.5, 3], `gear whine (shaft × ${SOUND.gearbox.pinionTeeth})`);
+  }
   legend(lx, [], 'firing (rpm/60 × 4)');
   legend(lx + 165, [5, 4], 'bank (rpm/60 × 2)');
   return canvas.convertToBlob({ type: 'image/png' });
@@ -547,10 +671,10 @@ export function download(blob: Blob, name: string) {
 }
 
 export async function renderAudio(names?: string[], save = false) {
-  const report: Record<string, Checks & { seconds: number }> = {};
+  const report: Record<string, Checks & { seconds: number; drive?: DriveLog }> = {};
   for (const clip of CLIPS.filter((c) => !names || names.includes(c.name))) {
-    const { buffer, trace } = await renderClip(clip);
-    report[clip.name] = { seconds: clip.seconds, ...analyse(buffer, clip) };
+    const { buffer, trace, log } = await renderClip(clip);
+    report[clip.name] = { seconds: clip.seconds, ...analyse(buffer, clip), ...(log && { drive: log }) };
     if (save) {
       download(wav(buffer), `${clip.name}.wav`);
       download(await spectrogram(buffer, clip, trace), `${clip.name}.png`);

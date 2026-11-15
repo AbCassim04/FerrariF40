@@ -1,17 +1,19 @@
 import { useEngineStore } from '../state/engine';
 import { useLayout, useUiStore } from '../state/ui';
-import { EngineButton, MoreButton, MorePanel, Readout, ThrottleButton } from './EngineControls';
+import { BrakeButton, EngineButton, GateDiagram, MoreButton, MorePanel, Readout, ShiftButton, ThrottleButton } from './EngineControls';
 import { ExplodeButton } from './ExplodeButton';
 import { XrayToggle } from './XrayToggle';
 
 /**
  * The controls, laid out per screen (phone-first):
  * - desktop: one slim bar along the bottom: Explode, X-ray, and while the engine runs Stop,
- *   a small tach, the throttle and "more" (display speed, cylinder, volume) in a card above;
- * - portrait phone: one compact bottom bar; while driving it holds Stop and the throttle
- *   (Explode and X-ray move into the bottom sheet with the rest), gauges at the top centre;
+ *   tach / boost / gear / km/h, − gate +, brake, throttle and "more" (display speed, cylinder,
+ *   volume) in a card above;
+ * - portrait phone: one compact bottom bar; while driving it holds Stop, brake, − / + and the
+ *   throttle (Explode, X-ray and the gate move into the bottom sheet), gauges at the top centre;
  * - landscape phone (driving layout): a small row at the bottom centre, the throttle under
- *   the right thumb, gauges small at the top centre; the 3D view gets everything else.
+ *   the right thumb with + above it, the brake under the left with − above it, gauges small at
+ *   the top centre; the 3D view gets everything else.
  * "Driving controls" (in "more") folds it all back to Start / Stop.
  */
 export function ControlBar() {
@@ -38,8 +40,16 @@ export function ControlBar() {
           <XrayToggle />
           <div className="bar__engine" data-running={running || undefined}>
             <EngineButton />
-            {driving && <Readout variant="bar" />}
-            {driving && <ThrottleButton variant="pill" />}
+            {driving && (
+              <>
+                <Readout variant="bar" />
+                <ShiftButton dir={-1} />
+                <GateDiagram compact />
+                <ShiftButton dir={1} />
+                <BrakeButton variant="pill" />
+                <ThrottleButton variant="pill" />
+              </>
+            )}
             {running && <MoreButton />}
           </div>
         </div>
@@ -47,6 +57,9 @@ export function ControlBar() {
         <div className="bar bar--drive" data-occludes="">
           <MoreButton />
           <EngineButton iconOnly />
+          <BrakeButton variant="pill" />
+          <ShiftButton dir={-1} />
+          <ShiftButton dir={1} />
           <ThrottleButton variant="pill" />
         </div>
       ) : (
@@ -56,9 +69,16 @@ export function ControlBar() {
       )}
       {phone && driving && <Readout variant="hud" />}
       {layout === 'landscape' && driving && (
-        <div className="thumbs thumbs--right">
-          <ThrottleButton variant="thumb" />
-        </div>
+        <>
+          <div className="thumbs thumbs--left">
+            <ShiftButton dir={-1} />
+            <BrakeButton variant="thumb" />
+          </div>
+          <div className="thumbs thumbs--right">
+            <ShiftButton dir={1} />
+            <ThrottleButton variant="thumb" />
+          </div>
+        </>
       )}
       <MorePanel
         sheet={phone}

@@ -1,5 +1,5 @@
 import { useGLTF } from '@react-three/drei';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useLayoutEffect, useMemo } from 'react';
 import {
   Box3,
   BufferAttribute,
@@ -21,6 +21,8 @@ import {
 } from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { DIMS } from '../config/dims';
+import { registerMotion } from '../engine/motion';
+import { modelMotion } from '../engine/modelMotion';
 import { asset } from '../lib/asset';
 import { BODY_PAINT, MODEL_FINISH, MODEL_GLASS, modelEnvLevels } from '../materials/materials';
 import { useAppStore } from '../state/store';
@@ -59,6 +61,14 @@ export function modelPartBuild(partId: string) {
       return mergeByFinish(src);
     }, [nodes]);
     useSegmentColours(object, partId);
+    // The rear wheels and the gear lever move with the drivetrain (8D-2).
+    useLayoutEffect(() => {
+      const make = modelMotion(partId);
+      if (!make) return;
+      const off: (() => void)[] = [];
+      object.traverse((o) => (o as Mesh).isMesh && off.push(registerMotion(o as Mesh, make(o as Mesh))));
+      return () => off.forEach((f) => f());
+    }, [object]);
     return <primitive object={object} />;
   }
   ModelPart.displayName = `ModelPart(${partId})`;

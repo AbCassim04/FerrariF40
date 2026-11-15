@@ -78,6 +78,15 @@ export const SOUND = {
   /** `freeRpm`: crank-equivalent speed the motor spins at most (its pinion overruns once the engine fires). */
   starter: { motorRatio: 34, freeRpm: 230, whineLevel: 0.06, chugLevel: 0.45, engageThud: 0.5 },
   /**
+   * 8D-2, the drivetrain (all est). Gearbox whine: the straight-cut final drive's tooth mesh
+   * (secondary shaft speed × pinion teeth), with a second harmonic; a little at a cruise,
+   * louder under load. Rolling road: low noise whose level and brightness rise with road
+   * speed. Clunk: each dog engagement, a short low knock with a small metallic click.
+   */
+  gearbox: { pinionTeeth: 17, level: 0.004, loadGain: 3, harmonic: 0.35, fadeInRpm: 300 },
+  road: { level: 0.09, refKmh: 324, power: 1.5, cutoff: [160, 820] as const, highpass: 35 },
+  clunk: { freq: 92, decay: 0.035, level: 0.55, click: 0.18, clickBand: 2200, clickDecay: 0.003 },
+  /**
    * Master, inside the worklet: DC block, a stereo-linked compressor (dB; attack and release
    * in s; makeup gain dB), then a soft limiter whose ceiling is the loudest sample possible
    * (0.85 = −1.4 dBFS). Only the volume (≤ 1) comes after it.

@@ -743,6 +743,22 @@ const transaxle = {
     /** Pinion's rear face (on the secondary shaft's front end), just ahead of the crown wheel. */
     pinionZ: -1.17,
     crownRadius: mm(50),
+    /** (est, 8D-2) Pinion teeth drawn as a short spur gear on the secondary shaft (so it is seen to turn); crown wheel teeth. */
+    pinion: { radius: mm(26), width: mm(30), crownTeeth: 41 },
+  },
+  /**
+   * (est, 8D-2) Selector sleeves and forks. The secondary shaft's gears idle until a sleeve
+   * (splined to the shaft, between a pair of gears) slides into one's dog teeth. Three
+   * sleeves, one per plane of the dog-leg gate: R–1, 2–3, 4–5 (each pair is adjacent on the
+   * shaft). A fork in each sleeve's groove, on a rail beside the secondary shaft (right side,
+   * toward the selector).
+   */
+  selectors: {
+    sleeve: { inner: mm(18), outer: mm(30), width: mm(16), groove: mm(4), grooveDepth: mm(3), dog: { count: 8, size: [mm(5), mm(4), mm(3)] as Vec3 } },
+    /** Sleeve travel from neutral to engaged (it stops just short of the gear's face). */
+    travel: mm(12),
+    rail: { x: -mm(85), radius: mm(6), z: [-1.375, -1.765] as const },
+    fork: { shoeInner: mm(27.6), shoeOuter: mm(34), thickness: mm(3.5), arm: [mm(8), mm(4)] as const, hubRadius: mm(11), hubLength: mm(22) },
   },
   /** Limited-slip differential on the rear axle line: housing, output flanges to the driveshafts. */
   diff: { y: model.wheelCentreY.rear - engine.crankHeight, radius: mm(92), halfLength: mm(150), outX: mm(178), flangeRadius: mm(52), flangeLength: mm(14), coverBolts: 10, coverBoltCircle: mm(70) },
@@ -752,6 +768,29 @@ const transaxle = {
   selector: { at: [-mm(150), -mm(28), -1.07] as Vec3, bossRadius: mm(22), bossLength: mm(20), shaftRadius: mm(8), shaftOut: mm(34), lever: mm(90), leverAngle: 0, leverWidth: mm(14), leverThickness: mm(6) },
   /** Splined input shaft from the casing's front forward through the clutch hubs (stops short of the flywheel). */
   inputShaft: { radius: mm(14) },
+};
+
+/**
+ * (model, 8D-2) The cabin's gear lever in the model's open gate (car coordinates): three slots
+ * (planes) ~17 mm apart (left R–1 at x 0.0471, 2–3 at 0.0298, right 4–5 at 0.0129), 11.6 mm
+ * wide, running fore-aft from the cross gate at z 0.422 to rounded ends at 0.390 / ~0.459, in
+ * a plate at y 0.366–0.369. Measured by picking the plate on a 2 mm grid, then from the
+ * plate's own triangles. The lever tilts about a pivot under the plate (est).
+ */
+export const GEAR_LEVER = {
+  /** Pivot deep in the tunnel (est): the less the stick tilts, the less it grazes a slot it nearly fills. */
+  pivot: [0.03, 0.1, 0.422] as Vec3,
+  plateY: 0.369,
+  /**
+   * Sideways offsets at the plate onto each slot's centre (measured: 0.0471, 0.0298, 0.0129;
+   * the model's stick crosses at 0.0287 in N). Middle: applied along the 2–3 slot only.
+   */
+  planeX: { left: 0.018, right: 0.0166, middle: 0.0003 },
+  /** Fore-aft offset at the plate: the stick stops ~0.5 mm short of the rounded slot ends. */
+  throwZ: 0.025,
+  /** The model's stick (~5.7 mm) in slots 5.8 mm half-wide (0.1 mm clearance). */
+  stickRadius: 0.0057,
+  slotHalfWidth: 0.0058,
 };
 
 /**

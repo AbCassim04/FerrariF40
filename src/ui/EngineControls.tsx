@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { ENGINE_SIM, TIME_SCALES, type TimeScaleName } from '../config/engine-sim';
+import { ENGINE_SIM, GATE, gearLabel, TIME_SCALES, type TimeScaleName } from '../config/engine-sim';
 import { engineAudio } from '../engine/audio/engineAudio';
 import { cylinderNumber, firingAngle, SIDES, CYLINDERS } from '../parts/engine/layout';
-import { reducedMotion, useEngineStore } from '../state/engine';
+import { reducedMotion, sim, useEngineStore } from '../state/engine';
 import { useRealAllowed } from '../state/quality';
 import { useUiStore } from '../state/ui';
 
@@ -37,30 +37,52 @@ export function EngineButton({ iconOnly = false }: { iconOnly?: boolean }) {
   );
 }
 
-/** Throttle and keyboard: Space or W held opens the throttle while the engine runs (whatever is on screen). */
+/**
+ * Keyboard, while the engine runs (whatever is on screen): Space or W held opens the throttle,
+ * S held brakes, E / ↑ shift up and Q / ↓ shift down (N sits below 1st and above R).
+ */
 export function EngineKeys() {
   const setPedal = useEngineStore((s) => s.setPedal);
+  const setBrake = useEngineStore((s) => s.setBrake);
   const running = useEngineStore((s) => s.engineRunning);
   useEffect(() => {
     if (!running) return;
-    const keys = new Set([' ', 'w', 'W']);
+    const throttle = new Set([' ', 'w', 'W']);
+    const brake = new Set(['s', 'S']);
+    const up = new Set(['e', 'E', 'ArrowUp']);
+    const downKeys = new Set(['q', 'Q', 'ArrowDown']);
+    const slider = (t: EventTarget | null) => t instanceof HTMLInputElement && t.type === 'range';
     const down = (e: KeyboardEvent) => {
-      if (!keys.has(e.key) || e.metaKey || e.ctrlKey || e.altKey || isTextEntry(e.target)) return;
-      e.preventDefault();
-      if (!e.repeat) setPedal(true);
+      if (e.metaKey || e.ctrlKey || e.altKey || isTextEntry(e.target)) return;
+      if (throttle.has(e.key)) {
+        e.preventDefault();
+        if (!e.repeat) setPedal(true);
+      } else if (brake.has(e.key)) {
+        e.preventDefault();
+        if (!e.repeat) setBrake(true);
+      } else if ((up.has(e.key) || downKeys.has(e.key)) && !slider(e.target)) {
+        e.preventDefault();
+        if (!e.repeat) useEngineStore.getState().shift(up.has(e.key) ? 1 : -1);
+      }
     };
-    const up = (e: KeyboardEvent) => keys.has(e.key) && setPedal(false);
-    const release = () => setPedal(false);
+    const keyUp = (e: KeyboardEvent) => {
+      if (throttle.has(e.key)) setPedal(false);
+      if (brake.has(e.key)) setBrake(false);
+    };
+    const release = () => {
+      setPedal(false);
+      setBrake(false);
+    };
     window.addEventListener('keydown', down);
-    window.addEventListener('keyup', up);
+    window.addEventListener('keyup', keyUp);
     window.addEventListener('blur', release);
     return () => {
       window.removeEventListener('keydown', down);
-      window.removeEventListener('keyup', up);
+      window.removeEventListener('keyup', keyUp);
       window.removeEventListener('blur', release);
-      setPedal(false);
+      release();
     };
-  }, [running, setPedal]);
+  }, [running, setPedal, setBrake]);
   return null;
 }
 
@@ -79,12 +101,17 @@ export function Readout({ variant }: { variant: 'bar' | 'hud' }) {
   const tach = useRef<SVGPathElement>(null);
   const rpm = useRef<HTMLSpanElement>(null);
   const boost = useRef<HTMLSpanElement>(null);
+  const gear = useRef<HTMLSpanElement>(null);
+  const speed = useRef<HTMLSpanElement>(null);
   useEffect(() => {
     const draw = (s: ReturnType<typeof useEngineStore.getState>) => {
       tach.current?.setAttribute('d', arc(Math.min(1, s.rpm / TACH_MAX)));
       if (rpm.current) rpm.current.textContent = String(Math.round(s.rpm / 10) * 10);
       if (boost.current) boost.current.textContent = Math.max(0, s.boost).toFixed(1);
+      if (gear.current) gear.current.textContent = gearLabel(s.gear);
+      if (speed.current) speed.current.textContent = String(Math.round(s.speedKmh));
       root.current?.toggleAttribute('data-limiter', s.limiter);
+      root.current?.toggleAttribute('data-refused', s.refused);
     };
     draw(useEngineStore.getState());
     return useEngineStore.subscribe(draw);
@@ -107,6 +134,18 @@ export function Readout({ variant }: { variant: 'bar' | 'hud' }) {
           0.0
         </span>
         <span className="readout__unit">bar</span>
+      </span>
+      <span className="readout__cell readout__cell--gear" aria-label="Gear">
+        <span className="readout__gear" ref={gear}>
+          N
+        </span>
+        <span className="readout__unit">gear</span>
+      </span>
+      <span className="readout__cell readout__cell--speed">
+        <span className="readout__value" ref={speed}>
+          0
+        </span>
+        <span className="readout__unit">km/h</span>
       </span>
     </div>
   );
@@ -184,6 +223,94 @@ export function ThrottleButton({ variant }: { variant: 'pill' | 'thumb' }) {
       <span className="throttle-btn__label">Throttle</span>
       <kbd>Space</kbd>
     </HoldButton>
+  );
+}
+
+/** Hold to brake (also S). */
+export function BrakeButton({ variant }: { variant: 'pill' | 'thumb' }) {
+  const on = useEngineStore((s) => s.brakePedal);
+  const setBrake = useEngineStore((s) => s.setBrake);
+  return (
+    <HoldButton className={`brake-btn throttle-btn throttle-btn--${variant}`} label="Brake (hold; or hold S)" pressed={on} onHold={setBrake}>
+      <svg className="throttle-btn__icon" viewBox="0 0 20 20" aria-hidden="true">
+        <circle cx="10" cy="10" r="4.6" />
+        <path d="M4.2 4.8a7 7 0 0 0 0 10.4" />
+        <path d="M15.8 4.8a7 7 0 0 1 0 10.4" />
+      </svg>
+      <span className="throttle-btn__label">Brake</span>
+      <kbd>S</kbd>
+    </HoldButton>
+  );
+}
+
+/** Shift down / up: one step through R, N, 1…5. */
+export function ShiftButton({ dir }: { dir: 1 | -1 }) {
+  const shift = useEngineStore((s) => s.shift);
+  return (
+    <button type="button" className="icon-btn shift-btn" aria-label={dir > 0 ? 'Shift up (E or ↑)' : 'Shift down (Q or ↓)'} onClick={() => shift(dir)}>
+      <svg viewBox="0 0 20 20" aria-hidden="true">
+        {/* One element per stroke: some rasterisers taper multi-subpath strokes. */}
+        {dir > 0 && <line x1="10" y1="4" x2="10" y2="16" />}
+        <line x1="4" y1="10" x2="16" y2="10" />
+      </svg>
+    </button>
+  );
+}
+
+const name = (g: number) => (g === -1 ? 'Reverse' : g === 0 ? 'Neutral' : `Gear ${g}`);
+
+/** The gate's planes in the diagram (x) and throws (y): left plane R–1 (driver's left), 2–3, 4–5 on the right. */
+const GATE_X = { 1: 12, 0: 30, [-1]: 48 } as Record<number, number>;
+const gateX = (plane: number) => 30 - plane * 18;
+const gateY = (t: number) => 32 - t * 21;
+
+/**
+ * The F40's open metal gate, dog-leg first: R and 1st on the left plane, 2–3, 4–5. Shows the
+ * lever where it is; a gear is chosen by clicking or tapping it (refused ones flash).
+ */
+export function GateDiagram({ compact = false }: { compact?: boolean }) {
+  const dot = useRef<SVGCircleElement>(null);
+  const root = useRef<SVGSVGElement>(null);
+  const select = useEngineStore((s) => s.selectGear);
+  const gear = useEngineStore((s) => s.gear);
+  useEffect(() => {
+    let raf = 0;
+    const draw = () => {
+      dot.current?.setAttribute('cx', String(gateX(sim.lever.plane)));
+      dot.current?.setAttribute('cy', String(gateY(sim.lever.throw)));
+      root.current?.toggleAttribute('data-refused', sim.refused > 0);
+      raf = requestAnimationFrame(draw);
+    };
+    draw();
+    return () => cancelAnimationFrame(raf);
+  }, []);
+  const gears = [-1, 1, 2, 3, 4, 5, 0];
+  return (
+    <svg ref={root} className={`gate${compact ? ' gate--compact' : ''}`} viewBox="0 0 60 64" role="group" aria-label="Gear lever gate">
+      {[GATE_X[1], 30, GATE_X[-1]].map((x) => (
+        <line key={x} className="gate__slot" x1={x} y1={gateY(1)} x2={x} y2={gateY(-1)} />
+      ))}
+      <line className="gate__slot" x1={GATE_X[1]} y1={32} x2={GATE_X[-1]} y2={32} />
+      {gears.map((g) => {
+        const p = GATE[g];
+        const x = gateX(p.plane);
+        const y = gateY(p.throw);
+        const label = gearLabel(g);
+        return (
+          <g key={g} className="gate__pos" data-current={gear === g || undefined} onClick={() => select(g)} role="button" aria-label={`Select ${name(g)}`}>
+            <title>{name(g)}</title>
+            <circle className="gate__hit" cx={x} cy={y} r={9} />
+            {g !== 0 && <circle className="gate__end" cx={x} cy={y} r={2.2} />}
+            {g !== 0 && (
+              <text className="gate__label" x={x} y={y + (p.throw > 0 ? -5 : 11)} textAnchor="middle">
+                {label}
+              </text>
+            )}
+          </g>
+        );
+      })}
+      <circle ref={dot} className="gate__lever" cx={30} cy={32} r={4.2} />
+    </svg>
   );
 }
 
@@ -314,6 +441,12 @@ export function MorePanel({ extra, sheet }: { extra?: ReactNode; sheet: boolean 
         {extra && <div className="more__row more__row--actions">{extra}</div>}
         {running && (
           <>
+            {sheet && (
+              <div className="more__row">
+                <span className="more__label">Gear</span>
+                <GateDiagram />
+              </div>
+            )}
             <div className="more__row">
               <span className="more__label">Display speed</span>
               <SpeedSelector />

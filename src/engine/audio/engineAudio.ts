@@ -1,6 +1,7 @@
 import { SOUND } from '../../config/sound';
 import { CYLINDERS, firingAngle, SIDES } from '../../parts/engine/layout';
-import type { SimState } from '../sim';
+import { DRIVE } from '../../config/engine-sim';
+import { kmh, overallRatio, type SimState } from '../sim';
 import type { SynthParamName } from './processor';
 import type { Cylinder } from './synth';
 import processorUrl from './processor.ts?worker&url';
@@ -45,7 +46,13 @@ export const synthValues = (sim: SimState): Record<SynthParamName, number> => ({
   boost: sim.boost,
   firing: sim.firing ? 1 : 0,
   starter: sim.starter ? 1 : 0,
+  speed: kmh(sim.speed),
+  shaft: sim.outputRpm,
+  // Torque through the box as a share of the engine's peak (the drive force back through the overall ratio).
+  drive: sim.gear === 0 ? 0 : Math.min(1, (Math.abs(sim.drive) * DRIVE.rollingRadius) / (Math.abs(overallRatio(sim.gear)) * PEAK_TORQUE)),
+  shifts: sim.shifts,
 });
+const PEAK_TORQUE = Math.max(...DRIVE.torque.map(([, nm]) => nm));
 
 /** Sets the synth's params at `time` (live: now; offline: along a scripted run). */
 export function setSynth(node: AudioWorkletNode, values: Record<SynthParamName, number>, time: number) {

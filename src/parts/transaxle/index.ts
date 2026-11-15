@@ -16,6 +16,7 @@ import {
   gearClusterMeshes,
   intermediatePlateMeshes,
   pressurePlateMeshes,
+  selectorForkMeshes,
   shiftLinkageMeshes,
   type ClutchElement,
 } from './geometry';
@@ -134,11 +135,25 @@ const gearbox: PartDef[] = [
     name: 'Gear clusters',
     group: 'transmission',
     parent: 'transaxle',
-    description: 'Input shaft and transfer gears up to the primary shaft, with the secondary shaft below it carrying the pinion forward to the crown wheel. Hidden inside the casing.',
-    specs: { 'Gear pairs': '5 + reverse', Shafts: 'Input, primary, secondary' },
+    description:
+      'Input shaft and transfer gears up to the primary shaft, with the secondary shaft below it carrying the pinion forward to the crown wheel. Every pair is in constant mesh; a sliding sleeve locks the chosen gear to the secondary shaft. Hidden inside the casing.',
+    specs: { 'Gear pairs': '5 + reverse', Shafts: 'Input, primary, secondary', Sleeves: 'R–1, 2–3, 4–5' },
     // Shafts run in the casing's bearings.
     contacts: ['gearbox-casing'],
     build: specBuild('GearClusters', gearClusterMeshes),
+    material: 'steel',
+  }),
+  rides({
+    id: 'selector-forks',
+    name: 'Selector forks',
+    group: 'transmission',
+    parent: 'transaxle',
+    description:
+      'Three forks on a rail beside the secondary shaft, one per plane of the gate (R–1, 2–3, 4–5). Moving the lever slides a fork, and its sleeve locks the chosen gear to the shaft through dog teeth; the other gears idle. Hidden inside the casing.',
+    specs: { Forks: '3', Planes: 'R–1 · 2–3 · 4–5 (dog-leg)', Travel: `±${fmtMm(T.selectors.travel, 0)}` },
+    // The rail's ends sit in casing webs (not modelled); the shoes ride in the sleeves' grooves.
+    contacts: ['gearbox-casing'],
+    build: specBuild('SelectorForks', selectorForkMeshes),
     material: 'steel',
   }),
   rides({
@@ -148,6 +163,8 @@ const gearbox: PartDef[] = [
     parent: 'transaxle',
     description: 'On the rear axle line: the crown wheel drives both rear wheels through the differential, whose clutch packs limit how much faster one wheel can spin than the other.',
     specs: { Type: 'Limited slip, 40% (est)' },
+    // Its side bosses come out through the casing's walls.
+    contacts: ['gearbox-casing'],
     build: specBuild('Lsd', diffMeshes),
     material: 'castAluminium',
   }),

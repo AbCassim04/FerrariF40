@@ -216,6 +216,86 @@ a call or app switch; notch and home-indicator insets (the emulator draws none);
 Safari's collapsing bars; two thumbs at once on real glass; Safari's handling of
 `touch-action` / long-press callout on the hold-buttons.
 
+### 8D-2: gears and the rolling road
+
+The car stays on its stand; the rear wheels turn with road speed, the fronts don't. The sim
+(`engine/sim.ts`, figures in `DRIVE` in `config/engine-sim.ts`) adds a 5-speed box with R, an
+automatic clutch, brakes and the car's speed. In gear the engine is tied to the road; shifts
+cut the torque or blip; over-rev downshifts and R while rolling are refused (the gear flashes).
+Inside the box the input and transfer gears, every constant-mesh pair, three sleeves on the
+secondary shaft, their forks (new part "Selector forks"), the pinion, a toothed crown wheel,
+both driveshafts and the rear wheels and discs turn at their ratios; the cabin lever (split from
+the model) moves through the gate. New sounds: dog clunk, gearbox whine, rolling-road roar.
+Decisions in docs/BRIEF.md ("8D-2").
+
+**Measured (headless, `node --import ./scripts/ts-hooks.mjs scripts/dev/drive-test.mjs`)**
+- **0–100 km/h 4.01 s** (target 4 ± 0.5), upshifts at 7700 rpm: 1→2 at 101.3 km/h, 2→3 at
+  156.8, 3→4 at 216.3, 4→5 at 285.1. 0–60 2.35 s, 0–160 7.83, 0–200 10.88, 0–250 17.34,
+  0–300 32.2.
+- **Top speed 324.3 km/h at 7006 rpm in 5th** (target 324 ± 5).
+- Coasting in 5th from 324 to 100 km/h off throttle: 48.1 s. Braking 100 → 0: 2.65 s, then the
+  engine idles at 1007 rpm in N.
+- Pulling away in 1st (clutch locks at): 30 % throttle 5.0 s / 13 km/h; 50 % 1.9 s / 13 km/h;
+  75 % 1.9 s / 34 km/h; flat out 1.7 s / 44 km/h at 3410 rpm. Slip peaks at 2400–3410 rpm.
+- A double press (4th, two downshifts at 120 km/h): 4→3 at 0.20 s (4260 rpm), 3→2 at 0.40 s
+  (5860 rpm).
+
+**Gates**
+- Typecheck and build: pass; the production bundle contains no dev API.
+- **Clash, standard: assembled vs body none; full explode none** (engine off, and in 3rd at
+  110 km/h).
+- **Clash, moving gearbox:** 28 poses (N, R, 1…5 at two crank angles; assembled and fully
+  exploded) of gear clusters, selector forks, LSD, driveshafts, rear wheels and discs against
+  everything: **no undeclared overlap between parts.** Inside a part, overlaps are by design:
+  meshing teeth (pitch radii × 1.02), shafts through the gears' bores, the rail through the fork
+  hubs. The rear disc touches its wheel at the hub (the model's own contact; they turn together).
+  The LSD's side bosses through the casing are now a declared contact.
+- **Clash, lever through the gate:** 39 poses (the cross gate at 9 points, each plane at 10
+  throws, and each gear): clear in N, 1…5 and everywhere along their paths; **in R and on the
+  way to it the stick grazes the inner edge of the left slot's rear half by up to ~1.5 mm**
+  (the model narrows that half to ~9.5 mm, a lockout tab, against its own ~11.4 mm stick).
+- **Perf, desktop 1440×900 (top tier):** idle 255 calls / 0.81 M triangles (8D-1: 251 / 0.78);
+  running in 4th at 180 km/h, assembled, 406–419 / ≤ 1.47 M (shadows refresh every frame now:
+  the rear wheels turn); running exploded 320–407 / ≤ 1.42 M. Budget ~500 / 1.5 M. New draw
+  calls: the rail, the forks, the sleeves, the lever.
+- **Phones (emulated):** iPhone 13 and Pixel 7 start at medium (DPR 1.5); the landscape iPhone
+  run dropped to low (DPR 1) on a 144 ms median frame in this browser, as expected. Portrait
+  bar: five keys of 44–50 px plus the throttle (110 / 130 px), no horizontal scroll at 390 or
+  412 px; tapping 4th in the sheet's gate selects it.
+- Real mode in gear at speed, assembled and exploded: no errors.
+
+**Audio** (docs/review/f40-phase8/audio/, WAV + spectrogram; the spectrograms now draw the
+whine line and the gears along the top). Listen first to **run-1-5** and **downshift-blip**.
+- `run-1-5` (30 s): full throttle from rest, 1st to 5th. Peak −6.0 dBFS, no clicks or NaN.
+  Shifts logged at 4.86 / 8.03 / 13.22 / 25.58 s; 100 km/h at 4.61 s from the clip's start
+  (throttle at 0.6 s: 4.01 s).
+- `downshift-blip` (7 s): off throttle in 4th at 150 km/h, braking, then 4→3 (3800 rpm) and
+  3→2 (5030 rpm), each blipped. Peak −9.5 dBFS.
+- `pullaway-slip` (6 s): half throttle from rest in 1st; slip 0.8–2.7 s up to 2670 rpm, then
+  locked. Peak −14.7 dBFS.
+- `refused-downshift` (7 s): 3rd at 180 km/h, 3→2 refused at 1.0 s (would reach ~8800 rpm),
+  braking, then 3→2 accepted with a blip at 4.8 s (105 km/h, 5180 rpm). Peak −9.8 dBFS.
+- The 8C clips re-rendered unchanged: lift-off flutter 20 Hz, limiter 4.4 cuts / s, cranking
+  13.3 Hz.
+- The whine is deliberately faint (estimated ~20 dB under the engine at full load, not measured
+  on its own); tune by ear
+  (`SOUND.gearbox`, `SOUND.road`, `SOUND.clunk`).
+
+**Screenshots** (docs/review/f40-phase8/)
+- Desktop: `8d2-desktop-xray-gearbox-{N,1,5}` (transmission parts only, X-ray: sleeve
+  positions), `8d2-desktop-lever-{1,3,5}` (interior and lever only), `8d2-desktop-exploded-running-3rd`.
+- Phone landscape (iPhone 13): `8d2-landscape-xray-gearbox-{N,1,5}`,
+  `8d2-landscape-lever-{1,3,5}`, `8d2-landscape-exploded-running-3rd`,
+  `8d2-phone-landscape-driving` (thumb layout).
+- Phone portrait: `8d2-phone-portrait-{driving,sheet}` (iPhone 13), `8d2-phone-pixel7-{driving,sheet}`.
+
+**Needs a real phone** (owner, after merging)
+- The thumb layout under real thumbs: throttle and brake held together, − / + reached without
+  letting go; that a hold survives a shift tap with the other thumb.
+- Haptics on Android (shift tick, limiter, refused double tick).
+- Whether the whine and road roar are audible on phone speakers, and whether the clunk is.
+- Frame rate with the rear wheels turning (shadows refresh every frame while the car rolls).
+
 ## Phases 2–4 (`wip/f40-build`, merged)
 
 

@@ -20,7 +20,7 @@ import {
   type Section,
 } from '../../geometry/build';
 import type { MeshSpec } from '../../scene/MeshSet';
-import { spinAngle, type Motion } from '../../engine/motion';
+import { spinAngle, type Motion, type Source } from '../../engine/motion';
 import { CRANK_SPIN } from '../engine/geometry/core';
 import { boltHead } from '../engine/geometry/core';
 import { compose, sideSign, type Side } from '../engine/layout';
@@ -266,7 +266,8 @@ export function bellhousingMeshes(): MeshSpec[] {
   const flangeSide = loft([ring3(out, bellFrontZ), ring3(out, bellFrontZ - f)], true, sideUv);
   const flangeBack = loft([ring3(out, bellFrontZ - f), ring3(bellFront, bellFrontZ - f)], true, sideUv);
   return [
-    { geometry: merge([shell, flangeFront, flangeSide, flangeBack]), material: 'castAluminium' },
+    // A casing over moving internals: X-ray sees through it while the engine runs.
+    { geometry: merge([shell, flangeFront, flangeSide, flangeBack]), material: 'castAluminium', shell: true },
     { geometry: bolt(), material: 'darkSteel', instances: boltRing(growSection(bellFront, f / 2), bellFrontZ - f, B.bolts) },
   ];
 }
@@ -346,7 +347,7 @@ export function casingMeshes(): MeshSpec[] {
   });
   bolts.push(...boltRing(growSection(endS, -0.012), endZ, C.endCover.bolts));
   return [
-    { geometry: merge(parts), material: 'castAluminium' },
+    { geometry: merge(parts), material: 'castAluminium', shell: true },
     { geometry: merge([boss, shaft, lever]), material: 'darkSteel' },
     { geometry: bolt(), material: 'darkSteel', instances: bolts },
   ];
@@ -364,69 +365,155 @@ function cylinderX(radius: number, x0: number, x1: number, y: number, z: number,
 // ─── Gears, differential ─────────────────────────────────────────────────────
 
 const G = T.gears;
+const SEL = T.selectors;
 
+/** Gear pairs front to back along the shafts: reverse, then 1st…5th. */
+const PAIRS = [G.reverse, ...G.ratios];
+const pairZ = (k: number) => MathUtils.lerp(G.clusterZ[0], G.clusterZ[1], k / (PAIRS.length - 1));
+/** Neutral z of each selector sleeve (R–1, 2–3, 4–5): midway between its pair of gears. */
+export const sleeveZ = (i: number) => (pairZ(2 * i) + pairZ(2 * i + 1)) / 2;
+/** A sleeve's (and its fork's) z offset at position s: −1 toward the front gear of its pair … +1 toward the rear one. */
+export const sleeveOffset = (s: number) => -s * SEL.travel;
+/** The primary shaft turns the other way from the input shaft, slower by the transfer pair. */
+const PRIMARY_RATIO = -G.transferInput / (G.primaryY - G.transferInput);
+
+interface GearSpin {
+  x: number;
+  y: number;
+  z: number;
+  r: number;
+  width: number;
+  ratio: number;
+  source: Source;
+  /** The reverse gear on the secondary shaft: locked to the shaft (turning with it) while reverse is engaged. */
+  reverse?: boolean;
+}
+
+/**
+ * Shafts and gears. The input shaft turns with the clutch's driven side; its transfer gear
+ * turns the primary shaft the other way; each primary gear turns its constant-mesh partner,
+ * which idles on the secondary shaft until its sleeve locks it there. The secondary shaft
+ * (sleeves, pinion) turns with the wheels through the final drive. Reverse has no idler gear
+ * modelled: its secondary gear turns with the shaft while engaged.
+ */
 export function gearClusterMeshes(): MeshSpec[] {
   const z1 = C.rearZ + 0.012;
-  const [ca, cb] = G.clusterZ;
   const unit = extrude(polygonShape(gearOutline(1, 0.88, 26)), 1, 0.02);
-  // Unit gear: radius 1, depth 1 along +z from 0; scaled per pose.
-  const gearAt = (x: number, y: number, z: number, r: number, width: number) =>
-    new Matrix4().makeTranslation(x, y, z - width / 2).multiply(new Matrix4().makeScale(r, r, width));
-  const poses: Matrix4[] = [];
-
-  // Input: from the clutch hubs back to the transfer gear, which lifts the drive to the primary shaft.
-  const input = cylinderZ(T.inputShaft.radius, G.transferZ - 0.02, clutchZ('disc-front') - 0.002);
-  poses.push(gearAt(0, 0, G.transferZ, G.transferInput * 1.02, G.width), gearAt(0, G.primaryY, G.transferZ, (G.primaryY - G.transferInput) * 1.02, G.width));
-  // Primary above, secondary below; five forward pairs and reverse over the clusters' length.
-  const shafts = [
-    input,
-    cylinderZ(G.shaftRadius, z1, G.transferZ + G.width, 0, G.primaryY, SEGMENTS.small * 2),
-    cylinderZ(G.shaftRadius, z1, G.pinionZ + 0.03, 0, G.secondaryY, SEGMENTS.small * 2),
-  ];
   const centres = G.primaryY - G.secondaryY;
-  // In neutral: the input shaft turns with the crank (clutch engaged), its transfer gear turns
-  // the primary shaft the other way, and each gear on the primary turns its constant-mesh
-  // partner on the secondary shaft, which idles round the still secondary shaft (no gear is
-  // selected). The secondary shaft, the pinion and the differential stay still.
-  const primaryRatio = -G.transferInput / (G.primaryY - G.transferInput);
-  const spins: { x: number; y: number; z: number; r: number; ratio: number }[] = [
-    { x: 0, y: 0, z: G.transferZ, r: G.transferInput * 1.02, ratio: 1 },
-    { x: 0, y: G.primaryY, z: G.transferZ, r: (G.primaryY - G.transferInput) * 1.02, ratio: primaryRatio },
+  const spins: GearSpin[] = [
+    { x: 0, y: 0, z: G.transferZ, r: G.transferInput * 1.02, width: G.width, ratio: 1, source: 'input' },
+    { x: 0, y: G.primaryY, z: G.transferZ, r: (G.primaryY - G.transferInput) * 1.02, width: G.width, ratio: PRIMARY_RATIO, source: 'input' },
   ];
-  // Reverse at the front, where the casing is deepest.
-  const pairs = [G.reverse, ...G.ratios];
-  pairs.forEach((ratio, k) => {
-    const z = MathUtils.lerp(ca, cb, k / (pairs.length - 1));
+  // Reverse at the front, where the casing is deepest; then 1st…5th (each sleeve between a pair).
+  PAIRS.forEach((ratio, k) => {
+    const z = pairZ(k);
     const rp = centres / (1 + ratio);
     const rs = centres - rp;
-    poses.push(gearAt(0, G.primaryY, z, rp * 1.02, G.width), gearAt(0, G.secondaryY, z, rs * 1.02, G.width));
-    spins.push({ x: 0, y: G.primaryY, z, r: rp * 1.02, ratio: primaryRatio }, { x: 0, y: G.secondaryY, z, r: rs * 1.02, ratio: -primaryRatio * (rp / rs) });
+    spins.push(
+      { x: 0, y: G.primaryY, z, r: rp * 1.02, width: G.width, ratio: PRIMARY_RATIO, source: 'input' },
+      { x: 0, y: G.secondaryY, z, r: rs * 1.02, width: G.width, ratio: -PRIMARY_RATIO * (rp / rs), source: 'input', reverse: k === 0 },
+    );
   });
-  // Pinion on the secondary shaft's front end.
-  const pinion = latheBack(
-    [
-      [0, 0],
-      [0.022, 0],
-      [0.03, 0.03],
-      [0, 0.03],
-    ],
-    G.pinionZ + 0.03,
-    0,
-    G.secondaryY,
-    SEGMENTS.small * 2,
-  );
+  // Pinion on the secondary shaft's front end (drawn with straight teeth, so it is seen to turn).
+  spins.push({ x: 0, y: G.secondaryY, z: G.pinionZ + G.pinion.width / 2, r: G.pinion.radius, width: G.pinion.width, ratio: 1, source: 'output' });
+  // Unit gear: radius 1, depth 1 along +z from 0; scaled per pose.
+  const place = (g: GearSpin, angle: number, out: Matrix4) =>
+    out.makeTranslation(g.x, g.y, g.z - g.width / 2).multiply(rot.makeRotationZ(angle)).multiply(scale.makeScale(g.r, g.r, g.width));
   const rot = new Matrix4();
+  const scale = new Matrix4();
+  const poses = spins.map((g) => place(g, 0, new Matrix4()));
+  const shafts = [
+    // Input: from the clutch hubs back to the transfer gear, which lifts the drive to the primary shaft.
+    cylinderZ(T.inputShaft.radius, G.transferZ - 0.02, clutchZ('disc-front') - 0.002),
+    cylinderZ(G.shaftRadius, z1, G.transferZ + G.width, 0, G.primaryY, SEGMENTS.small * 2),
+    cylinderZ(G.shaftRadius, z1, G.pinionZ, 0, G.secondaryY, SEGMENTS.small * 2),
+  ];
   const gearPose: Motion = {
     kind: 'pose',
     pose: (state, out) => {
-      spins.forEach((g, k) => {
-        out[k].makeTranslation(g.x, g.y, g.z - G.width / 2).multiply(rot.makeRotationZ(spinAngle(state, g.ratio))).multiply(new Matrix4().makeScale(g.r, g.r, G.width));
-      });
+      // Reverse engaged: its sleeve is at the front gear of the R–1 pair.
+      const reverseIn = state.sleeves[0] < -0.5;
+      spins.forEach((g, k) => place(g, g.reverse && reverseIn ? spinAngle(state, 1, 'output') : spinAngle(state, g.ratio, g.source), out[k]));
     },
   };
   return [
-    { geometry: merge([...shafts, pinion]), material: 'darkSteel' },
+    { geometry: merge(shafts), material: 'darkSteel' },
     { geometry: unit, material: 'steel', instances: poses, motion: gearPose },
+    ...sleeveMeshes(),
+  ];
+}
+
+/** Selector sleeves on the secondary shaft: a grooved ring with dog teeth on both faces, splined to the shaft (turning with it). */
+function sleeveMeshes(): MeshSpec[] {
+  const V = SEL.sleeve;
+  const w = V.width / 2;
+  const g = V.groove / 2;
+  const ring = lathe(
+    [
+      [V.inner, -w],
+      [V.outer, -w],
+      [V.outer, -g],
+      [V.outer - V.grooveDepth, -g],
+      [V.outer - V.grooveDepth, g],
+      [V.outer, g],
+      [V.outer, w],
+      [V.inner, w],
+      [V.inner, -w],
+    ],
+    SEGMENTS.cylinder,
+  );
+  ring.rotateX(Math.PI / 2);
+  const [dx, dy, dz] = V.dog.size;
+  const dogs = [-1, 1].flatMap((face) =>
+    Array.from({ length: V.dog.count }, (_, k) => {
+      const b = roundedBox(dx, dy, dz, 0.0008);
+      b.translate(0, (V.inner + V.outer) / 2 - 0.002, face * (w + dz / 2));
+      b.rotateZ((k / V.dog.count) * Math.PI * 2);
+      return b;
+    }),
+  );
+  const geometry = merge([ring, ...dogs]);
+  const at = (i: number, s: number, angle: number, out: Matrix4) => out.makeTranslation(0, G.secondaryY, sleeveZ(i) + sleeveOffset(s)).multiply(spinR.makeRotationZ(angle));
+  const spinR = new Matrix4();
+  const statics = [0, 1, 2].map((i) => at(i, 0, 0, new Matrix4()));
+  return [
+    {
+      geometry,
+      material: 'steel',
+      instances: statics,
+      motion: { kind: 'pose', pose: (state, out) => [0, 1, 2].forEach((i) => at(i, state.sleeves[i], spinAngle(state, 1, 'output'), out[i])) },
+    },
+  ];
+}
+
+/**
+ * Selector forks (8D-2): three forks on a rail beside the secondary shaft, each with its shoe
+ * in a sleeve's groove; the selected gear's fork slides its sleeve into the gear's dog teeth.
+ */
+export function selectorForkMeshes(): MeshSpec[] {
+  const F = SEL.fork;
+  const R = SEL.rail;
+  const y = G.secondaryY;
+  const rail = cylinderZ(R.radius, R.z[0], R.z[1], R.x, y, SEGMENTS.small * 2);
+  // Shoe: the half ring round the sleeve's outboard (−x) side, in its groove.
+  const n = 24;
+  const arc = (r: number, k: number) => {
+    const a = Math.PI / 2 + (k / n) * Math.PI;
+    return [r * Math.cos(a), y + r * Math.sin(a)] as P2;
+  };
+  const outline: P2[] = [...Array.from({ length: n + 1 }, (_, k) => arc(F.shoeOuter, k)), ...Array.from({ length: n + 1 }, (_, k) => arc(F.shoeInner, n - k))];
+  const shoe = extrude(polygonShape(outline), F.thickness);
+  shoe.translate(0, 0, -F.thickness / 2);
+  const armLength = -R.x - F.hubRadius - F.shoeOuter + 0.004;
+  const arm = roundedBox(armLength, F.arm[0], F.arm[1], 0.001);
+  arm.translate(R.x + F.hubRadius + armLength / 2 - 0.002, y, 0);
+  const hub = cylinderZ(F.hubRadius, -F.hubLength / 2, F.hubLength / 2, R.x, y, SEGMENTS.small * 2);
+  const fork = merge([shoe, arm, hub]);
+  const at = (i: number, s: number, out: Matrix4) => out.makeTranslation(0, 0, sleeveZ(i) + sleeveOffset(s));
+  const statics = [0, 1, 2].map((i) => at(i, 0, new Matrix4()));
+  return [
+    { geometry: rail, material: 'darkSteel' },
+    { geometry: fork, material: 'steel', instances: statics, motion: { kind: 'pose', pose: (state, out) => [0, 1, 2].forEach((i) => at(i, state.sleeves[i], out[i])) } },
   ];
 }
 
@@ -463,24 +550,16 @@ export function diffMeshes(): MeshSpec[] {
       bolts.push(compose(new Vector3(sx * D.outX, D.y + D.coverBoltCircle * Math.cos(a), axleZ + D.coverBoltCircle * Math.sin(a)), q));
     }
   }
-  // Crown wheel inside, on the axle line (seen when the cutaway arrives).
+  // Crown wheel inside, on the axle line, toothed so it is seen to turn (8D-2): it turns with
+  // the wheels. Its face toward the pinion's side, clear of the secondary shaft.
   const R = G.crownRadius;
-  const crown = lathe(
-    [
-      [0.024, 0],
-      [R, 0],
-      [R * 0.82, 0.02],
-      [0.024, 0.02],
-      [0.024, 0],
-    ],
-    SEGMENTS.cylinder,
-  );
-  // Lathe +y → −x: the teeth face the pinion's side; clear of the secondary shaft.
-  crown.rotateZ(Math.PI / 2);
-  crown.translate(0.042, D.y, axleZ);
+  const crown = extrude(polygonShape(gearOutline(R, R * 0.9, G.pinion.crownTeeth), [{ c: [0, 0], r: 0.024 }]), 0.02, 0.002);
+  crown.rotateY(Math.PI / 2);
+  crown.translate(0.022, D.y, axleZ);
+  const crownSpin: Motion = { kind: 'spin', centre: new Vector3(0, D.y, axleZ), axis: new Vector3(1, 0, 0), ratio: -1, source: 'wheel' };
   return [
-    { geometry: merge(parts), material: 'castAluminium' },
-    { geometry: crown, material: 'steel' },
+    { geometry: merge(parts), material: 'castAluminium', shell: true },
+    { geometry: crown, material: 'steel', motion: crownSpin },
     { geometry: bolt(), material: 'darkSteel', instances: bolts },
   ];
 }
@@ -567,10 +646,12 @@ export function driveshaftMeshes(s: Side): MeshSpec[] {
   const stub = lathe([[0, 0], [DS.stubRadius, 0], [DS.stubRadius, stubL], [0, stubL]], SEGMENTS.small * 2);
   stub.applyMatrix4(compose(at(length - stubL), q));
   const flip = aim(dir.clone().negate());
+  // Turns with its wheel (8D-2): forward roll is positive about +x, so the axis points outboard on the left and inboard on the right.
+  const spin = (): Motion => ({ kind: 'spin', centre: inner.clone(), axis: dir.x >= 0 ? dir.clone() : dir.clone().negate(), ratio: -1, source: 'wheel' });
   return [
-    { geometry: merge([bar, stub]), material: 'darkSteel' },
-    { geometry: cv, material: 'steel', instances: [compose(at(0), q), compose(at(length - stubL), flip)] },
-    { geometry: boot, material: 'rubber', instances: [compose(at(cvL), q), compose(at(length - stubL - cvL), flip)] },
+    { geometry: merge([bar, stub]), material: 'darkSteel', motion: spin() },
+    { geometry: cv, material: 'steel', instances: [compose(at(0), q), compose(at(length - stubL), flip)], motion: spin() },
+    { geometry: boot, material: 'rubber', instances: [compose(at(cvL), q), compose(at(length - stubL - cvL), flip)], motion: spin() },
   ];
 }
 

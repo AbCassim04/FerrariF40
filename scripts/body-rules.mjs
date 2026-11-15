@@ -104,6 +104,14 @@ const MIRROR = { absX: [0.82, 1.06], y: [0.72, 0.9], z: [0.55, 0.74] };
 const QUARTER_GLASS = { absX: [0.53, 0.77], y: [0.8, 1.1], z: [-0.93, -0.35] };
 /** Instrument glasses and the like: small panes inside the cockpit. */
 const COCKPIT = { x: [-0.8, 0.8], y: [0.15, 0.9], z: [-0.5, 1.1] };
+/**
+ * The gear lever (8D): knob (its own material), the chrome collar under it and the stick down
+ * into the gate, three separate pieces above the gate plate. A piece goes to `gear-lever` when
+ * its bounds lie inside this box; the slotted gate plate (wider) and the boot under it stay
+ * with the cockpit.
+ */
+const GEAR_LEVER = { x: [-0.015, 0.045], y: [0.372, 0.57], z: [0.425, 0.485] };
+const inBox = (b, r) => within(b.min.x, r.x) && within(b.max.x, r.x) && within(b.min.y, r.y) && within(b.max.y, r.y) && within(b.min.z, r.z) && within(b.max.z, r.z);
 
 /**
  * The model's stand-in powertrain inside F40_Mechanics (the engine itself is
@@ -268,15 +276,17 @@ export const RULES = [
   { id: 'front-lamps', test: (c) => /^(F40_Headlights|F40_Window\.001|F40_Grid)$/.test(c.material), part: () => 'front-clam' },
 
   // ── Cockpit ─────────────────────────────────────────────────────────────────
+  // The gear lever moves through the gate (8D): its knob, collar and stick are their own part.
+  { id: 'gear-knob', test: (c) => c.material === 'F40_Sheft', part: () => 'gear-lever' },
   {
     id: 'cockpit',
-    // Door cards and door trim are in the cockpit material too.
+    // Door cards and door trim are in the cockpit material too; so is the gear lever's stick.
     test: (c) => c.material === 'F40_Cockpit',
-    split: (piece) => (inBoxAbs(piece.box, DOOR_VOLUME) ? `door-${side(piece.centroid)}` : 'interior'),
+    split: (piece) => (inBox(piece.box, GEAR_LEVER) ? 'gear-lever' : inBoxAbs(piece.box, DOOR_VOLUME) ? `door-${side(piece.centroid)}` : 'interior'),
   },
   {
     id: 'cockpit-other',
-    test: (c) => /^(F40_Cockpit_HR|F40_Display|F40_Display_1|F40_Strelki|F40_Skin|F40_Sheft|F40_Pedali|F40_Tappetini|super_gauges)$/.test(c.material),
+    test: (c) => /^(F40_Cockpit_HR|F40_Display|F40_Display_1|F40_Strelki|F40_Skin|F40_Pedali|F40_Tappetini|super_gauges)$/.test(c.material),
     part: () => 'interior',
   },
   // Front compartment liner under the front clam: fixed to the chassis.
@@ -288,6 +298,8 @@ export const RULES = [
     test: (c) => /^(F40_Chrome|F40_Chrome\.001|F40_Logos|F40_Vehiclelight|super_headlight|super_signal_L)$/.test(c.material),
     split: (piece) => {
       if (isMirror(piece)) return `door-${side(piece.centroid)}`;
+      // The gear lever's chrome collar under the knob.
+      if (inBox(piece.box, GEAR_LEVER)) return 'gear-lever';
       // Window seals: the windscreen frame and the quarter-window frames stay with the glass.
       if (piece.box.min.y > 0.76 && within(piece.centroid.z, [0.25, 1.1]) && Math.abs(piece.centroid.x) < 0.3) return 'glass';
       if (inBoxAbs(piece.box, QUARTER_GLASS)) return 'glass';
