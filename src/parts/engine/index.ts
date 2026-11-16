@@ -357,12 +357,14 @@ export const engineParts: PartDef[] = [
   ...(['l', 'r'] as const).map((s) =>
     sidePart(s, 'engine-mount', 'Engine mount', {
       group: 'engine',
-      description: 'Cast bracket and rubber bush carrying the engine in the frame; the bush soaks up vibration before it reaches the chassis.',
+      description: 'Cast bracket and rubber bush carrying the engine in the frame; the bush soaks up vibration before it reaches the chassis. A steel bracket under the bush bolts down onto the frame’s cradle rail.',
       specs: { Bush: `Ø${fmtMm(E.mount.bushRadius * 2, 0)} × ${fmtMm(E.mount.bushLength, 0)}` },
       build: specBuild(`EngineMount_${s}`, () => mountMeshes(s)),
       material: 'castAluminium',
       explodeOffset: [sideSign(s) * X.mount, 0, 0],
       delay: TEARDOWN.ancillaries,
+      // Bolted to the block's skirt; its foot sits on the landing plate welded to the cradle rail.
+      contacts: ['engine-block', 'frame-rear'],
     }),
   ),
 ];

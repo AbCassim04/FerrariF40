@@ -172,6 +172,13 @@ body,
   color: #c9efff;
 }
 
+/* Phase 5: the Chassis chip is a mode (the body stays off until it is pressed again). */
+.chip[aria-pressed='true'] {
+  border-color: #7fd6ff;
+  background: rgba(127, 214, 255, 0.16);
+  color: #c9efff;
+}
+
 .engine-btn__dot {
   width: 8px;
   height: 8px;

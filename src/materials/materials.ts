@@ -44,6 +44,7 @@ export type MaterialKey =
   | 'intercooler'
   | 'silicone'
   | 'heatShield'
+  | 'frameSteel'
   | 'reference';
 
 export const PALETTE = {
@@ -81,6 +82,8 @@ export const PALETTE = {
   /** Silicone charge-pipe couplers. */
   silicone: '#1f2c5c',
   heatShield: '#cbc7bf',
+  /** Phase 5: the tube frame's paint, a semi-gloss mid grey (est; light enough to read against the dark studio). */
+  frameSteel: '#7d838c',
   reference: '#5fd0ff',
 } as const;
 
@@ -226,6 +229,8 @@ const factories: Record<MaterialKey, () => Material> = {
     new MeshPhysicalMaterial({ color: PALETTE.intercooler, metalness: 1, roughness: 0.5, roughnessMap: brushedRoughnessTexture(8), anisotropy: 0.8 }),
   silicone: () => new MeshStandardMaterial({ color: PALETTE.silicone, metalness: 0, roughness: 0.6 }),
   heatShield: () => new MeshStandardMaterial({ color: PALETTE.heatShield, metalness: 1, roughness: 0.34, bumpMap: castNoiseTexture(60, 100, 160), bumpScale: 0.5 }),
+  /** Painted steel tube: semi-gloss, the metal only showing in the highlights. */
+  frameSteel: () => new MeshStandardMaterial({ color: PALETTE.frameSteel, metalness: 0.35, roughness: 0.4 }),
   /** Braided loom sleeve: matte black. */
   loom: () => new MeshStandardMaterial({ color: PALETTE.loom, metalness: 0, roughness: 0.85 }),
   /** Thin lines for wireframe reference geometry. */

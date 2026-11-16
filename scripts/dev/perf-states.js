@@ -22,6 +22,7 @@ async (page) => {
       await __dev.setFlow(false);
       await __dev.setXray(false);
       await __dev.setLights(false);
+      await __dev.setChassis(false);
       await __dev.setProgress(0);
       await __dev.engine({ running: false });
       await __dev.view('front34');
@@ -50,6 +51,24 @@ async (page) => {
   await page.evaluate(() => __dev.setLights(true));
   await page.waitForTimeout(2500);
   out.explodedRunningLightsFlow = await sample();
+  // Phase 5: the Chassis view (body off), running with lights and Flow, assembled and exploded.
+  await reset();
+  await run();
+  await page.evaluate(async () => {
+    await __dev.setLights(true);
+    await __dev.view('chassis');
+  });
+  await page.waitForTimeout(2500);
+  out.chassisRunningLights = await sample();
+  await page.evaluate(() => __dev.setFlow(true));
+  await page.waitForTimeout(1000);
+  out.chassisRunningLightsFlow = await sample();
+  await page.evaluate(async () => {
+    await __dev.setProgress(1);
+    await __dev.fit();
+  });
+  await page.waitForTimeout(1500);
+  out.chassisExplodedRunningLightsFlow = await sample();
   await reset();
   return out;
 }

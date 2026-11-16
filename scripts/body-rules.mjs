@@ -138,38 +138,38 @@ const STANDIN_POWERTRAIN = [
   { name: 'engine top', absX: [0, 0.05], y: [0.54, 0.69], z: [-1.0, -0.88] },
 ];
 /**
- * Upper rear section of the stand-in frame: its upper rails, the crossmember over the rear
- * axle and their braces. It cages the powertrain's lift-out path (everything behind the
- * block rises through it in stage 3), and the procedural frame's upper rails run outboard of
- * the manifolds instead (F40-PLAN decision 4). Hidden with the stand-in powertrain until the
- * procedural frame replaces it. Pieces reaching below y 0.375 (lower rails, coilovers,
- * uprights) stay visible.
+ * Phase 5: the model's stand-in frame and suspension are dropped (not written to the output at
+ * all): our own tube frame (src/config/chassis.ts) and double-wishbone suspension replace them.
+ * A piece of F40_Mechanics goes when its bounds lie inside one of these boxes (|x|, mirrored):
+ *   - the front rails, wishbones, uprights, coilovers and their brackets round the front tub;
+ *   - the rear lower rails with their struts and gearbox mounts;
+ *   - the upper rear frame, the crossmember over the axle and the A-shaped coilover towers;
+ *   - the rear wishbones, coilovers, dampers and uprights;
+ *   - the crossmember across the tail.
+ * (Until phase 5 the last three were hidden with the stand-in powertrain and the rest was the
+ * visible placeholder part `model-chassis`.) The radiator in the nose stays, as its own part,
+ * until phase 6 builds one.
  */
-const STANDIN_UPPER_REAR_FRAME = { absX: [0, 0.58], y: [0.375, 1.04], z: [-2.1, -0.34] };
-/**
- * The stand-in's rear suspension: towers (A-frames rising from the lower rails beside the
- * axle), coilovers, dampers, wishbones and uprights. The turbos, their inlet ducts and the
- * driveshafts fill that space (F40-PLAN decision 2); the procedural double-wishbone
- * suspension replaces it in phase 5. Hidden like the upper frame; the lower rails stay.
- */
-const STANDIN_REAR_SUSPENSION = { absX: [0.209, 0.775], y: [0.13, 0.932], z: [-1.628, -0.908] };
-/** The stand-in's crossmember across the tail, where the silencer cans sit. */
-const STANDIN_TAIL_CROSSMEMBER = { absX: [0, 0.48], y: [0.3, 0.53], z: [-2.1, -1.98] };
-/**
- * The stand-in's gearbox mounts and braces round where the gearbox casing sits (phase 4).
- * They are welded to its lower frame, so pieces crossing this region are cut along it.
- */
-const STANDIN_GEARBOX_MOUNTS = { absX: [0, 0.4], y: [0.26, 0.45], z: [-1.66, -1.41] };
+const STANDIN_CHASSIS = [
+  { name: 'front frame and suspension', absX: [0.3, 0.78], y: [0.18, 0.55], z: [1.16, 2.21] },
+  { name: 'rear lower rails', absX: [0.06, 0.41], y: [0.12, 0.46], z: [-2.08, -0.29] },
+  { name: 'upper rear frame, towers', absX: [0, 0.58], y: [0.375, 1.04], z: [-2.1, -0.34] },
+  { name: 'rear suspension', absX: [0.209, 0.775], y: [0.13, 0.932], z: [-1.628, -0.908] },
+  { name: 'tail crossmember', absX: [0, 0.48], y: [0.3, 0.53], z: [-2.1, -1.98] },
+];
+/** The stand-in radiator in the nose (core, fins, fans and side brackets): the part `model-radiator`. */
+const RADIATOR = { absX: [0, 0.39], y: [0.2, 0.46], z: [2.05, 2.26] };
 const overlapsAbs = (b, r) => {
   const lo = b.min.x < 0 && b.max.x > 0 ? 0 : Math.min(Math.abs(b.min.x), Math.abs(b.max.x));
   const hi = Math.max(Math.abs(b.min.x), Math.abs(b.max.x));
   return lo <= r.absX[1] && hi >= r.absX[0] && b.min.y <= r.y[1] && b.max.y >= r.y[0] && b.min.z <= r.z[1] && b.max.z >= r.z[0];
 };
-const inRegionAbs = (p, r) => within(Math.abs(p.x), r.absX) && within(p.y, r.y) && within(p.z, r.z);
 /** Bay walls and rear bulkhead: one big box-shaped liner in F40_Mechanics. Fixed bodywork. */
 const BAY_LINER = { minTris: 400, absX: [0, 1.0], y: [0.1, 1.16], z: [-1.16, -0.3] };
 /** Front compartment structure (behind the front clam). Fixed bodywork. */
 const FRONT_TUB = { minTris: 100, absX: [0, 0.9], y: [0.13, 0.82], z: [0.83, 2.02] };
+/** The tub spans the car; the stand-in front uprights and wishbones (also over 100 triangles each) sit to one side. */
+const spansCentre = (b) => b.min.x < 0 && b.max.x > 0;
 /** Floor pans (flat plates spanning the car) and the rear diffuser. */
 const isFloor = (b) => b.max.x - b.min.x > 1.6 && b.max.y - b.min.y < 0.03;
 const DIFFUSER = { minTris: 300, absX: [0, 1.0], y: [0.15, 0.37], z: [-2.11, -1.6] };
@@ -240,14 +240,14 @@ export const RULES = [
     split: (piece) => {
       if (STANDIN_POWERTRAIN.some((r) => inBoxAbs(piece.box, r))) return MODEL_ENGINE_BAY;
       if (piece.triCount >= BAY_LINER.minTris && inBoxAbs(piece.box, BAY_LINER)) return 'body-shell';
-      if (piece.triCount >= FRONT_TUB.minTris && inBoxAbs(piece.box, FRONT_TUB)) return 'body-shell';
+      if (piece.triCount >= FRONT_TUB.minTris && spansCentre(piece.box) && inBoxAbs(piece.box, FRONT_TUB)) return 'body-shell';
       if (isFloor(piece.box) || (piece.triCount >= DIFFUSER.minTris && inBoxAbs(piece.box, DIFFUSER))) return 'undertray';
-      if ([STANDIN_UPPER_REAR_FRAME, STANDIN_REAR_SUSPENSION, STANDIN_TAIL_CROSSMEMBER].some((r) => inBoxAbs(piece.box, r))) return MODEL_ENGINE_BAY;
-      if (overlapsAbs(piece.box, STANDIN_GEARBOX_MOUNTS)) return TRIS;
-      // Frame rails and crossmembers, suspension, front radiator: placeholders for the procedural spaceframe and suspension.
-      return 'model-chassis';
+      if (inBoxAbs(piece.box, RADIATOR)) return 'model-radiator';
+      // Stand-in frame and suspension: dropped (phase 5 builds the real ones).
+      if (STANDIN_CHASSIS.some((r) => inBoxAbs(piece.box, r))) return null;
+      // What is left is small trim on the fixed bodywork (hinge plates, the strip under the roof's trailing edge).
+      return 'body-shell';
     },
-    tri: (p) => (inRegionAbs(p, STANDIN_GEARBOX_MOUNTS) ? MODEL_ENGINE_BAY : 'model-chassis'),
   },
 
   // ── Glass ───────────────────────────────────────────────────────────────────
@@ -353,12 +353,8 @@ export const MEASURE = {
   firewall: { y: [0.25, 0.75], step: 0.05 },
   frontClam: 'front-clam',
   rearClam: 'rear-clam',
-  /**
-   * Parts left out of the free-volume search: the hidden ghost, and the stand-in frame and
-   * suspension (our spaceframe and suspension replace them; they are reported as guides).
-   * Wheels and discs count: the bay must clear them assembled.
-   */
-  bayIgnore: (id) => id === MODEL_ENGINE_BAY || id === 'model-chassis',
+  /** Left out of the free-volume search: the hidden ghost. Wheels and discs count: the bay must clear them assembled. */
+  bayIgnore: (id) => id === MODEL_ENGINE_BAY,
   bays: [
     { key: 'engineBay', label: 'engine bay (under the shelf, to the firewall)', front: +1, yMax: 0.8, minHalfWidth: 0.3 },
     { key: 'engineBayTall', label: 'engine bay (tall, up to the Lexan)', front: +1, minHeight: 0.75 },

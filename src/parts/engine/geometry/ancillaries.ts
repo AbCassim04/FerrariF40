@@ -22,6 +22,7 @@ import type { MeshSpec } from '../../../scene/MeshSet';
 import { beltPath, beltSegments, type Pulley } from '../beltPath';
 import { camCentre, SIDES, sideSign, type Side } from '../layout';
 import { band, boltHead, CRANK_SPIN } from './core';
+import { engineMountBracket } from '../../frame/mounts';
 
 /** Cam drive (belts or chains), lubrication, cooling pumps and mounts (engine coordinates). */
 
@@ -574,5 +575,7 @@ export function mountMeshes(s: Side): MeshSpec[] {
   return [
     { geometry: bracket, material: 'castAluminium' },
     { geometry: bush, material: 'rubber' },
+    // Phase 5: the steel bracket from the bush down to the frame's cradle rail.
+    engineMountBracket(s),
   ];
 }

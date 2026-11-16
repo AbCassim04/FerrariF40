@@ -1,3 +1,4 @@
+import { MOUNTS } from '../../config/chassis';
 import { DIMS, EXPLODE, type Vec3 } from '../../config/dims';
 import { TRANSAXLE_DELAY } from '../../explode/timing';
 import { fmtMm } from '../../lib/format';
@@ -20,6 +21,7 @@ import {
   shiftLinkageMeshes,
   type ClutchElement,
 } from './geometry';
+import { gearboxMountMeshes } from '../frame/mounts';
 
 /**
  * Phase 4: the 5-speed manual transaxle. The gearbox, its bellhousing and the limited-slip
@@ -208,7 +210,22 @@ const shiftLinkage: PartDef = {
   position: ZERO,
   stage: 2,
   explodeOffset: ZERO,
-  contacts: ['gearbox-casing', 'body-shell', 'interior', 'model-chassis', 'undertray'],
+  contacts: ['gearbox-casing', 'body-shell', 'interior', 'undertray'],
 };
 
-export const transaxleParts: PartDef[] = [transaxleAssembly, ...engineSide, ...gearbox, ...driveshafts, shiftLinkage];
+/** Phase 5A: the gearbox's two mounts, riding the transaxle; their feet sit on the frame's cradle rails. */
+const gearboxMounts: PartDef[] = SIDES.map((s) =>
+  rides({
+    id: `gearbox-mount-${s}`,
+    name: named(s, 'Gearbox mount'),
+    group: 'transmission',
+    parent: 'transaxle',
+    description: 'Rubber mount on the gearbox casing’s flank with a steel bracket down to the frame’s cradle rail. With the two engine mounts it carries the whole powertrain.',
+    specs: { Pad: `Ø${fmtMm(MOUNTS.gearbox.padRadius * 2, 0)}` },
+    build: specBuild(`GearboxMount_${s}`, () => gearboxMountMeshes(s)),
+    material: 'darkSteel',
+    contacts: ['gearbox-casing', 'frame-rear'],
+  }),
+);
+
+export const transaxleParts: PartDef[] = [transaxleAssembly, ...engineSide, ...gearbox, ...gearboxMounts, ...driveshafts, shiftLinkage];

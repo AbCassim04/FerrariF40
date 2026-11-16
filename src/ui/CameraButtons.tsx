@@ -13,11 +13,13 @@ const CHIPS: [ViewName, string][] = [
 
 /**
  * Top-left corner, every layout: reset the view, and quick views as chips (they frame the
- * exploded car too while it is exploded).
+ * exploded car too while it is exploded). "Chassis" also hides the body (the rolling chassis).
  */
 export function CameraButtons() {
   const [open, setOpen] = useState(false);
   const requestView = useAppStore((s) => s.requestView);
+  const chassis = useAppStore((s) => s.chassis);
+  const setChassis = useAppStore((s) => s.setChassis);
   return (
     <nav className="cam" aria-label="Camera">
       <div className="cam__buttons">
@@ -41,6 +43,10 @@ export function CameraButtons() {
               {label}
             </button>
           ))}
+          {/* Phase 5: a mode as well as a view: the body comes off until it is pressed again. */}
+          <button type="button" className="chip" aria-pressed={chassis} onClick={() => setChassis(!chassis)}>
+            Chassis
+          </button>
         </div>
       )}
     </nav>

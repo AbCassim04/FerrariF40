@@ -101,6 +101,28 @@ export const SCENE = {
      * roof (ray-checked).
      */
     cockpit: { position: [0.338, 1.03, 0.29] as Vec3, target: [0.322, 0.755, 0.69] as Vec3, fit: false, fixed: true },
+    /**
+     * Phase 5: the rolling chassis (body panels and glass hidden, see `chassis` below), from the
+     * rear three-quarter and above (est), so the engine sits in the frame in the foreground and
+     * the cabin cell and front subframe run away behind it; framed tighter than the car presets
+     * (`padding`: the body's corners it is fitted to are no longer there).
+     */
+    chassis: { position: [-4.4, 3.0, -5.6] as Vec3, target: [0, 0.42, -0.1] as Vec3, fit: true, padding: 0.02 },
+  },
+  /**
+   * Phase 5, what the body covers:
+   * - `hiddenGroups`: the Chassis view hides every part of these groups (panels, glass, cockpit);
+   * - `covered`: frame sections wholly inside the body. They skip every pass while the car is
+   *   assembled and closed (X-ray off, nothing inspected or soloed, not the Chassis view); the
+   *   rear section stays, since it shows through the Lexan cover and the tail grille;
+   * - `noShadowAssembled`: parts that cast no shadows while the car is assembled (they sit
+   *   inside the body's own shadow): they cost one draw, not three. Exploded or in the Chassis
+   *   view they cast as usual.
+   */
+  chassis: {
+    hiddenGroups: ['body'] as readonly string[],
+    covered: ['frame-front', 'frame-cabin'] as readonly string[],
+    noShadowAssembled: ['frame-rear', 'frame-brace', 'gearbox-mount-l', 'gearbox-mount-r'] as readonly string[],
   },
   /**
    * Phase 9 fix-up: the cabin (car coordinates, est), for "is the eye inside the car": then the

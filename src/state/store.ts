@@ -30,6 +30,8 @@ interface AppState {
   hazards: boolean;
   /** Phase 9 fix-up: the camera's eye is inside the cabin (the cockpit view): the dyno graph steps aside. */
   inCabin: boolean;
+  /** Phase 5: the Chassis view (body panels, glass and cockpit hidden: the rolling chassis). */
+  chassis: boolean;
   /** Last camera preset requested; `seq` makes repeat requests distinct. */
   view: { name: ViewName; seq: number } | null;
   /**
@@ -71,6 +73,8 @@ interface AppState {
   toggleHazards: () => void;
   toggleDoors: () => void;
   requestView: (name: ViewName) => void;
+  /** Chassis view on (framing it) or off (back to the front three-quarter view). */
+  setChassis: (on: boolean) => void;
   requestCameraFit: (points: Vec3[] | null, slot: CameraSlot | null) => void;
   setClashReport: (report: string | null) => void;
   toggleLabels: () => void;
@@ -94,6 +98,7 @@ export const useAppStore = create<AppState>()((set) => ({
   doors: false,
   hazards: flag('hazards'),
   inCabin: false,
+  chassis: flag('chassis'),
   view: params.get('view') ? { name: params.get('view') as ViewName, seq: 0 } : null,
   cameraFit: null,
 
@@ -119,7 +124,9 @@ export const useAppStore = create<AppState>()((set) => ({
   toggleHazards: () => set((s) => ({ hazards: !s.hazards })),
   // Doors open only assembled; exploded they keep the explode pose.
   toggleDoors: () => set((s) => (s.exploded ? s : { doors: !s.doors })),
-  requestView: (name) => set((s) => ({ view: { name, seq: (s.view?.seq ?? 0) + 1 } })),
+  // The chassis preset is also the mode: asking for it hides the body.
+  requestView: (name) => set((s) => ({ view: { name, seq: (s.view?.seq ?? 0) + 1 }, chassis: name === 'chassis' ? true : s.chassis })),
+  setChassis: (on) => set((s) => ({ chassis: on, view: { name: on ? 'chassis' : 'front34', seq: (s.view?.seq ?? 0) + 1 } })),
   requestCameraFit: (points, slot) => set((s) => ({ cameraFit: { points, slot, seq: (s.cameraFit?.seq ?? 0) + 1 } })),
   setClashReport: (clashReport) => set({ clashReport }),
   toggleLabels: () => set((s) => ({ showLabels: !s.showLabels })),

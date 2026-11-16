@@ -67,7 +67,10 @@ export interface DevApi {
   setLabels(on: boolean): Promise<void>;
   setGhost(on: boolean): Promise<void>;
   setSegments(on: boolean): Promise<void>;
+  /** A camera preset; 'chassis' also turns the Chassis view on (the others leave it as it is). */
   view(name: ViewName): Promise<void>;
+  /** Phase 5: the Chassis view (body hidden) on or off, without moving the camera. */
+  setChassis(on: boolean): Promise<void>;
   fit(): Promise<void>;
   screenshotReady(options?: { timeout?: number; settleFrames?: number }): Promise<{ frames: number; ms: number }>;
   state(): Record<string, unknown>;
@@ -214,6 +217,7 @@ export function DevApi() {
         if (!(name in SCENE.views)) return Promise.reject(new Error(`unknown view '${name}' (${Object.keys(SCENE.views).join(', ')})`));
         return instant(() => store.getState().requestView(name));
       },
+      setChassis: (on) => instant(() => store.setState({ chassis: on })),
       async fit() {
         const from = controls.getPosition(new Vector3(), true);
         const to = controls.getTarget(new Vector3(), true);
@@ -355,9 +359,9 @@ export function DevApi() {
         return [Math.round(rect.left + ((v.x + 1) / 2) * rect.width), Math.round(rect.top + ((1 - v.y) / 2) * rect.height)];
       },
       state() {
-        const { selectedId, xray, soloGroup, exploded, showLabels, showGhost } = store.getState();
+        const { selectedId, xray, soloGroup, exploded, showLabels, showGhost, chassis } = store.getState();
         const w = window as unknown as { __perf?: object };
-        return { selectedId, xray, soloGroup, exploded, showLabels, showGhost, progress: explodeTimeline.current?.progress() ?? null, perf: w.__perf };
+        return { selectedId, xray, soloGroup, exploded, showLabels, showGhost, chassis, progress: explodeTimeline.current?.progress() ?? null, perf: w.__perf };
       },
     };
     (window as unknown as { __dev: DevApi }).__dev = api;

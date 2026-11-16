@@ -11,6 +11,7 @@ export type Euler3 = readonly [number, number, number];
 export type PartGroup =
   | 'body'
   | 'chassis'
+  | 'frame'
   | 'suspension'
   | 'wheels'
   | 'engine'

@@ -71,7 +71,7 @@ function presetPose(view: View, camera: PerspectiveCamera, area: Area, canvas: H
   if (view.fit) {
     const tl = explodeTimeline.current;
     const points = tl && exploded() ? explodedCorners(tl) : CAR;
-    const { position, target } = fitView(points, from, to, camera, padFor(controls.presetPadding, area, canvas), area);
+    const { position, target } = fitView(points, from, to, camera, padFor('padding' in view ? view.padding : controls.presetPadding, area, canvas), area);
     return { position, target, offset: centreOffset(position, target, camera, area) };
   }
   // A view from a fixed spot (the cockpit): the same pose on every screen, no backing off.

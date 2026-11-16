@@ -176,11 +176,11 @@ export const bodyParts: PartDef[] = [
     stage: 1,
   }),
   modelPart({
-    id: 'model-chassis',
-    name: 'Frame & suspension (placeholder)',
-    group: 'chassis',
-    description: 'Stand-in frame rails, suspension and radiator from the body model, kept until the procedural steel tube frame and double-wishbone suspension replace them.',
-    specs: { 'Real frame': 'Steel tube, strengthened with composites' },
+    id: 'model-radiator',
+    name: 'Radiator (placeholder)',
+    group: 'cooling',
+    description: 'Stand-in water radiator and fans in the nose, kept from the body model until the cooling system is built.',
+    specs: { Position: 'Nose, behind the front intake' },
     stage: 1,
   }),
   modelPart({

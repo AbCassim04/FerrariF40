@@ -6,6 +6,7 @@ import { useAppStore } from '../state/store';
 const GROUP_LABEL: Record<PartGroup, string> = {
   body: 'Body',
   chassis: 'Chassis',
+  frame: 'Frame',
   suspension: 'Brakes & suspension',
   wheels: 'Wheels',
   engine: 'Engine',

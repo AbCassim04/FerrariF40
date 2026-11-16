@@ -1,6 +1,66 @@
-# Build review: phase 9 (`wip/f40-phase9`), phase 8, then phases 2–4
+# Build review: phase 5 (`wip/f40-phase5`), phase 9, phase 8, then phases 2–4
 
-## Phase 9: feel, exhaust, car details (`wip/f40-phase9`)
+## Phase 5: the real chassis (`wip/f40-phase5`)
+
+Owner's brief 2026-11-16, two checkpoint commits (5A, 5B), unattended, not pushed. Decisions
+and everything marked (est): docs/BRIEF.md ("Phase 5A", "Phase 5B"). Checked on desktop
+1440×900, iPhone 13 portrait and landscape and Pixel 7 portrait (emulated, as in phase 9).
+
+### 5A: the steel tube spaceframe
+
+**What changed on screen**
+- The model's stand-in frame and suspension are gone from the prepped model (not hidden:
+  dropped). In their place: our tube frame in four parts, `frame-cabin`, `frame-front`,
+  `frame-rear` and the bolted `frame-brace` across the tail: 159 tubes, 62.8 m (est), one mesh
+  and one shared painted-steel material per part.
+- Each engine mount has a steel bracket down to the frame's cradle rail; the gearbox has two
+  new mounts (`gearbox-mount-l / -r`). They sit on landing plates welded to the rails.
+- Explode: the frame stays (option a); the tail brace lifts up and back at the start of stage
+  2, ahead of the powertrain's slide.
+- A "Chassis" chip in the views (a mode: press again to bring the body back) and
+  `__dev.view('chassis')` / `__dev.setChassis(on)`: panels, glass and cockpit hidden.
+- From outside, assembled, nothing has changed (`5a-desktop-hero-assembled`,
+  `-rear34-assembled`); through the Lexan the rear frame's rails now show low in the bay.
+
+**Gates**
+- Typecheck and build pass (JS 2,313.1 kB, 775.8 kB gzip; body model 1.915 → 1.834 MB).
+- Frame against the body (`node --import ./scripts/ts-hooks.mjs scripts/dev/frame-fit.mjs`):
+  every tube at least 6 mm clear of every painted skin, glass, door, clam, the undertray and the
+  wheels. Bonded surfaces crossed by design (tub, liners, cabin trim): 111 tube / surface
+  pairs, listed by `--all` (summary in BRIEF).
+- In-page clash (`scripts/dev/frame-clash.js`): assembled vs body none; full explode none; the
+  frame, tail brace and gearbox mounts against every part at 24 times through the explode:
+  none. Left over, both on the right engine mount: it overlaps the oil cooler by a few mm (the
+  phase 1 mount, not new) and its new bracket foot brushes an oil line for a moment at
+  t ≈ 3.6 s.
+- Draw calls (desktop top tier, front ¾, min–max over 40 frames):
+
+| state | before phase 5 | after 5A |
+| --- | --- | --- |
+| idle | 244 | 252 |
+| running | 393–407 | 407–417 |
+| running + lights | 394–409 | 408–419 |
+| running + lights + Flow (X-ray) | 380–481 | 398–465 |
+| exploded + running + Flow | 380 | 394–398 |
+| exploded + running + lights + Flow | 381–382 | 396–399 |
+| Chassis view, running + lights | — | 333–339 |
+| Chassis view, running + lights + Flow | — | 358–419 |
+| Chassis view, exploded + running + lights + Flow | — | 316–359 |
+
+  Peak 465 (was 481; cap 500). The peak fell although parts were added: while the car is
+  assembled, the sealed engine internals no longer take part in the shadow passes.
+
+**Screenshots** (docs/review/f40-phase5/, `5a-…`): desktop `hero-assembled`,
+`rear34-assembled`, `engine-bay`, `chassis`, `chassis-front / -side / -top`, `frame-alone`,
+`frame-alone-rear`, `xray`, `xray-front34`, `exploded`, `exploded-rear`, `exploded-chassis`;
+phones (`5a-iphone13-portrait-…`, `-landscape-…`, `5a-pixel7-portrait-…`): `hero-assembled`,
+`chassis`, `chassis-chips`, `chassis-exploded`, `xray`.
+
+**Phones:** no page errors; the Chassis chip is on screen and pressed in every layout; draw
+calls with everything on 465, and 419 in the Chassis view.
+
+
+## Phase 9: feel, exhaust, car details (`wip/f40-phase9`, merged)
 
 Owner's brief 2026-11-15, three checkpoint commits. Every feature checked on desktop
 1440×900, iPhone 13 portrait and landscape, and Pixel 7 portrait (emulated: a second browser

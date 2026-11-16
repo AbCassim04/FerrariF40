@@ -303,13 +303,13 @@ say(`- Axles: front z ${axleF.toFixed(4)}, rear z ${axleR.toFixed(4)} → wheelb
 say(`- Track: front ${trackF.toFixed(4)}, rear ${trackR.toFixed(4)}`);
 say();
 say(`## Panels (bounding boxes, for hinges and explode)`);
-for (const id of ['front-clam', 'rear-clam', 'rear-wing', 'door-l', 'door-r', 'glass', 'body-shell', 'interior', 'undertray', 'model-chassis']) {
+for (const id of ['front-clam', 'rear-clam', 'rear-wing', 'door-l', 'door-r', 'glass', 'body-shell', 'interior', 'undertray', 'model-radiator']) {
   if (!partNodes.has(id)) continue;
   const b = partBox(id);
   say(`- ${id}: min ${f3(b.min.toArray())} max ${f3(b.max.toArray())}`);
 }
 say();
-say(`## Free volumes (against the fixed bodywork, wheels and discs; not the stand-in frame/suspension)`);
+say(`## Free volumes (against the fixed bodywork, wheels and discs)`);
 say(`- Firewall (bay front wall: nearest surface ahead of the rear axle on the centreline, y ${F.y[0]}…${F.y[1]}): z ${firewallZ.toFixed(3)}, set by ${firewallBy}`);
 for (const bay of bays) {
   say(`- ${bay.label}: x ±${bay.halfWidth.toFixed(3)}, y ${bay.bottom.toFixed(3)}…${bay.top.toFixed(3)}, z ${bay.zMin.toFixed(3)}…${bay.zMax.toFixed(3)}`);

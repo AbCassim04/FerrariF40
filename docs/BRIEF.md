@@ -926,3 +926,75 @@ docs/reference/f40/ would correct them (the folder is empty).
   models with links; phones: "Models: Black Snow, Nic Cheung, CC BY 4.0, modified").
 - **Budget:** donor file 442 KB (textures WebP at 512 / 1024 px); peak draw calls 489 (running,
   lights and flow on), see REVIEW "9C".
+
+#### Phase 5A: the steel tube spaceframe (unattended, 2026-11-16)
+- **Baseline first.** Peak draw calls before any phase 5 work (desktop top tier, front ¾,
+  `scripts/dev/perf-states.js`): idle 244; running 393–407; running + lights 394–409; running +
+  lights + Flow 380–481; exploded + running + Flow 380; + lights 381–382. Peak 481 of 500.
+- **Stand-ins removed outright, not hidden.** `scripts/body-rules.mjs` now drops (writes
+  nothing for) the model's front rails, front wishbones, uprights and coilovers, rear lower
+  rails, upper rear frame, A-shaped coilover towers, rear suspension, tail crossmember and
+  gearbox mounts (`STANDIN_CHASSIS`). The per-triangle cut round the gearbox mounts, the
+  placeholder part `model-chassis` and its contact entries are gone. Found on the way: the
+  front stand-in uprights, upper wishbones and springs had been filed under `body-shell` (the
+  front tub rule took any piece over 100 triangles): the tub rule now needs a piece to span the
+  centreline. **Kept:** the stand-in radiator and fans, as the part `model-radiator` (group
+  cooling), until phase 6 builds a radiator; and a few bits of fixed trim that were in
+  `model-chassis` (door hinge plates, the strip under the roof's trailing edge), now in
+  `body-shell`. Nothing else depended on the stand-ins (`layout-sketch.mjs` tolerates the
+  missing part; the dev key-B ghost now holds the stand-in powertrain only).
+- **Frame layout (all est).** Defined as nodes and tubes in `src/config/chassis.ts`, 159 tubes,
+  62.8 m, three diameters (Ø40 sills and main hoop, Ø30 rails, Ø21 braces), every joint closed
+  by a ball. Routing follows what this body leaves free, read off cross-sections of the model
+  (`scripts/dev/body-slice.mjs`): sill rails under the doors; tunnel tubes inside the tub's
+  tunnel; floor diagonals on the tub floor; a seat bulkhead against the cabin's rear trim; hinge
+  posts just ahead of the doors; A-pillars inside the screen pillars; roof rails; the main hoop
+  just behind the doors (its legs outside the engine bay liner, its upper part behind the
+  quarter windows); front rails outside the front tub's walls, joined across the nose behind
+  the radiator; cradle rails where the stand-in's lower rails ran (the powertrain had been
+  fitted round those).
+- **Rear frame is shaped by the powertrain's way out.** The explode slides the powertrain back
+  0.37 m and then lifts it; anything fixed inside that swept volume would be hit. So: no tube
+  joins the cradle rails to the suspension rails ahead of z −1.6; nothing fixed crosses over
+  the powertrain; the stand-in's cage over the axle is not rebuilt. The two sides are joined
+  across the tail by a **bolted brace** (`frame-brace`) that comes off first.
+- **Explode decision: (a), the frame stays.** `frame-cabin`, `frame-front` and `frame-rear` do
+  not move; everything else leaves them. The one exception is `frame-brace`, which lifts up and
+  back at the start of stage 2, before the powertrain's slide (it would otherwise be over the
+  silencer's path).
+- **Engine and gearbox mounts ride the powertrain.** A fixed frame bracket touching the
+  powertrain would be swept by the parts ahead of it as the powertrain slides back. So each
+  engine mount gained a steel bracket from its bush down to a foot over the cradle rail (same
+  mount position as before), and the gearbox got two new mounts (`gearbox-mount-l / -r`, on
+  the casing's flanks just behind the bellhousing, est). The frame carries a welded landing
+  plate under each foot (1.5 mm gap). Declared contacts: mounts × `frame-rear`.
+- **Rear coilover towers are low and behind the axle (est).** The turbo inlet ducts, charge
+  pipes and intercoolers (phase 3) fill the space over the rear axle out to x 0.57, 4 cm from
+  the tyre, so there is no room for an upright coilover and tower there. The top mount is at
+  (0.555, 0.515, −1.6), under the intercooler; 5B's coilover leans back to it. To check: this
+  is not the real car's layout (near-upright coilovers beside the gearbox).
+- **Designed contacts.** The frame is checked against the body in two classes
+  (`scripts/dev/frame-fit.mjs`): painted skins, glass, doors, clams, undertray and wheels, where
+  every tube is at least 6 mm clear; and the surfaces bonded to the frame (tub and liners
+  `body-shell:F40_Mechanics`, cabin trim `interior`), which tubes cross by design: cabin 28 tub
+  / liner and 69 trim crossings or near-touches (tunnel and floor tubes inside the tub, the
+  bulkhead in the rear trim, pillars and roof rails in the headlining), front 6 (through the
+  footwell walls), rear 8 (through the firewall and the arch liner). In the registry:
+  `frame-cabin` × `body-shell`, `interior`; `frame-front` × `body-shell`; `frame-rear` ×
+  `body-shell`, `interior`; sections × each other.
+- **Culling.** `frame-front` and `frame-cabin` are not drawn while the car is assembled and
+  closed (X-ray off, nothing inspected, not the Chassis view). `frame-rear` and `frame-brace`
+  stay drawn: they show through the Lexan and the tail grille. While assembled, the sealed
+  engine internals (phase 9 fix-up list), the frame and the gearbox mounts cast no shadows
+  (they are inside the body's shadow and behind casings from below): that is the headroom
+  phase 5 spends. Exploded or in the Chassis view they cast as usual.
+- **Chassis view.** A chip that is a mode: it hides every part of group `body` (panels, glass,
+  cockpit, pods) and frames the car from the rear three-quarter; pressing it again brings the
+  body back at the front three-quarter view. Other view chips only move the camera. The gear
+  lever (transmission) and the stand-in radiator stay visible. Explode works in it (the body
+  stays hidden).
+- **Paint.** One shared material `frameSteel`: semi-gloss mid grey (est). The first try, a
+  dark grey nearer the real car's, disappeared against the dark studio.
+- **Known, not introduced here:** `engine-mount-r` overlaps `oil-cooler` by a few mm (the
+  phase 1 mount; both ride the engine). New and minor: the right engine mount's bracket foot
+  brushes an oil line for a moment in stage 4 (t ≈ 3.6 s), as the mount moves outboard.

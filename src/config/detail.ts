@@ -26,4 +26,7 @@ export const SEGMENTS = {
   /** Along an HV cable strand, and round it. */
   cable: 96,
   cableRadial: 8,
+  /** Round a frame tube or suspension link, and the latitude bands of a joint ball. */
+  frameRadial: 12,
+  frameBall: 6,
 } as const;

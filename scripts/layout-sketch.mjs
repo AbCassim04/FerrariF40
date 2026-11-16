@@ -185,7 +185,8 @@ function silhouettes(view) {
 /** Occupied 4 cm cells of a model part (for the faint guides). */
 function cells(id) {
   const out = new Set();
-  const pos = parts.get(id);
+  // Phase 5 dropped the stand-in chassis from the prepped model: then there is nothing to draw.
+  const pos = parts.get(id) ?? [];
   for (let i = 0; i < pos.length; i += 3) out.add([pos[i], pos[i + 1], pos[i + 2]].map((v) => Math.floor(v / 0.04)).join(','));
   return out;
 }
