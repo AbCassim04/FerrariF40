@@ -37,6 +37,32 @@ export function PerfProbe() {
       });
       return { parts: [...rows].sort((a, b) => b[1].tris - a[1].tris), transmissive };
     };
+    // Draw calls of the next frame by pass (main, shadow map, contact shadows, post) and by part.
+    (window as unknown as { __perfPasses: () => Promise<object> }).__perfPasses = () =>
+      new Promise((resolve) => {
+        const original = gl.renderBufferDirect.bind(gl);
+        const passes: Record<string, Record<string, number>> = {};
+        let frames = 0;
+        gl.renderBufferDirect = (camera, sceneArg, geometry, material, object, group) => {
+          if (frames === 1) {
+            const pass = !sceneArg ? 'shadowMap' : sceneArg.overrideMaterial ? 'contact' : (camera as { isPerspectiveCamera?: boolean }).isPerspectiveCamera ? 'main' : 'post';
+            let p: Object3D | null = object;
+            while (p && !PARTS_BY_ID.has(p.name)) p = p.parent;
+            const id = p?.name ?? `(${object.name || object.type})`;
+            const row = (passes[pass] ??= {});
+            row[id] = (row[id] ?? 0) + 1;
+          }
+          original(camera, sceneArg, geometry, material, object, group);
+        };
+        const tick = () => {
+          frames++;
+          if (frames < 2) return requestAnimationFrame(tick);
+          gl.renderBufferDirect = original;
+          const total = Object.fromEntries(Object.entries(passes).map(([k, v]) => [k, Object.values(v).reduce((a, b) => a + b, 0)]));
+          resolve({ total, passes });
+        };
+        requestAnimationFrame(tick);
+      });
     gl.info.autoReset = false;
     return () => {
       gl.info.autoReset = true;

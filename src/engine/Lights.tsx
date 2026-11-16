@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import { useEffect, useMemo } from 'react';
 import { AdditiveBlending, ConeGeometry, InstancedMesh, Matrix4, Quaternion, ShaderMaterial, Vector3, type Material, type Mesh, type MeshStandardMaterial } from 'three';
 import { BODY_URL } from '../body/BodyModel';
+import { lampLevels } from '../body/donor';
 import { LIGHTS } from '../config/details';
 import { partObjects } from '../scene/partObjects';
 import { reducedMotion, sim } from '../state/engine';
@@ -14,7 +15,9 @@ import { useAppStore } from '../state/store';
  * ahead of each; the parking lamps behind the front covers and the tail lamps light. Whatever
  * the switch: the brake lamps follow the brake pedal, the reverse lamps light in R. The body
  * model's lamp materials are kept out of the per-part merge (BodyModel `LAMPS`) so their glow
- * can change; the pod lamps get their own copy of the head-lamp material.
+ * can change; the pod lamps get their own copy of the head-lamp material. Phase 9 fix-up: the
+ * rear lamps and the front indicators are the donor's lenses (body/donor.ts `lampMaterial`),
+ * lit through `lampLevels`; "Hazards" in "more" flashes every indicator.
  */
 
 const L = LIGHTS;
@@ -61,8 +64,26 @@ function beamMaterial() {
 const tmp = new Matrix4();
 const q = new Quaternion();
 
+const LENS = L.lens;
+/**
+ * Dev poses for review shots: `fog` lights the rear fogs (no switch for them on the dash);
+ * `indicator` holds the hazards' flash at this level (0…1) instead of flashing.
+ */
+export const lampPose = { fog: false, indicator: null as number | null };
+
+/** The indicators' flash (0…1): on for `duty` of each cycle, with a filament's quick rise and fall; steady with reduced motion. */
+function flash(t: number) {
+  if (reducedMotion) return 1;
+  const phase = (t * LENS.flashHz) % 1;
+  const on = LENS.duty / LENS.flashHz;
+  const s = phase / LENS.flashHz;
+  const r = LENS.rampS;
+  return s < on ? Math.min(1, s / r) : Math.max(0, 1 - (s - on) / r);
+}
+
 export function Lights() {
   const on = useAppStore((s) => s.lights);
+  const hazards = useAppStore((s) => s.hazards);
   const gltf = useGLTF(BODY_URL, false, true);
   const mats = gltf.materials as Record<string, MeshStandardMaterial>;
   const podLamp = useMemo(() => {
@@ -92,7 +113,7 @@ export function Lights() {
   );
   const state = useMemo(() => ({ podsSwapped: new WeakSet<object>(), base: new Map<string, { p: Vector3; q: Quaternion }>() }), []);
 
-  useFrame(({ scene }, dt) => {
+  useFrame(({ scene, clock }, dt) => {
     // Pods: up when the lights are on, a turn about the hinge.
     const target = on ? 1 : 0;
     const speed = 1 / (target > lightState.raise ? L.pod.upS : L.pod.downS);
@@ -120,9 +141,13 @@ export function Lights() {
     const lit = on && lightState.raise > 0.85;
     if (podLamp) glow(podLamp, L.head.colour, lit ? L.head.intensity : 0);
     glow(mats[L.materials.head], L.parking.colour, on ? L.parking.intensity : 0);
+    // The donor's lamp lenses (phase 9 fix-up): tail dim with the lights, brake bright with the
+    // pedal, the hazards flashing, reversing in R, the rear fogs only from the dev pose.
     const braking = sim.phase !== 'off' && sim.brake > L.brake.brakeFrom;
-    glow(mats[L.materials.tail], L.tail.colour, braking ? L.brake.intensity : on ? L.tail.intensity : 0);
-    glow(mats[L.materials.reverse], L.reverse.colour, sim.phase !== 'off' && sim.gear === -1 ? L.reverse.intensity : 0);
+    lampLevels.uTail.value = braking ? LENS.brake : on ? LENS.tail : 0;
+    lampLevels.uRev.value = sim.phase !== 'off' && sim.gear === -1 ? LENS.reverse : 0;
+    lampLevels.uFog.value = lampPose.fog ? LENS.fog : 0;
+    lampLevels.uInd.value = hazards ? LENS.indicator * (lampPose.indicator ?? flash(clock.elapsedTime)) : 0;
     // Beams ahead of the lit pod lamps.
     if (beams.parent !== scene) scene.add(beams);
     beams.visible = lit;

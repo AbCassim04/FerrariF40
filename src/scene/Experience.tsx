@@ -12,8 +12,10 @@ import { Gauges } from '../engine/Gauges';
 import { Lights } from '../engine/Lights';
 import { ExplodeController } from '../explode/ExplodeController';
 import { useAppStore } from '../state/store';
+import { CabinWatch } from './CabinWatch';
 import { CameraRig } from './CameraRig';
 import { ClashCheck } from './ClashCheck';
+import { Enclosed } from './Enclosed';
 import { EnvironmentLevels } from './EnvironmentLevels';
 import { Ground } from './Ground';
 import { InspectController } from './Inspect';
@@ -48,6 +50,7 @@ export function Experience() {
         <BodyModelSetup />
         <PartsRenderer />
         <ExplodeController />
+        <Enclosed />
         <ShadowScheduler />
         <EnvironmentLevels />
         <InspectController />
@@ -63,6 +66,7 @@ export function Experience() {
         {DEV && showGhost && <EngineBayGhost />}
       </Suspense>
       <CameraRig />
+      <CabinWatch />
       <QualityController />
       {DEV && <DevApi />}
       <PostEffects />

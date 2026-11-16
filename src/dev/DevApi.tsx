@@ -14,6 +14,9 @@ import { frame } from '../engine/EngineController';
 import { motionState, setPose } from '../engine/motion';
 import { sim, useEngineStore } from '../state/engine';
 import { brakeHeat } from '../engine/brakeHeat';
+import { brakeGlow } from '../materials/brakeGlow';
+import { lampPose } from '../engine/Lights';
+import { enclosedState } from '../scene/Enclosed';
 import { startDyno, type DynoTimeline } from '../engine/dyno';
 import { useCameraFeel, type CameraProfileName } from '../state/cameraFeel';
 import { deriveShafts, gearboxRpm, kmh, placeGear, stepSim, type ClutchState } from '../engine/sim';
@@ -51,6 +54,13 @@ export interface DevApi {
   /** 9C: lights (pods up, lamps lit) and doors (assembled only); they animate, so wait a second. */
   setLights(on: boolean): Promise<void>;
   setDoors(on: boolean): Promise<void>;
+  /**
+   * Phase 9 fix-up, lamp poses: `hazards` (the switch), `indicator` holds the hazards' flash at
+   * a level 0…1 (null: flashing), `fog` lights the rear fogs. Brake lamps: `engine({ brake })`.
+   */
+  setLamps(o: { hazards?: boolean; indicator?: number | null; fog?: boolean }): Promise<void>;
+  /** Phase 9 fix-up: show the enclosed parts even when they would be skipped (screenshot diffs). */
+  showEnclosed(on: boolean): Promise<{ hidden: boolean }>;
   setSolo(group: PartGroup | null): Promise<void>;
   /** Show only these parts (and their children); null shows everything. */
   setSoloParts(ids: string[] | null): Promise<void>;
@@ -114,8 +124,10 @@ export interface EngineOptions {
   lever?: { plane: number; throw: number };
   /** 9B: a flame held at this point of its life (0…1), strength 0…1, length (m) (screenshots; the sim is held). */
   flame?: { age: number; strength?: number; length?: number };
-  /** 9C: brake heat held at [front, rear] (0…1), or null to let it run. */
+  /** 9C: brake heat shown at [front, rear] (0…1), or null to show the modelled heat again (any pose, engine on or off). */
   brakeHeat?: [number, number] | null;
+  /** Phase 9 fix-up: the brake pedal held at this much (0…1) in a running pose (brake lamps; 0 by default). */
+  brake?: number;
 }
 
 const nextFrame = () => new Promise<void>((r) => requestAnimationFrame(() => r()));
@@ -181,6 +193,17 @@ export function DevApi() {
       setFlow: (on) => instant(() => store.setState(on ? { flow: true, xray: true } : { flow: false })),
       setLights: (on) => instant(() => store.setState({ lights: on })),
       setDoors: (on) => instant(() => store.setState({ doors: on })),
+      setLamps: (o) =>
+        instant(() => {
+          if (o.hazards !== undefined) store.setState({ hazards: o.hazards });
+          if (o.indicator !== undefined) lampPose.indicator = o.indicator;
+          if (o.fog !== undefined) lampPose.fog = o.fog;
+        }),
+      async showEnclosed(on) {
+        enclosedState.forceShow = on;
+        await frames(2);
+        return { hidden: enclosedState.hidden };
+      },
       setSolo: (group) => instant(() => store.setState({ soloGroup: group })),
       setSoloParts: (ids) => instant(() => store.setState({ solo: ids?.join(',') ?? null })),
       setLabels: (on) => instant(() => store.setState({ showLabels: on })),
@@ -229,7 +252,9 @@ export function DevApi() {
         if (o.timeScale) store.setState({ timeScale: o.timeScale });
         if (o.cylinder) store.setState({ strokeCylinder: o.cylinder });
         if (o.running === false) {
-          Object.assign(sim, { phase: 'off', t: 0, rpm: 0, throttle: 0, boost: 0, firing: false, limiter: false, pinionIn: 0, starter: false, load: 0, heat: 0, torque: 0, speed: 0, refused: 0 });
+          Object.assign(sim, { phase: 'off', t: 0, rpm: 0, throttle: 0, boost: 0, firing: false, limiter: false, pinionIn: 0, starter: false, load: 0, heat: 0, torque: 0, speed: 0, refused: 0, brake: 0 });
+          // A static pose starts cold, brakes too (as the exhaust's heat above).
+          brakeHeat.front = brakeHeat.rear = 0;
           placeGear(sim, o.gear ?? 0);
           deriveShafts(sim);
           store.setState({ engineRunning: false, phase: 'off', rpm: 0, boost: 0, throttle: 0, held: false, pedal: false, gear: sim.gear, speedKmh: 0, lever: { ...sim.lever } });
@@ -247,7 +272,9 @@ export function DevApi() {
           // The boost settling above stepped the car too: put the drivetrain where it was asked.
           placeGear(sim, g);
           if (o.lever) sim.lever = { ...o.lever };
-          if (o.brakeHeat !== undefined) brakeHeat.hold = o.brakeHeat ? { front: o.brakeHeat[0], rear: o.brakeHeat[1] } : null;
+          // A held pose has no pedal input: the brake is what the pose says (it used to keep
+          // whatever it was, and a stale brake heated the discs at a held road speed).
+          sim.brake = o.brake ?? 0;
           if (o.flame) {
             const len = 0.1;
             Object.assign(sim, { pops: sim.pops + 1, popLength: len, popStrength: o.flame.strength ?? 1, popFlame: o.flame.length ?? 0.3, popAt: sim.t - o.flame.age * len });
@@ -256,6 +283,7 @@ export function DevApi() {
           deriveShafts(sim);
           store.setState({ engineRunning: true, phase: 'running', rpm, throttle: sim.throttle, boost: sim.boost, held: true, gear: g, speedKmh: Math.abs(kmh(v)), clutch, lever: { ...sim.lever }, refused: false });
         }
+        if (o.brakeHeat !== undefined) brakeHeat.hold = o.brakeHeat ? { front: o.brakeHeat[0], rear: o.brakeHeat[1] } : null;
         if (o.pinionIn !== undefined) sim.pinionIn = o.pinionIn;
         if (o.crankAngle !== undefined) {
           frame.frozen = !o.free;
@@ -292,6 +320,9 @@ export function DevApi() {
           wheelRpm: Math.round(sim.wheelRpm),
           sleeves: sim.sleeves.map((v) => +v.toFixed(2)),
           lever: sim.lever,
+          brake: sim.brake,
+          brakeHeat: { front: +brakeHeat.front.toFixed(3), rear: +brakeHeat.rear.toFixed(3), hold: brakeHeat.hold },
+          brakeGlow: { front: +brakeGlow.front.value.toFixed(3), rear: +brakeGlow.rear.value.toFixed(3) },
         };
       },
       pick(x, y) {

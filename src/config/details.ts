@@ -56,6 +56,35 @@ export const LIGHTS = {
   reverse: { colour: '#ffffff', intensity: 2.4 },
   /** Beam glow ahead of each pod lamp: a soft additive cone `length` m long, `radius` m across at its mouth (est). */
   beam: { length: 0.9, radius: 0.16, intensity: 0.22 },
+  /**
+   * Phase 9 fix-up: the donor's lamp lenses (rear tail / brake, indicator / reversing and fog
+   * lamps; front indicators and side repeaters), est. Unlit, the lens artwork is deepened
+   * (colour^`deep` × `body`; `deep` stays 1: a power on linear colour turns amber red) on a
+   * glossy dielectric (`roughness`), and a faint `ambient` share of
+   * the studio light seems to come back off the reflector behind (the lens pattern seen
+   * `depth` lens-radii deeper, magnified × `magnify`, so it shifts against the ribs as the
+   * view moves). Lit, each lamp glows in its lens's own colour from a bulb behind the centre
+   * (`bulb`: width of the hot spot, share of the glow at the rim). Intensities: tail dim,
+   * brake bright, indicators (hazards, `flashHz`, on for `duty` of each cycle, `rampS` to come
+   * up or go out like a filament), reversing in R, rear fogs (no switch on the dash: dev only).
+   */
+  lens: {
+    deep: 1,
+    body: 0.72,
+    roughness: 0.12,
+    ambient: 0.08,
+    depth: 0.35,
+    magnify: 1.25,
+    bulb: { width: 2.4, rim: 0.3 },
+    tail: 0.9,
+    brake: 3.2,
+    indicator: 2.6,
+    reverse: 2.4,
+    fog: 2.6,
+    flashHz: 1.5,
+    duty: 0.5,
+    rampS: 0.05,
+  },
   /** Lamp face centres of the lowered pods (left; the body model's), before the raise. */
   podLamp: [0.6715, 0.4885, 1.7695] as Vec3,
   /** Body-model materials per lamp role. */

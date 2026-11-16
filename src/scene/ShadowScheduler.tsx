@@ -26,7 +26,7 @@ export function refreshShadows() {
 
 type State = ReturnType<typeof useAppStore.getState>;
 /** Store keys that can't change the shadows; any other change re-renders them (an inspect ghosts the other parts, which then cast none). */
-const IGNORED = new Set<keyof State>(['hoveredId', 'cameraFit', 'view']);
+const IGNORED = new Set<keyof State>(['hoveredId', 'cameraFit', 'view', 'inCabin', 'hazards']);
 const INERT = (Object.keys(useAppStore.getState()) as (keyof State)[]).filter((k) => !IGNORED.has(k));
 
 /**

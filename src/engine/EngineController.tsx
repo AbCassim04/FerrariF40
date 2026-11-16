@@ -11,7 +11,7 @@ import { gearState, reducedMotion, sim, useEngineStore } from '../state/engine';
 import { engineAudio } from './audio/engineAudio';
 import { BLUR_FROM, motionState, setPose } from './motion';
 import { updateSoundPosition } from './audio/position';
-import { updateBrakeHeat } from './brakeHeat';
+import { brakesWarm, updateBrakeHeat } from './brakeHeat';
 import { dynoActive, dynoFrame, stopDyno } from './dyno';
 import { drivetrainSettled, kmh, stepSim } from './sim';
 
@@ -39,6 +39,8 @@ export function EngineController() {
 
   useFrame((_, delta) => {
     const store = useEngineStore.getState();
+    // Brake heat runs whatever the engine does: hot discs cool after it stops (phase 9 fix-up).
+    if (!document.hidden && brakesWarm()) updateBrakeHeat(Math.min(delta, 0.25));
     const idle = sim.phase === 'off' && sim.pinionIn === 0 && sim.heat < 1e-3 && Math.abs(sim.torque) < 1e-4 && drivetrainSettled(sim);
     if (idle && !frame.dirty) return;
     frame.dirty = false;
@@ -111,7 +113,7 @@ export function EngineController() {
 
     launchTimer(dt, store.held);
     if (sim.phase !== 'off') updateSoundPosition(camera, dt);
-    updateBrakeHeat(dt);
+    if (!brakesWarm()) updateBrakeHeat(dt);
 
     // Mirror to the store for the UI (gauges, buttons) at a modest rate.
     frame.mirror += delta;

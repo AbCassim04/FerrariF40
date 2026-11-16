@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { engineTorque, torqueCurve } from '../engine/sim';
 import { sim, useEngineStore } from '../state/engine';
+import { useAppStore } from '../state/store';
 
 /**
  * 9A live dyno graph: the sim's own full-boost torque (Nm) and power (hp) against rpm, as two
@@ -41,7 +42,9 @@ const y = (p: Panel, v: number) => p.top + PANEL_H * (1 - Math.max(0, Math.min(1
 export function DynoGraph() {
   const running = useEngineStore((s) => s.engineRunning);
   const on = useEngineStore((s) => s.dynoGraph);
-  if (!running || !on) return null;
+  // Phase 9 fix-up: in the cockpit view it sat over the dash; it steps aside while the eye is in the cabin.
+  const inCabin = useAppStore((s) => s.inCabin);
+  if (!running || !on || inCabin) return null;
   return <Graph />;
 }
 

@@ -11,6 +11,12 @@ export interface PartObjects {
   pivot: Group;
   /** Holds the part's own geometry only (no child parts). */
   content: Group;
+  /**
+   * Wraps `content` (and nothing else): hidden while the part is enclosed and can't be seen
+   * (scene/Enclosed.tsx), so it skips every pass without touching `content`'s own visibility
+   * (dev solo sets that).
+   */
+  wrap: Group;
   /** Assembled anchor position, relative to the parent anchor. */
   base: Vector3;
 }

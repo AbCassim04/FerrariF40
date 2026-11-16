@@ -3,11 +3,17 @@ import { DIMS } from '../config/dims';
 import { ENGINE_SIM } from '../config/engine-sim';
 
 /**
- * 9C brake glow: hard braking heats the discs' friction rings, which glow on the same
- * blackbody-like ramp as the exhaust (dark red → cherry → orange), front and rear apart (the
- * front brakes do most of the work). Only the ring the pads sweep glows (by distance from the
- * axle). Heat model
- * and figures: ENGINE_SIM.brakes (est).
+ * Brake glow (9C; reworked in the phase 9 fix-up the way the exhaust's heat glow was in 8D):
+ * hard braking heats the discs' friction rings, which glow as hot metal on the exhaust's
+ * blackbody-like ramp (dark red → cherry → orange only near the top), front and rear apart.
+ *
+ *   - Only the ring the pads sweep glows, by distance from the axle; across it the temperature
+ *     peaks mid-ring and falls toward the hub and the outer edge (`ENGINE_SIM.brakes.profile`).
+ *   - The disc's own texture modulates its brightness (vents, grooves and drillings stay
+ *     darker), and the metal stays lit underneath: its lighting only dulls partly with heat, as
+ *     on the exhaust, so it reads as glowing metal rather than red paint.
+ *   - Nothing at all below the glow threshold (the heat model's `from`): a cool disc is the
+ *     plain donor disc.
  */
 
 export type Axle = 'front' | 'rear';
@@ -21,7 +27,10 @@ export const brakeGlow: Record<Axle, { value: number }> = { front: { value: 0 },
 
 export function addBrakeGlow(m: MeshStandardMaterial, axle: Axle) {
   const w = DIMS.wheel[axle];
-  const ring = [(w.discDiameter / 2) * B.ring[0], (w.discDiameter / 2) * B.ring[1]];
+  const R = w.discDiameter / 2;
+  const ring = [R * B.ring[0], R * B.ring[1]];
+  const mid = (ring[0] + ring[1]) / 2;
+  const half = (ring[1] - ring[0]) / 2;
   m.onBeforeCompile = (shader) => {
     shader.uniforms.uBrakeHeat = brakeGlow[axle];
     shader.vertexShader = shader.vertexShader
@@ -44,9 +53,27 @@ vec3 brakeBlackbody(float t) {
       .replace(
         '#include <emissivemap_fragment>',
         `#include <emissivemap_fragment>
-float discR = length(vDiscYZ - vec2(${f(w.radius)}, ${f(w.axleZ)}));
-float brakeT = uBrakeHeat > 0.0 ? uBrakeHeat * smoothstep(${f(ring[0] - 0.008)}, ${f(ring[0] + 0.008)}, discR) * (1.0 - smoothstep(${f(ring[1] - 0.004)}, ${f(ring[1] + 0.004)}, discR)) : 0.0;
-totalEmissiveRadiance += brakeT > 0.0 ? brakeBlackbody(brakeT) : vec3(0.0);`,
+float brakeT = 0.0;
+float brakeSurface = 1.0;
+if (uBrakeHeat > 0.0) {
+  // Across the friction ring: hottest mid-ring, cooler toward the hub and the rim, nothing off it.
+  float x = (length(vDiscYZ - vec2(${f(w.radius)}, ${f(w.axleZ)})) - ${f(mid)}) / ${f(half)};
+  float across = clamp(1.0 - pow(abs(x), ${f(B.profile.power)}) * ${f(1 - B.profile.edge)}, 0.0, 1.0) * (1.0 - smoothstep(0.92, 1.06, abs(x)));
+  brakeT = uBrakeHeat * across;
+  // The disc's own surface: its darker drillings and grooves glow less (they are holes or recessed).
+  float lum = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));
+  brakeSurface = mix(${f(B.texture.min)}, 1.0, smoothstep(${f(B.texture.dark)}, ${f(B.texture.bright)}, lum));
+}
+totalEmissiveRadiance += brakeT > 0.0 ? brakeBlackbody(brakeT) * brakeSurface : vec3(0.0);`,
+      )
+      // Hot metal dulls a little (as the exhaust): its own finish stays visible under the glow.
+      .replace(
+        '#include <aomap_fragment>',
+        `reflectedLight.indirectSpecular *= 1.0 - ${f(G.dull.reflections)} * brakeT;
+reflectedLight.directSpecular *= 1.0 - ${f(G.dull.highlights)} * brakeT;
+reflectedLight.directDiffuse *= 1.0 - ${f(G.dull.diffuse)} * brakeT;
+reflectedLight.indirectDiffuse *= 1.0 - ${f(G.dull.diffuse)} * brakeT;
+#include <aomap_fragment>`,
       );
   };
   m.customProgramCacheKey = () => `brake-glow-${axle}`;

@@ -42,7 +42,7 @@ export const ENGINE_SIM = {
    * limiter), so it stays special. The timing is random but seeded, so a dyno run replays the
    * same pops.
    */
-  pops: { liftRpm: 5000, count: [1, 3] as const, spread: [0.15, 0.5] as const, length: [0.06, 0.11] as const, flame: [0.24, 0.5] as const, gapS: 2.2, limiterGapS: 1.4, shiftChance: 0.4 },
+  pops: { liftRpm: 5000, count: [1, 3] as const, spread: [0.15, 0.5] as const, length: [0.06, 0.11] as const, flame: [0.35, 0.6] as const, gapS: 2.2, limiterGapS: 1.4, shiftChance: 0.4 },
   /**
    * 9B gas flow (all est, a picture, not a gas model): flow tubes `radius` × the pipe's radius,
    * sampled every `step` m; an exhaust pulse has a `front` and a `tail` (m) and reaches
@@ -54,12 +54,36 @@ export const ENGINE_SIM = {
    */
   flow: { radius: 0.45, step: 0.012, tail: 0.12, front: 0.015, base: 0.05, exhaustReach: 1.2, airSpeed: 3, intakeOpensDeg: 350, runnerLength: 0.22, offLevel: 0.35 },
   /**
-   * 9B flame per pop (est): out to full length in `rise` of its life, then shrinking; the
-   * blue-white core gone by `coolAt`; radius `width` m at full strength; each side's length
-   * varies by up to ±`sideVary`; reduced motion: × `reducedScale`, no light. The light: a
-   * warm point on the rear bodywork, `intensity` cd at full strength, reaching `distance` m.
+   * Flame per pop (est; rebuilt in the phase 9 fix-up). Over the pop's life it flashes up in
+   * `rise` (then dims as (1 − x)^`fade`), starts at `stretch[0]` of its length and stretches to
+   * full by `stretchAt`, the blue-white core gone by `coolAt`. `width` (m) is the ribbon's
+   * half-width at full strength; each side's length varies by up to ±`sideVary`. Layers, one
+   * ribbon each per tip: brightness, width and length (× the flame's). `glow`: the soft glow
+   * round each mouth (quad half-size m, brightness). `spill`: the warm pool on the ground
+   * (half-size m, `stretch` × that along the flame, `behind` × the flame's length behind the
+   * mouth, fading out as the tip rises `fadeHeight` m off the ground, e.g. exploded). Reduced
+   * motion: × `reducedScale`, no light, no spill. The light: a warm point on the rear
+   * bodywork, `intensity` cd at full strength, reaching `distance` m.
    */
-  flames: { rise: 0.15, coolAt: 0.45, intensity: 1.25, width: 0.04, sideVary: 0.12, reducedScale: 0.6, light: { color: '#ff8a3c', intensity: 6, distance: 1.6 } },
+  flames: {
+    rise: 0.12,
+    fade: 1.3,
+    stretch: [0.45, 1] as const,
+    stretchAt: 0.45,
+    coolAt: 0.4,
+    intensity: 2.4,
+    width: 0.07,
+    sideVary: 0.12,
+    reducedScale: 0.6,
+    layers: [
+      { brightness: 1.0, width: 0.55, length: 0.55 },
+      { brightness: 0.75, width: 1.0, length: 1.0 },
+      { brightness: 0.35, width: 1.45, length: 1.12 },
+    ],
+    glow: { size: 0.085, intensity: 0.55 },
+    spill: { size: 0.26, stretch: 1.4, behind: 0.3, y: 0.003, fadeHeight: 0.9, intensity: 0.12 },
+    light: { color: '#ff8a3c', intensity: 7, distance: 1.8 },
+  },
   /** The throttle pedal itself: seconds from closed to open and back. */
   pedalRise: 0.12,
   pedalFall: 0.08,
@@ -82,9 +106,23 @@ export const ENGINE_SIM = {
    * discs soak up) × `gain` (the front takes about 60 % of the braking), and cools with a time
    * constant of `coolS` at rest, quicker with speed (× 1 / (1 + speed / `airMs`)). A stop at 0.8
    * from 200 km/h heats the fronts to about 0.9, the rears to about 0.6. The friction ring is
-   * `ring` × the disc radius; the glow starts above `from` heat, peak radiance `peak`.
+   * `ring` × the disc radius; the glow starts above `from` heat, peak radiance `peak` (the
+   * exhaust's ramp; phase 9 fix-up: 2.2 → 1.5, with the profile, the surface and the dulled
+   * lighting underneath; it read as flat red paint). Across the ring
+   * the temperature is 1 − |x|^`profile.power` × (1 − `profile.edge`) (x −1 at the inner edge,
+   * 0 mid-ring, +1 at the outer edge). The disc's own surface modulates the glow's brightness:
+   * texels darker than `texture.dark` glow at `texture.min`, brighter than `texture.bright` fully.
    */
-  brakes: { gain: { front: 0.0074, rear: 0.005 }, coolS: 28, airMs: 25, from: 0.22, ring: [0.66, 0.97] as const, peak: 2.2 },
+  brakes: {
+    gain: { front: 0.0074, rear: 0.005 },
+    coolS: 28,
+    airMs: 25,
+    from: 0.22,
+    ring: [0.62, 0.98] as const,
+    peak: 1.5,
+    profile: { power: 2, edge: 0.3 },
+    texture: { dark: 0.05, bright: 0.25, min: 0.35 },
+  },
   glow: {
     /** Radiance at full temperature; it rises as temperature^`power`. */
     peak: 0.5,

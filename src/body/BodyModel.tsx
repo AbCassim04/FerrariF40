@@ -7,6 +7,7 @@ import {
   Color,
   CustomBlending,
   DoubleSide,
+  FrontSide,
   Group,
   Matrix4,
   Mesh,
@@ -18,13 +19,14 @@ import {
   type Material,
   type MeshPhysicalMaterial,
   type Object3D,
+  type Side,
 } from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { DIMS } from '../config/dims';
 import { registerMotion } from '../engine/motion';
 import { modelMotion } from '../engine/modelMotion';
 import { asset } from '../lib/asset';
-import { donorCopy, donorFor, replacedMaterials, useDonor } from './donor';
+import { donorCopy, donorFor, replacedMaterials, replacedRegions, useDonor, type ReplacedRegion } from './donor';
 import { BODY_PAINT, MODEL_FINISH, MODEL_GLASS, modelEnvLevels } from '../materials/materials';
 import { useAppStore } from '../state/store';
 
@@ -63,7 +65,8 @@ export function modelPartBuild(partId: string) {
       // (calipers), and adds to others (badges on their panels, gauge faces in the cockpit).
       const { replace, extras } = donorFor(donor, partId);
       if (!src && !replace) throw new Error(`body model has no node "${partId}"; re-run npm run prep:body`);
-      const out = replace ? donorCopy(replace) : mergeByFinish(src, replacedMaterials(partId));
+      // The donor's plain finishes are merged the same way (a wheel's rim and centre nut: one draw).
+      const out = replace ? mergeByFinish(donorCopy(replace)) : mergeByFinish(src, replacedMaterials(partId), replacedRegions(partId));
       for (const extra of extras) out.add(donorCopy(extra));
       return out;
     }, [nodes, donor]);
@@ -149,9 +152,9 @@ export function BodyModelSetup() {
  * shader), so the part draws them in one call and looks exactly as before. The clear-coated
  * paint keeps its own mesh; identical glass panes share one.
  */
-const MERGED_FINISH = (() => {
-  const m = new MeshStandardMaterial({ color: '#ffffff', vertexColors: true, side: DoubleSide, roughness: 1, metalness: 1 });
-  m.name = 'model-finishes';
+function mergedFinish(side: Side) {
+  const m = new MeshStandardMaterial({ color: '#ffffff', vertexColors: true, side, roughness: 1, metalness: 1 });
+  m.name = side === DoubleSide ? 'model-finishes' : 'model-finishes-front';
   // Its colours are per vertex (the white base colour is a placeholder): ghosts tint by them too.
   m.userData.ghostVertexColors = true;
   m.onBeforeCompile = (shader) => {
@@ -165,7 +168,9 @@ const MERGED_FINISH = (() => {
   };
   m.customProgramCacheKey = () => 'model-finishes';
   return m;
-})();
+}
+/** The body model's finishes are double-sided; the donor's (phase 9 fix-up: wheel rims and nuts) single-sided. */
+const MERGED_FINISH = { [DoubleSide]: mergedFinish(DoubleSide), [FrontSide]: mergedFinish(FrontSide) } as Record<Side, MeshStandardMaterial>;
 
 type Std = MeshStandardMaterial & Partial<MeshPhysicalMaterial>;
 /** Plain opaque standard materials can share the merged finish. */
@@ -173,7 +178,7 @@ type Std = MeshStandardMaterial & Partial<MeshPhysicalMaterial>;
 const LAMPS = new Set(['super_headlight', 'super_brakelight', 'super_reverselight', 'super_signal_L']);
 const mergeable = (m: Std) =>
   !LAMPS.has(m.name) &&
-  m.isMeshStandardMaterial && !m.isMeshPhysicalMaterial && !m.transparent && !m.map && !m.normalMap && !m.roughnessMap && !m.metalnessMap && !m.emissiveMap && !m.alphaMap && !m.aoMap && !m.vertexColors && m.side === DoubleSide && m.emissive.getHex() === 0 && m.envMapIntensity === 1 && !m.flatShading;
+  m.isMeshStandardMaterial && !m.isMeshPhysicalMaterial && !m.transparent && !m.map && !m.normalMap && !m.roughnessMap && !m.metalnessMap && !m.emissiveMap && !m.alphaMap && !m.aoMap && !m.vertexColors && (m.side === DoubleSide || m.side === FrontSide) && m.emissive.getHex() === 0 && m.envMapIntensity === 1 && !m.flatShading;
 
 /** Float copy of a mesh's geometry in the part root's frame (the model's attributes are quantised). */
 function bakedGeometry(mesh: Mesh, toRoot: Matrix4) {
@@ -196,7 +201,25 @@ function bakedGeometry(mesh: Mesh, toRoot: Matrix4) {
   return g;
 }
 
-function mergeByFinish(src: Object3D, hide: Set<string> = new Set()) {
+/** Drops the triangles whose centroid lies in any of the boxes (part-root coordinates). */
+function dropTriangles(g: BufferGeometry, boxes: ReplacedRegion[]) {
+  const pos = g.getAttribute('position');
+  const index = g.index ? Array.from(g.index.array) : Array.from({ length: pos.count }, (_, i) => i);
+  const kept: number[] = [];
+  const c = new Vector3();
+  const v = new Vector3();
+  for (let t = 0; t < index.length; t += 3) {
+    c.set(0, 0, 0);
+    for (let k = 0; k < 3; k++) c.add(v.fromBufferAttribute(pos, index[t + k]));
+    c.divideScalar(3);
+    const inside = boxes.some((b) => c.x >= b.min[0] && c.x <= b.max[0] && c.y >= b.min[1] && c.y <= b.max[1] && c.z >= b.min[2] && c.z <= b.max[2]);
+    if (!inside) kept.push(index[t], index[t + 1], index[t + 2]);
+  }
+  g.setIndex(kept);
+  return g;
+}
+
+function mergeByFinish(src: Object3D, hide: Set<string> = new Set(), regions: ReplacedRegion[] = []) {
   const root = src.clone(true);
   root.updateMatrixWorld(true);
   const toRoot = root.matrixWorld.clone().invert();
@@ -206,15 +229,19 @@ function mergeByFinish(src: Object3D, hide: Set<string> = new Set()) {
   const out = new Group();
   out.name = root.name;
   root.matrix.decompose(out.position, out.quaternion, out.scale);
-  const opaque: BufferGeometry[] = [];
+  const opaque = new Map<Side, BufferGeometry[]>();
   const bySame = new Map<string, { material: Material; parts: BufferGeometry[] }>();
   for (const mesh of meshes) {
     const m = mesh.material as Std;
-    if (Array.isArray(mesh.material)) {
+    // Textured meshes (the donor's tyres, discs, calipers) keep their own geometry: the bake
+    // keeps only positions and normals.
+    if (Array.isArray(mesh.material) || m.map || m.normalMap || m.emissiveMap || m.roughnessMap || m.metalnessMap) {
       out.add(rehome(mesh, toRoot));
       continue;
     }
     const g = bakedGeometry(mesh, toRoot);
+    const drop = regions.filter((r) => r.material === m.name);
+    if (drop.length) dropTriangles(g, drop);
     if (mergeable(m)) {
       const n = g.getAttribute('position').count;
       const colour = new Float32Array(n * 3);
@@ -225,7 +252,7 @@ function mergeByFinish(src: Object3D, hide: Set<string> = new Set()) {
       }
       g.setAttribute('color', new BufferAttribute(colour, 3));
       g.setAttribute('rm', new BufferAttribute(rm, 2));
-      opaque.push(g);
+      opaque.set(m.side, [...(opaque.get(m.side) ?? []), g]);
     } else {
       // Glass panes with the same finish (e.g. cabin windows) share one mesh; the paint keeps its own.
       const key = MODEL_GLASS[m.name] ? `glass:${JSON.stringify(MODEL_GLASS[m.name])}` : m.uuid;
@@ -240,7 +267,7 @@ function mergeByFinish(src: Object3D, hide: Set<string> = new Set()) {
     if (!g) throw new Error(`body: could not merge the meshes of "${root.name}"`);
     out.add(new Mesh(g, material));
   };
-  if (opaque.length) add(opaque, MERGED_FINISH);
+  for (const [side, parts] of opaque) add(parts, MERGED_FINISH[side]);
   for (const { material, parts } of bySame.values()) add(parts, material);
   return out;
 }

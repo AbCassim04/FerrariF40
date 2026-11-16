@@ -23,7 +23,8 @@ export const DONOR = {
   },
   /**
    * Accessories split into connected pieces; each piece goes to the panel under its centroid
-   * (body-rules' `panelAt`) unless `panel` is given. `offset` (m, per panel) moves the pieces
+   * (body-rules' `panelAt`) unless `panel` is given. Taken by material (`materials`) or by
+   * donor node name (`nodes`). `offset` (m, per panel) moves the pieces
    * onto our surface where the donor's bodywork differs.
    */
   accessories: {
@@ -35,6 +36,19 @@ export const DONOR = {
     // Its needles (small pieces all sampling one white texel of the atlas) are left out: ours
     // follow the sim.
     gauges: { materials: ['material_8', 'material_10'], panel: 'interior', flipV: true, skipPieces: { maxTris: 12, uv: [0.89, 0.558], within: 0.01 } },
+    // Phase 9 fix-up: lamps with real lenses, by donor node. Rear (material_7, its lamp atlas):
+    // the inner round tail / brake lamps (Object_146), the outer round amber indicator lamps
+    // (Object_258) with their clear reversing-lamp centres (Object_260), and the rectangular
+    // rear fog lamps in the bumper (Object_42). Front (material_14): the amber indicators under
+    // the headlamp covers and the round side repeaters on the wings (Object_120). Both atlases
+    // are sampled upside down like the gauges' (no texture transform): v is flipped back.
+    // `offset`: the donor's lamps sit 6 mm further out and 2–4 mm lower than the body model's
+    // (measured piece by piece, scripts/dev/lamp-pieces.mjs); moved onto ours, which are hidden.
+    lamps: {
+      nodes: ['Object_146', 'Object_258', 'Object_260', 'Object_42', 'Object_120'],
+      flipV: true,
+      offset: { 'rear-clam': [-0.002, 0.0035, 0.006], 'front-clam': [-0.0025, 0.002, -0.0055] },
+    },
   },
   /** Tyres: the derived tread normal map's slope gain, and the rubber's roughness (est). */
   tread: { strength: 2.5, roughness: 0.9 },

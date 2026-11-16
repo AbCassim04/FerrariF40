@@ -94,9 +94,19 @@ export const SCENE = {
     engine: { position: [0.55, 2.35, -2.25] as Vec3, target: [0, 0.45, -0.85] as Vec3, fit: false },
     side: { position: [7.5, 0.9, 0] as Vec3, target: [0, 0.5, DIMS.body.centreZ] as Vec3, fit: true },
     rear34: { position: [-4.8, 2.4, -6.2] as Vec3, target: [0, 0.5, -0.4] as Vec3, fit: true },
-    /** 9C: from the driver's seat (left-hand drive) over the wheel to the instruments. */
-    cockpit: { position: [0.34, 1.0, 0.33] as Vec3, target: [0.32, 0.745, 0.69] as Vec3, fit: false, fixed: true },
+    /**
+     * 9C: from the driver's seat (left-hand drive) over the wheel to the instruments. Phase 9
+     * fix-up (est): the eye 3 cm higher and 4 cm further back (was 0.34, 1.0, 0.33), so the rim
+     * passes under the tach and speedo and the binnacle's hood clears their tops; 4 cm under the
+     * roof (ray-checked).
+     */
+    cockpit: { position: [0.338, 1.03, 0.29] as Vec3, target: [0.322, 0.755, 0.69] as Vec3, fit: false, fixed: true },
   },
+  /**
+   * Phase 9 fix-up: the cabin (car coordinates, est), for "is the eye inside the car": then the
+   * dyno graph steps aside (it sat over the dash in the cockpit view).
+   */
+  cabin: { min: [-0.72, 0.5, -0.6] as Vec3, max: [0.72, 1.12, 0.78] as Vec3 },
   /** `far`: only things within this height of the ground cast contact shadows (the lifted, exploded parts drop out of the pass). */
   contactShadows: { scale: 12, far: 1.2, blur: 2.2, opacity: 0.75, resolution: 1024 },
   /**
@@ -162,6 +172,35 @@ export const SCENE = {
    */
   /** `exempt`: our materials seen outside the bay (the exhaust tips in the rear openings). */
   bayOcclusion: { enclosed: 0.25, exempt: ['tipSteel'] as readonly string[] },
+  /**
+   * Phase 9 fix-up (draw-call headroom): parts sealed inside their casings (block, heads and
+   * cam covers, sump, bellhousing, gearbox case), never seen while the car is assembled with
+   * X-ray off and nothing inspected or soloed. Then they skip every pass (main, shadow map,
+   * contact shadows); anything that could show them (X-ray, an inspect, the explode starting)
+   * brings them back. Checked by screenshot diffs from every side, with them shown and hidden
+   * (REVIEW "Phase 9 fix-up").
+   */
+  enclosed: [
+    'crankshaft',
+    'pistons-l',
+    'pistons-r',
+    'conrods-l',
+    'conrods-r',
+    'camshafts-l',
+    'camshafts-r',
+    'valvetrain-l',
+    'valvetrain-r',
+    'oil-pump',
+    'oil-pickups',
+    'flywheel',
+    'clutch-disc-front',
+    'clutch-intermediate',
+    'clutch-disc-rear',
+    'clutch-pressure',
+    'gear-clusters',
+    'selector-forks',
+    'lsd',
+  ] as readonly string[],
   /** Meshes smaller than this (bounding-sphere radius, m) cast no shadows: unseen, but each costs a draw in both shadow passes. */
   shadowCasterMinRadius: 0.05,
   /**

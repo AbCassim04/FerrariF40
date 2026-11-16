@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useAppStore } from '../state/store';
 
-/** 9C: lights and doors switches for "more", and key L for the lights (any time, engine or not). */
+/** 9C: lights and doors switches for "more", and key L for the lights (any time, engine or not); hazards (phase 9 fix-up). */
 
 function Switch({ on, set, label, disabled }: { on: boolean; set: (v: boolean) => void; label: [string, string]; disabled?: boolean }) {
   return (
@@ -15,6 +15,13 @@ function Switch({ on, set, label, disabled }: { on: boolean; set: (v: boolean) =
 export function LightsSwitch() {
   const on = useAppStore((s) => s.lights);
   const toggle = useAppStore((s) => s.toggleLights);
+  return <Switch on={on} set={toggle} label={['On', 'Off']} />;
+}
+
+/** Phase 9 fix-up: hazard lights (every indicator, front, sides and rear, flashing). */
+export function HazardsSwitch() {
+  const on = useAppStore((s) => s.hazards);
+  const toggle = useAppStore((s) => s.toggleHazards);
   return <Switch on={on} set={toggle} label={['On', 'Off']} />;
 }
 

@@ -26,6 +26,10 @@ interface AppState {
   /** 9C: lights on (pods up, lamps lit) and doors open (assembled only). */
   lights: boolean;
   doors: boolean;
+  /** Phase 9 fix-up: hazard lights (every indicator flashing). */
+  hazards: boolean;
+  /** Phase 9 fix-up: the camera's eye is inside the cabin (the cockpit view): the dyno graph steps aside. */
+  inCabin: boolean;
   /** Last camera preset requested; `seq` makes repeat requests distinct. */
   view: { name: ViewName; seq: number } | null;
   /**
@@ -64,6 +68,7 @@ interface AppState {
   toggleXray: () => void;
   toggleFlow: () => void;
   toggleLights: () => void;
+  toggleHazards: () => void;
   toggleDoors: () => void;
   requestView: (name: ViewName) => void;
   requestCameraFit: (points: Vec3[] | null, slot: CameraSlot | null) => void;
@@ -87,6 +92,8 @@ export const useAppStore = create<AppState>()((set) => ({
   flow: false,
   lights: flag('lights'),
   doors: false,
+  hazards: flag('hazards'),
+  inCabin: false,
   view: params.get('view') ? { name: params.get('view') as ViewName, seq: 0 } : null,
   cameraFit: null,
 
@@ -109,6 +116,7 @@ export const useAppStore = create<AppState>()((set) => ({
   toggleXray: () => set((s) => ({ xray: !s.xray, flow: s.xray ? false : s.flow })),
   toggleFlow: () => set((s) => (s.flow ? { flow: false } : { flow: true, xray: true })),
   toggleLights: () => set((s) => ({ lights: !s.lights })),
+  toggleHazards: () => set((s) => ({ hazards: !s.hazards })),
   // Doors open only assembled; exploded they keep the explode pose.
   toggleDoors: () => set((s) => (s.exploded ? s : { doors: !s.doors })),
   requestView: (name) => set((s) => ({ view: { name, seq: (s.view?.seq ?? 0) + 1 } })),

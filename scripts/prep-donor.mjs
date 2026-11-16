@@ -19,7 +19,9 @@
  *      wheel centre (the model's half track and axle, the tyre standing on the ground)
  *   4. badges, gauge faces and lamps (with only their own artwork): split into connected
  *      pieces, each placed on the panel it sits on (`badges__<panel>`, `lamps__<panel>`,
- *      `gauges__interior`), at the normalised position (+ a small offset onto our surface)
+ *      `gauges__interior`), at the normalised position (+ a small offset onto our surface).
+ *      The lamps (phase 9 fix-up): the rear tail / brake, indicator / reversing and fog lamps
+ *      and the front indicators and side repeaters, with the donor's lens artwork
  *   5. textures → WebP, at most 1024 px (512 where it is never seen close)
  *   → public/models/donor.opt.glb, and a report on stdout (the scaling, sizes)
  *
@@ -190,7 +192,8 @@ const placed = {};
 const skipped = {};
 for (const [kind, rule] of Object.entries(DONOR.accessories)) {
   for (const [name, s] of sources) {
-    if (!rule.materials.includes(s.material) || rule.skip?.includes(name)) continue;
+    const wanted = rule.nodes ? rule.nodes.includes(name) : rule.materials.includes(s.material);
+    if (!wanted || rule.skip?.includes(name)) continue;
     const { MW, list } = pieces(name);
     if (rule.flipV) for (const p of sources.get(name).node.getMesh().listPrimitives()) flipV(p);
     list.forEach((piece, i) => {

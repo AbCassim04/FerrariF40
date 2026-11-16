@@ -54,7 +54,7 @@ export function PartsRenderer() {
  *   anchor (base position, animated by explodeOffset)
  *   └─ swing (at pivot, animated by explodeRotation)
  *      └─ unswing (offset by -pivot)
- *         ├─ rotation group (assembled rotation, own geometry only)
+ *         ├─ rotation group = wrap (assembled rotation, own geometry only; hidden while enclosed)
  *         │  └─ content → build
  *         └─ child parts (ride along with both the offset and the swing)
  */
@@ -62,6 +62,7 @@ function PartNode({ def, parentPosition }: { def: PartDef; parentPosition: Vec3 
   const anchorRef = useRef<Group>(null);
   const pivotRef = useRef<Group>(null);
   const contentRef = useRef<Group>(null);
+  const wrapRef = useRef<Group>(null);
   const pivot = def.pivot ?? ZERO;
   const Build = def.build;
   const solo = useAppStore((s) => (import.meta.env.DEV ? s.solo : null));
@@ -87,7 +88,7 @@ function PartNode({ def, parentPosition }: { def: PartDef; parentPosition: Vec3 
       mesh.castShadow = mesh.userData.castShadow ?? (!small && ![mesh.material].flat().some((m) => m.transparent));
       if (small) mesh.layers.set(DETAIL_LAYER);
     });
-    partObjects.set(def.id, { anchor, pivot: pivotRef.current!, content, base });
+    partObjects.set(def.id, { anchor, pivot: pivotRef.current!, content, wrap: wrapRef.current!, base });
     return () => {
       partObjects.delete(def.id);
     };
@@ -97,7 +98,7 @@ function PartNode({ def, parentPosition }: { def: PartDef; parentPosition: Vec3 
     <group ref={anchorRef} name={def.id}>
       <group ref={pivotRef} position={[...pivot]}>
         <group position={[-pivot[0], -pivot[1], -pivot[2]]}>
-          <group rotation={def.rotation ? [...def.rotation] : undefined}>
+          <group ref={wrapRef} rotation={def.rotation ? [...def.rotation] : undefined}>
             <group
               ref={contentRef}
               userData={{ partId: def.id }}
