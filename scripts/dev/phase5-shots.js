@@ -25,6 +25,9 @@ async (page) => {
     await __dev.setProgress(0);
     await __dev.engine({ running: false });
   };
+  await page.evaluate(() => {
+    window.__suspSolo = (a) => ['frame-front', 'frame-cabin', 'frame-rear', 'frame-brace', 'steering-rack', 'anti-roll-bar-front', 'anti-roll-bar-rear', 'driveshaft-l', 'driveshaft-r', ...['l', 'r'].flatMap((s) => [`upright-${a}${s}`, `wishbone-upper-${a}${s}`, `wishbone-lower-${a}${s}`, `spring-${a}${s}`, `damper-${a}${s}`, `brake-disc-${a}${s}`, `caliper-${a}${s}`, a === 'f' ? `tie-rod-${s}` : `toe-link-${s}`])];
+  });
   const desktop = [
     ['hero-assembled', async () => { await __dev.view('front34'); }],
     ['rear34-assembled', async () => { await __dev.view('rear34'); }],
@@ -33,9 +36,13 @@ async (page) => {
     ['chassis-front', async () => { await __dev.setCamera([4.6, 2.3, 5.2], [0, 0.45, 0.1]); }],
     ['chassis-side', async () => { await __dev.setCamera([7.2, 1.0, 0], [0, 0.5, 0]); }],
     ['chassis-top', async () => { await __dev.setCamera([0, 8.2, 0.01], [0, 0, 0]); }],
-    ['susp-front', async () => { await __dev.setCamera([1.75, 0.75, 2.35], [0.6, 0.33, 1.25]); }],
-    ['susp-rear', async () => { await __dev.setCamera([1.9, 0.85, -2.5], [0.58, 0.36, -1.3]); }],
-    ['frame-alone', async () => { await __dev.setChassis(false); await __dev.setSolo('frame'); await __dev.setCamera([4.3, 2.7, 4.8], [0, 0.5, 0]); }],
+    // Suspension close-ups: the frame, suspension and brakes only (the wheels would hide them).
+    ['susp-front', async () => { await __dev.setChassis(false); await __dev.setSoloParts(window.__suspSolo('f')); await __dev.setCamera([1.75, 0.7, 2.25], [0.55, 0.36, 1.2]); }],
+    ['susp-front-inside', async () => { await __dev.setCamera([0.05, 0.75, 2.2], [0.62, 0.33, 1.22]); }],
+    ['susp-rear', async () => { await __dev.setSoloParts(window.__suspSolo('r')); await __dev.setCamera([1.75, 0.8, -2.2], [0.5, 0.38, -1.3]); }],
+    ['susp-rear-inside', async () => { await __dev.setCamera([1.5, 0.75, -0.55], [0.55, 0.36, -1.32]); }],
+    ['susp-in-wheel', async () => { await __dev.setSoloParts(null); await __dev.setChassis(true); await __dev.setCamera([1.9, 0.55, 2.6], [0.6, 0.33, 1.25]); }],
+    ['frame-alone', async () => { await __dev.setChassis(false); await __dev.setSoloParts(null); await __dev.setSolo('frame'); await __dev.setCamera([4.3, 2.7, 4.8], [0, 0.5, 0]); }],
     ['frame-alone-rear', async () => { await __dev.setCamera([-4.0, 2.4, -5.0], [0, 0.5, 0]); }],
     ['xray', async () => { await __dev.setSolo(null); await __dev.setXray(true); await __dev.view('side'); }],
     ['xray-front34', async () => { await __dev.view('front34'); }],

@@ -357,7 +357,7 @@ export const engineParts: PartDef[] = [
   ...(['l', 'r'] as const).map((s) =>
     sidePart(s, 'engine-mount', 'Engine mount', {
       group: 'engine',
-      description: 'Cast bracket and rubber bush carrying the engine in the frame; the bush soaks up vibration before it reaches the chassis. A steel bracket under the bush bolts down onto the frame’s cradle rail.',
+      description: 'Cast bracket and rubber bush carrying the engine in the frame; the bush soaks up vibration before it reaches the chassis. A bracket under the bush bolts down onto the frame’s cradle rail.',
       specs: { Bush: `Ø${fmtMm(E.mount.bushRadius * 2, 0)} × ${fmtMm(E.mount.bushLength, 0)}` },
       build: specBuild(`EngineMount_${s}`, () => mountMeshes(s)),
       material: 'castAluminium',

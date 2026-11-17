@@ -6,7 +6,7 @@ async (page) => {
   await page.waitForFunction(() => window.__dev && window.__perf && __dev.cameraFeel, null, { timeout: 300000 });
   return page.evaluate(async () => {
     await __dev.screenshotReady({ timeout: 120000 });
-    const focus = window.__clashFocus ?? ['frame', '-mount-', 'wishbone', 'upright', 'coilover', 'anti-roll', 'steering', 'tie-rod', 'toe-link'];
+    const focus = window.__clashFocus ?? ['frame', '-mount-', 'wishbone', 'upright', 'spring-', 'damper-', 'anti-roll', 'steering', 'tie-rod', 'toe-link'];
     const out = { static: await __dev.clash({ allPairs: true, focus }), sweep: {} };
     const times = [];
     for (let t = 0.15; t < 3.21; t += 0.15) times.push(+t.toFixed(2));

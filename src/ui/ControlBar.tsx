@@ -9,8 +9,9 @@ import { FlowToggle, XrayToggle } from './XrayToggle';
  * - desktop: one slim bar along the bottom: Explode, X-ray, and while the engine runs Stop,
  *   tach / boost / gear / km/h, − gate +, brake, throttle and "more" (display speed, cylinder,
  *   volume) in a card above;
- * - portrait phone: one compact bottom bar; while driving it holds Stop, brake, − / + and the
- *   throttle (Explode, X-ray and the gate move into the bottom sheet), gauges at the top centre;
+ * - portrait phone: one compact bottom bar (⋯, Explode, X-ray, Start; Flow lives in the bottom
+ *   sheet, since all five labelled buttons don't fit 390 px); while driving it holds Stop, brake,
+ *   − / + and the throttle (Explode, X-ray and the gate move into the sheet), gauges at the top;
  * - landscape phone (driving layout): a small row at the bottom centre, the throttle under
  *   the right thumb with + above it, the brake under the left with − above it, gauges small at
  *   the top centre; the 3D view gets everything else.
@@ -28,7 +29,7 @@ export function ControlBar() {
       <MoreButton />
       <ExplodeButton />
       <XrayToggle />
-      <FlowToggle />
+      {layout !== 'portrait' && <FlowToggle />}
       <EngineButton />
     </>
   );
@@ -85,13 +86,15 @@ export function ControlBar() {
       <MorePanel
         sheet={phone}
         extra={
-          layout === 'portrait' && driving ? (
+          layout !== 'portrait' ? undefined : driving ? (
             <>
               <ExplodeButton />
               <XrayToggle />
               <FlowToggle />
             </>
-          ) : undefined
+          ) : (
+            <FlowToggle />
+          )
         }
       />
     </>

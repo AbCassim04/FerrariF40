@@ -1,4 +1,4 @@
-import { BoxGeometry, BufferAttribute, BufferGeometry, CatmullRomCurve3, type Curve, CylinderGeometry, ExtrudeGeometry, LatheGeometry, Matrix4, Shape, TubeGeometry, Vector2, Vector3 } from 'three';
+import { BoxGeometry, BufferAttribute, BufferGeometry, CatmullRomCurve3, Color, type Curve, CylinderGeometry, ExtrudeGeometry, LatheGeometry, Matrix4, Shape, TubeGeometry, Vector2, Vector3 } from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { SEGMENTS } from '../config/detail';
@@ -377,5 +377,15 @@ export function flipWinding(g: BufferGeometry) {
     }
     attr.needsUpdate = true;
   }
+  return g;
+}
+
+/** Gives a geometry one colour per vertex (for the `painted` material); returns it for chaining. */
+export function tinted(g: BufferGeometry, colour: string) {
+  const c = new Color(colour);
+  const n = g.getAttribute('position').count;
+  const a = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) a.set([c.r, c.g, c.b], i * 3);
+  g.setAttribute('color', new BufferAttribute(a, 3));
   return g;
 }

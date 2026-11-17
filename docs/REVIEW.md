@@ -60,6 +60,81 @@ phones (`5a-iphone13-portrait-…`, `-landscape-…`, `5a-pixel7-portrait-…`):
 calls with everything on 465, and 419 in the Chassis view.
 
 
+### 5B: suspension and running gear
+
+**What changed on screen**
+- Double wishbones at all four corners: uprights (new), upper and lower A-arms on the frame's
+  rails, coil springs over red Koni dampers to the frame's towers; a steering rack with tie
+  rods; rear toe links; anti-roll bars front and rear with drop links. 27 parts, each with a
+  description and specs, each in the explode (stage 2, after the discs and calipers).
+- The Chassis view now shows the whole rolling chassis.
+- X-ray: the frame is drawn as a bright skeleton through whatever is in front of it
+  (`5b-desktop-xray`, `-xray-front34`).
+- Not built: squat and dive (the optional motion item; BRIEF "Phase 5B").
+- Assembled, from outside: unchanged, except that arms and springs can now be glimpsed behind
+  the wheel spokes (`5b-desktop-hero-assembled`, `-rear34-assembled`).
+- Portrait phones: the Explode pill is whole again (it had been squeezed into a circle since
+  9B); Flow moved into the ⋯ sheet there (BRIEF "Phase 5B"). Landscape and desktop unchanged.
+
+**Gates**
+- Typecheck and build pass (JS 2,325.2 kB, 779.6 kB gzip); no dev hooks in dist.
+- Frame against the body (`frame-fit.mjs`): every tube at least 6 mm clear of the skins, glass,
+  doors, clams, undertray and wheels (one front tower node moved 35 mm out in 5B; re-checked).
+- In-page clash (`scripts/dev/frame-clash.js`, the frame, mounts and every suspension part
+  against everything): assembled vs body none; full explode none; assembled against our parts
+  none; at 24 times through the explode none. Still there, as in 5A: the right engine mount
+  against the oil cooler (phase 1) and, for a moment at t ≈ 3.6 s, against an oil line.
+  Declared contacts: arms × frame and upright; lower arms × damper and anti-roll bar; uprights
+  × disc, caliper, wheel, driveshaft (rear), tie rod / toe link; dampers × frame; springs ×
+  damper; rack, tie rods and front anti-roll bar × `body-shell` (through the tub's walls);
+  rear anti-roll bar × tail brace and rear frame.
+- Draw calls (desktop top tier, front ¾, min–max over 40 frames), final:
+
+| state | before phase 5 | after 5A | after 5B (final) |
+| --- | --- | --- | --- |
+| idle | 244 | 252 | 273 |
+| running | 393–407 | 407–417 | 422–436 |
+| running + lights | 394–409 | 408–419 | 423–438 |
+| running + lights + Flow (X-ray) | 380–481 | 398–465 | 388–486 |
+| exploded + running + Flow | 380 | 394–398 | 442–444 |
+| exploded + running + lights + Flow | 381–382 | 396–399 | 443–446 |
+| Chassis view, running + lights | — | 333–339 | 354–360 |
+| Chassis view, running + lights + Flow | — | 358–419 | 350–412 |
+| Chassis view, exploded + running + lights + Flow | — | 316–359 | 366–403 |
+
+  **Peak 486, under the 500 cap, with 14 to spare** (481 before the phase). 33 parts were
+  added in all. What paid for them: while the car is assembled, the sealed engine internals,
+  the frame inside the body and the suspension take no part in either shadow pass; dampers
+  and gearbox mounts are one mesh each (two finishes as vertex colours); the frame sections,
+  rack and front anti-roll bar inside the body are not drawn at all while it is closed. A
+  first 5B measurement read 496: the shadow-map pass was still drawing the parts meant to be
+  left out (only the contact pass had dropped them); fixed and re-measured. No tube had to be
+  removed.
+
+**Screenshots** (docs/review/f40-phase5/, `5b-…`): desktop `hero-assembled`,
+`rear34-assembled`, `engine-bay`, `chassis` (the hero view), `chassis-front / -side / -top`,
+`susp-front`, `susp-front-inside`, `susp-rear`, `susp-rear-inside` (frame, suspension and
+brakes only), `susp-in-wheel`, `frame-alone`, `frame-alone-rear`, `xray`, `xray-front34`,
+`exploded`, `exploded-rear`, `exploded-chassis` (the skeleton with everything off it); phones
+(`5b-iphone13-portrait-…`, `5b-iphone13-landscape-…`, `5b-pixel7-portrait-…`):
+`hero-assembled`, `chassis`, `chassis-chips`, `chassis-exploded`, `xray`.
+
+**Phones:** no page errors; the Chassis chip is on screen and pressed in every layout; no
+sideways scroll; draw calls with everything on 486, and 412 in the Chassis view. The portrait
+bar (⋯, Explode, X-ray, Start) keeps every label whole from 360 to 412 px wide; Flow is at the
+top of the ⋯ sheet there and turns on X-ray with flow as before.
+
+**Needs a real device or a person**
+- Frame rate on a real phone in the Chassis view and in X-ray with the engine running (the
+  review browser renders about a frame a second; only draw calls and triangles are meaningful
+  here). The emulated phones ran at the top quality tier.
+- Whether the Chassis chip is easy to find and its pressed state reads on a small screen, and
+  whether the framing suits a real portrait phone (the car is width-limited there).
+- The X-ray skeleton's brightness on a phone screen outdoors; and that not being able to tap
+  the frame in X-ray is acceptable.
+- Whether the frame's grey reads as painted steel next to the engine (the real frames are
+  darker).
+
 ## Phase 9: feel, exhaust, car details (`wip/f40-phase9`, merged)
 
 Owner's brief 2026-11-15, three checkpoint commits. Every feature checked on desktop

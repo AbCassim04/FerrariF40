@@ -23,6 +23,7 @@ import { refreshShadows } from './ShadowScheduler';
  *   no shadows even when they are drawn (X-ray, an inspect): they sit inside the body's own
  *   shadow, and from below every one of them is behind a casing or the floor, so the picture is
  *   the same and each costs one draw instead of three. This is the headroom phase 5 spends.
+ *   The suspension's arms and links (small, behind the wheels) are treated the same way.
  */
 const known = (ids: readonly string[]) =>
   ids.filter((id) => {
@@ -32,11 +33,14 @@ const known = (ids: readonly string[]) =>
   });
 const ENCLOSED = known(SCENE.enclosed);
 const COVERED = known(SCENE.chassis.covered);
-const NO_SHADOW = [...ENCLOSED, ...COVERED, ...known(SCENE.chassis.noShadowAssembled)];
+/** Cast again in the Chassis view (the frame's own shadow on the floor). */
+const NO_SHADOW_BODY_ON = [...COVERED.filter((id) => PARTS_BY_ID.get(id)?.group === 'frame'), ...known(SCENE.chassis.noShadowAssembled)];
+/** Never cast while assembled: sealed in casings, or small and behind the wheels. */
+const NO_SHADOW_ASSEMBLED = [...ENCLOSED, ...PARTS.filter((p) => SCENE.chassis.noShadowGroups.includes(p.group) && p.source !== 'model').map((p) => p.id)];
 const BODY = PARTS.filter((p) => SCENE.chassis.hiddenGroups.includes(p.group) && p.build).map((p) => p.id);
 
 /** Whether the enclosed parts are hidden now (dev scripts read it). */
-export const enclosedState = { hidden: false, forceShow: false, shadowless: false };
+export const enclosedState = { hidden: false, forceShow: false, shadowless: false, frameShadowless: false };
 if (import.meta.env.DEV) Object.assign(window, { __enclosed: enclosedState });
 
 function show(ids: readonly string[], on: boolean) {
@@ -50,18 +54,28 @@ function show(ids: readonly string[], on: boolean) {
   return changed;
 }
 
-/** Moves the parts' shadow-casting meshes onto the detail layer (seen, but in neither shadow pass) and back. */
+/**
+ * Takes the parts' meshes out of both shadow passes and puts them back: off the shadow map
+ * (`castShadow`) and onto the detail layer (the contact shadows skip it). `userData.noShadow`
+ * and `castWanted` tell scene/ghosts.ts what to restore when a ghost comes off meanwhile.
+ */
 function castShadows(ids: readonly string[], on: boolean) {
   for (const id of ids) {
     partObjects.get(id)?.content.traverse((o) => {
       const mesh = o as Mesh;
-      if (!mesh.isMesh) return;
-      if (!on && mesh.userData.shadowMask === undefined && mesh.layers.mask !== 1 << DETAIL_LAYER) {
+      if (!mesh.isMesh || mesh.userData.effect) return;
+      if (!on && !mesh.userData.noShadow) {
+        mesh.userData.noShadow = true;
+        // (A ghosted mesh's own flag is off for now: keep what was wanted before.)
+        if (!mesh.userData.ghosted || mesh.userData.castWanted === undefined) mesh.userData.castWanted = mesh.castShadow;
         mesh.userData.shadowMask = mesh.layers.mask;
+        mesh.castShadow = false;
         mesh.layers.set(DETAIL_LAYER);
-      } else if (on && mesh.userData.shadowMask !== undefined) {
+      } else if (on && mesh.userData.noShadow) {
+        mesh.userData.noShadow = false;
         mesh.layers.mask = mesh.userData.shadowMask;
-        mesh.userData.shadowMask = undefined;
+        // A ghosted mesh casts nothing; ghosts.ts restores `castWanted` when the ghost comes off.
+        if (!mesh.userData.ghosted) mesh.castShadow = mesh.userData.castWanted;
       }
     });
   }
@@ -76,10 +90,15 @@ export function Enclosed() {
     let changed = show(ENCLOSED, !closed);
     changed = show(COVERED, !closed || chassis) || changed;
     changed = show(BODY, !chassis) || changed;
-    const shadowless = assembled && !chassis;
-    if (shadowless !== enclosedState.shadowless) {
-      castShadows(NO_SHADOW, !shadowless);
-      enclosedState.shadowless = shadowless;
+    if (assembled !== enclosedState.shadowless) {
+      castShadows(NO_SHADOW_ASSEMBLED, !assembled);
+      enclosedState.shadowless = assembled;
+      changed = true;
+    }
+    const frameShadowless = assembled && !chassis;
+    if (frameShadowless !== enclosedState.frameShadowless) {
+      castShadows(NO_SHADOW_BODY_ON, !frameShadowless);
+      enclosedState.frameShadowless = frameShadowless;
       changed = true;
     }
     if (changed) refreshShadows();

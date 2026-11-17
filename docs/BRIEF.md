@@ -987,7 +987,7 @@ docs/reference/f40/ would correct them (the folder is empty).
   stay drawn: they show through the Lexan and the tail grille. While assembled, the sealed
   engine internals (phase 9 fix-up list), the frame and the gearbox mounts cast no shadows
   (they are inside the body's shadow and behind casings from below): that is the headroom
-  phase 5 spends. Exploded or in the Chassis view they cast as usual.
+  phase 5 spends. Exploded they cast as usual; in the Chassis view the frame does too.
 - **Chassis view.** A chip that is a mode: it hides every part of group `body` (panels, glass,
   cockpit, pods) and frames the car from the rear three-quarter; pressing it again brings the
   body back at the front three-quarter view. Other view chips only move the camera. The gear
@@ -998,3 +998,57 @@ docs/reference/f40/ would correct them (the folder is empty).
 - **Known, not introduced here:** `engine-mount-r` overlaps `oil-cooler` by a few mm (the
   phase 1 mount; both ride the engine). New and minor: the right engine mount's bracket foot
   brushes an oil line for a moment in stage 4 (t ≈ 3.6 s), as the mount moves outboard.
+
+#### Phase 5B: suspension and running gear (unattended, 2026-11-17)
+- **Parts (27).** Per corner: `upright-*`, `wishbone-upper-*`, `wishbone-lower-*`, `spring-*`,
+  `damper-*` (20); `steering-rack`, `tie-rod-l / -r`, `toe-link-l / -r`, `anti-roll-bar-front`,
+  `anti-roll-bar-rear` (each bar with its two drop links and frame bushes in one part). One
+  merged mesh per part (the damper's red body and bright rod are vertex colours on one shared
+  `painted` material; the gearbox mounts were moved onto it too). Hardpoints in
+  `src/config/suspension.ts`, all (est), from the wheel centres as fitted and the frame's rails.
+- **Uprights are new at all four corners.** Phase 9C brought wheels, discs and calipers but no
+  hub carriers; the body model's front ones were stand-ins and went with the rest in 5A.
+- **Short arms (est).** Wishbone legs are about 0.17–0.20 m front and 0.18–0.23 m rear, against
+  roughly 0.3 m on the real car: the model's front tub is 0.99 m wide and the turbo plumbing reaches
+  x 0.57 at the back, so the inboard pivots sit far out. Tracks and wheel positions are the
+  model's (unchanged).
+- **Rear coilovers lean back about 45°** from the lower wishbone to the low tower behind the
+  axle (see 5A). Front coilovers stand near upright under A-shaped towers.
+- **Front tower moved out 35 mm** (frame node `ft`, x 0.565 → 0.6) so the coilover clears both
+  the upper rail and the upright's hub boss.
+- **Steering rack and front anti-roll bar are threaded through the front tub** (under the
+  footwell floor and under the luggage tub's floor), through its side walls: declared contacts
+  with `body-shell` (and `interior` for the rack). Like the gearshift rod they stay with the
+  frame in the explode. Left-hand drive: the pinion housing is on the left.
+- **Rear anti-roll bar runs across the tail over the silencer** and forward outside the frame
+  to drop links on the lower wishbones: it could not cross over or under the gearbox (the
+  powertrain's way out, and the diffuser). It leaves with the tail brace (the same move, start
+  of stage 2).
+- **Explode.** Stage 2, 0.45 s after the wheels start (after the discs and calipers have
+  moved): uprights out 0.46, upper arms 0.34 out and 0.14 up, lower arms 0.3, front springs
+  0.2 and dampers 0.1, rear springs and dampers out and back behind the wheels' place, tie
+  rods and toe links 0.3. Stage 2 now ends at 2.2 s (was 2.05); the total is unchanged (≈4.9 s).
+- **Motion skipped (optional item).** No squat or dive: it needs every arm, spring and damper
+  re-posed each frame as separate moving meshes, and the springs' coils rebuilt; with the
+  budget work that was the item to leave. The suspension is static on the rolling road.
+  Nothing else in the sim changed.
+- **X-ray look for the frame.** With X-ray on, the frame's sections are drawn as a bright
+  skeleton without a depth test (ghost style `frame` in `SCENE.ghosts`), so they read through
+  the engine, wheels and cockpit. Cost: none (the same draws). Trade-off: like the body's
+  ghosts, the frame cannot be clicked while X-ray is on (clicks go to what is behind it).
+- **Budget.** Final peak 486 of 500 (X-ray with Flow, lights, running), 14 to spare; figures
+  in REVIEW. Suspension parts cast no shadows while the car is assembled, in the Chassis view
+  too (small, behind the wheels): one draw each; exploded they cast as usual. The rack and the
+  front anti-roll bar, wholly inside the body, are not drawn while it is closed. The first 5B
+  measurement read 496: 5A's "no shadows while assembled" had only taken parts out of the
+  contact-shadow pass, not the shadow map. Fixed (both passes now), which is also why 5A's own
+  saving grew. No tube was removed to meet the cap.
+- **Clash through suspension travel:** not applicable (no travel is animated); the wheels were
+  checked where they stand.
+- **Portrait phone bar (fix).** With Flow (9B) the portrait bar's five labelled buttons (⋯,
+  Explode, X-ray, Flow, Start) needed about 444 px, against 366 px on a 390 px phone. Explode,
+  the only one flexbox could shrink (`min-width: 0`), was squeezed into a circle with its label
+  cut, on every portrait phone (5A's shots too). Flow now sits in the ⋯ sheet on portrait phones
+  (as Explode, X-ray and Flow already do there while driving): it is a sub-mode of X-ray. The
+  other pills have a little less padding and letter-spacing, and Explode no longer shrinks. The
+  bar needs 338 px and fits a 360 px screen. Landscape and desktop are unchanged.

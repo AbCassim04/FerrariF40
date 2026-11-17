@@ -223,7 +223,7 @@ const gearboxMounts: PartDef[] = SIDES.map((s) =>
     description: 'Rubber mount on the gearbox casing’s flank with a steel bracket down to the frame’s cradle rail. With the two engine mounts it carries the whole powertrain.',
     specs: { Pad: `Ø${fmtMm(MOUNTS.gearbox.padRadius * 2, 0)}` },
     build: specBuild(`GearboxMount_${s}`, () => gearboxMountMeshes(s)),
-    material: 'darkSteel',
+    material: 'painted',
     contacts: ['gearbox-casing', 'frame-rear'],
   }),
 );

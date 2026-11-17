@@ -3,6 +3,40 @@
 Where the project stands and how to work on it. The spec and decision log are in
 docs/BRIEF.md; read that first. The build plan: docs/F40-PLAN.md.
 
+## Status (2026-11-17, phase 5)
+- **Phase 5 on `wip/f40-phase5`** (from `main` = phase 9 + fix-up, unattended, a commit per
+  sub-phase, not pushed). Summary, figures, shots: docs/REVIEW.md ("Phase 5"); decisions:
+  docs/BRIEF.md ("Phase 5A", "Phase 5B").
+- **5A frame:** nodes and tubes in `src/config/chassis.ts` (left side, mirrored);
+  `src/parts/frame/` (`layout.ts` plain segments, `geometry.ts` one merged mesh per section,
+  `index.ts` the four parts, `mounts.ts` the engine and gearbox mount brackets that ride the
+  powertrain). The model's stand-in frame and suspension are dropped in
+  `scripts/body-rules.mjs` (`STANDIN_CHASSIS`; `npm run prep:body` was re-run); the stand-in
+  radiator is the part `model-radiator`. Chassis view: store `chassis`, `SCENE.views.chassis`,
+  `SCENE.chassis` (what it hides, what is culled while closed, what casts no shadows while
+  assembled), applied in `scene/Enclosed.tsx`.
+- **5B suspension:** hardpoints in `src/config/suspension.ts`; `src/parts/suspension/`
+  (`geometry.ts`, `index.ts`: 27 parts). No suspension motion (skipped, see BRIEF). X-ray draws
+  the frame as a skeleton (`SCENE.ghosts.frame`, `scene/ghosts.ts`).
+- **Moving a tube or a hardpoint:** edit the config, then
+  `node --import ./scripts/ts-hooks.mjs scripts/dev/frame-fit.mjs` (frame vs the body's skins,
+  seconds), then on a loaded dev page `scripts/dev/frame-clash.js` (Playwright MCP `run_code`
+  `filename`: static + 24 times through the explode). Anything fixed in the engine bay must
+  stay out of the powertrain's way out (it slides back 0.37 m, then lifts): that is why no tube
+  crosses over it and its mounts ride with it.
+- **Dev tools added:** `scripts/dev/body-slice.mjs` (ASCII cross-sections of the body model:
+  `z=`, `x=` or `y=`), `part-pieces.mjs` (connected pieces of a prepped part), `piece-profile.mjs`,
+  `frame-fit.mjs`, `frame-clash.js`, `phase5-shots.js` (desktop + three phones;
+  `window.__shotTag`, `__shotSkip`), `perf-states.js` (now with the Chassis view states).
+  Dev API: `__dev.view('chassis')`, `__dev.setChassis(on)`; URL `?chassis=1`.
+- **Budget:** peak draw calls with everything on are in REVIEW "Phase 5" (cap 500). New parts
+  that sit inside the body should go in `SCENE.chassis.noShadowAssembled` / `noShadowGroups`.
+- **Portrait phone bar:** Flow is in the ⋯ sheet there (`ui/ControlBar.tsx`); the bar needs
+  338 px (fits 360). Adding a labelled button to it means taking one out (BRIEF "Phase 5B").
+- **Shots after a long session of hot reloads:** a stale shadow once darkened the doors in a
+  hero shot (not reproducible on a fresh load, after `perf-states.js` or `frame-clash.js`).
+  Reload the page before final review shots.
+
 ## Status (2026-11-15, phase 9)
 - **Phase 9 on `wip/f40-phase9`** (from `main` = 8D, unattended, a commit per sub-phase, not
   pushed). Summary, figures, shots: docs/REVIEW.md ("Phase 9"); decisions: docs/BRIEF.md
@@ -137,7 +171,7 @@ slash. The original model (assets-src/models/f40/body.glb) is not shipped.
 ## Dev aids
 Keys: L ids, G guides, K segments, C clashes, S solo group, B stand-in powertrain ghost.
 Panel: solo part or group, camera presets, clash report.
-URL: `?view=front34|top|engine|side|rear34&explode=1&t=<s>&fit=1&segments=1&labels=1&solo=<id>[,<id>…]&soloGroup=<group>&ghost=1&clashes=1|all&clashFocus=<a,b>&clashAt=<s>&guides=0&cam=x,y,z&look=x,y,z&perfPeak=1&inspect=<id>&xray=1&snap=1&panel=0`
+URL: `?view=front34|top|engine|side|rear34|chassis&chassis=1&explode=1&t=<s>&fit=1&segments=1&labels=1&solo=<id>[,<id>…]&soloGroup=<group>&ghost=1&clashes=1|all&clashFocus=<a,b>&clashAt=<s>&guides=0&cam=x,y,z&look=x,y,z&perfPeak=1&inspect=<id>&xray=1&snap=1&panel=0`
 (the clash options still need a load: the check runs once when it mounts).
 
 ## Visual verification (default method)
@@ -178,6 +212,7 @@ await __dev.select('crankshaft')  // inspect a part; __dev.clearSelection()
 await __dev.setXray(true); await __dev.setSolo('engine' | null); await __dev.setLabels(true)
 await __dev.setGhost(true); await __dev.setSegments(true)   // key B / key K
 await __dev.view('rear34'); await __dev.fit()               // preset; frame everything visible
+await __dev.view('chassis'); await __dev.setChassis(false)  // phase 5: the Chassis view (body hidden) on / off
 await __dev.setSoloParts(['starter-motor', 'flywheel'])   // show only these parts (null: all)
 await __dev.clash({ at, focus, allPairs, skipBody, pairs, progress })  // clash check now, no reload
 // pairs: [['pistons-l', 'crankshaft'], ['conrods-r:titanium', '*']] (id:material, '*' any part);

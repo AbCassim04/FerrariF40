@@ -85,7 +85,7 @@ export const FRAME_NODES = {
   fu2: [0.52, 0.44, 1.62],
   fu3: [0.33, 0.38, Z.nose],
   /** Front coilover tower top, over the axle line. */
-  ft: [0.565, 0.615, W.front.axleZ],
+  ft: [0.6, 0.615, W.front.axleZ],
   /** Radiator stays: forward and down from the nose frame, under the radiator. */
   fn: [0.3, 0.165, 2.1],
 

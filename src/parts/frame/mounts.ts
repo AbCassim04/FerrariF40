@@ -1,7 +1,8 @@
 import { Vector3 } from 'three';
 import { FRAME_NODES, landingTopY, MOUNTS } from '../../config/chassis';
 import { DIMS } from '../../config/dims';
-import { cylinderY, merge, plainBox } from '../../geometry/build';
+import { cylinderY, merge, plainBox, tinted } from '../../geometry/build';
+import { PALETTE } from '../../materials/materials';
 import type { MeshSpec } from '../../scene/MeshSet';
 import { sideSign, type Side } from '../engine/layout';
 import { strut } from './geometry';
@@ -9,8 +10,10 @@ import { strut } from './geometry';
 /**
  * Phase 5A: the steel brackets that carry the engine and gearbox on the frame's cradle rails.
  * They belong to the powertrain (they slide back and lift out with it): each ends in a foot
- * that sits `MOUNTS.footGap` above the landing plate welded to the rail. Engine coordinates
- * (x and z are the car's, y from the crank centreline), like the parts they are added to.
+ * that sits `MOUNTS.footGap` above the landing plate welded to the rail. To save draw calls the
+ * engine mounts' brackets share the mounts' cast material, and each gearbox mount is one mesh.
+ * Engine coordinates (x and z are the car's, y from the crank centreline), like the parts they
+ * are added to.
  */
 
 const E = DIMS.engine;
@@ -35,7 +38,7 @@ export function engineMountBracket(s: Side): MeshSpec {
   const x = sx * (E.block.skirtHalfWidth + m.bracket[0] + m.bushRadius * m.bushOverlap);
   const bushBottom = m.y - m.bushLength / 2;
   const cup = cylinderY(m.bushRadius * 1.1, bushBottom - M.foot[1], bushBottom, 24).translate(x, 0, M.engineZ);
-  return { geometry: merge([cup, ...bracket(s, new Vector3(x + sx * m.bushRadius * 0.5, bushBottom - M.foot[1] / 2, M.engineZ), M.engineZ)]), material: 'darkSteel' };
+  return { geometry: merge([cup, ...bracket(s, new Vector3(x + sx * m.bushRadius * 0.5, bushBottom - M.foot[1] / 2, M.engineZ), M.engineZ)]), material: 'castAluminium' };
 }
 
 /** Gearbox mount: a rubber pad on the casing's flank and its bracket down to the cradle rail. */
@@ -51,8 +54,7 @@ export function gearboxMountMeshes(s: Side): MeshSpec[] {
   const pad = strut(new Vector3(x0, y, G.z), new Vector3(x1, y, G.z), G.padRadius, 24);
   const cap = strut(new Vector3(x1, y, G.z), new Vector3(x1 + sx * M.foot[1], y, G.z), G.padRadius * 1.1, 24);
   const lid = cylinderY(G.padRadius * 1.1, 0, 0.001, 24).rotateZ(Math.PI / 2).translate(x1 + sx * M.foot[1], y, G.z);
-  return [
-    { geometry: pad, material: 'rubber' },
-    { geometry: merge([cap, lid, ...bracket(s, new Vector3(x1 + sx * M.foot[1] * 0.5, y - G.padRadius * 0.6, G.z), G.z)]), material: 'darkSteel' },
-  ];
+  const steel = merge([cap, lid, ...bracket(s, new Vector3(x1 + sx * M.foot[1] * 0.5, y - G.padRadius * 0.6, G.z), G.z)]);
+  // One mesh: rubber pad and steel bracket as vertex colours.
+  return [{ geometry: merge([tinted(merge([pad]), PALETTE.rubber), tinted(steel, PALETTE.darkSteel)]), material: 'painted' }];
 }

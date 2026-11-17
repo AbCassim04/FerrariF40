@@ -137,12 +137,19 @@ hard constraint: peak under 500 draw calls with everything on (baseline 481, see
   through the explode (`scripts/dev/frame-clash.js`)
 
 **5B — suspension and running gear**
-- [ ] Double wishbones at all four corners (`*-wishbone-upper / -lower`), uprights behind the
-  donor's discs, coilovers (spring over damper) to the frame towers
-- [ ] Anti-roll bars front and rear with drop links; steering rack and tie rods; rear toe links
-- [ ] Squat and dive on the rolling road (optional: skipped and logged if it risks the budget)
-- [ ] Each part in the explode with a description and specs; clash through the explode
-- [ ] The Chassis view with suspension; an X-ray look in which the frame reads behind parts
+- [x] `upright-*` ×4 — cast hub carriers (new: the donor brought none); explode: S2 out 0.46
+- [x] `wishbone-upper-*`, `wishbone-lower-*` ×4 each — tube A-arms on the frame's rails;
+  explode: S2 out 0.34 / 0.3
+- [x] `spring-*`, `damper-*` ×4 each — coil over Koni damper to the frame towers (rear ones
+  lean back to the low towers); explode: S2 out
+- [x] `anti-roll-bar-front` (under the luggage tub; stays), `anti-roll-bar-rear` (across the
+  tail; leaves with the tail brace), each with drop links and bushes
+- [x] `steering-rack` (stays), `tie-rod-l / -r`, `toe-link-l / -r`
+- [ ] Squat and dive on the rolling road — skipped (optional; see BRIEF "Phase 5B")
+- [x] Each part in the explode with a description and specs; clash assembled, exploded and at
+  24 times through the explode
+- [x] The Chassis view with suspension; X-ray draws the frame as a skeleton through the parts
+  in front of it
 
 ### Phase 6 — cooling, fuel, electrics (10)
 - [ ] `radiator` — In the nose (#46); explode: S1: forward 0.4 with the front clam · new
@@ -308,8 +315,8 @@ the engine is there under it, then the whole tail lifts away.
 | stage | starts | what moves |
 | --- | --- | --- |
 | 1 body (built) | 0.00 | **Rear clam opens 70° about its tail hinge** (the Lexan cover and the wing with it); 0.45 s: lifts up and back. 0.15 s: doors swing open about their front hinges. 0.25 s: front clam tips up about its nose and moves forward. 0.35 s: windscreen and fixed glass lift. |
-| 2 chassis (partly built) | 0.75 | Wheels out 0.75, discs and calipers follow, suspension out, driveshafts out; 0.25 s: **powertrain slides back 0.37 m** from under the roof edge (0.3 until phase 8) (once the driveshafts are clear of the exhaust collectors). |
-| 3 powertrain (built) | 1.70 | Engine, gearbox, turbos, intercoolers and exhaust lift 1.2 m as one unit; the frame stays. |
+| 2 chassis (built) | 0.75 | Wheels out 0.75, discs and calipers follow (0.3 s), then the uprights, wishbones, coilovers and links (0.45 s); the tail brace and rear anti-roll bar lift up and back; driveshafts out; 0.25 s: **powertrain slides back 0.37 m** from under the roof edge (0.3 until phase 8) (once the driveshafts are clear of the exhaust collectors). |
+| 3 powertrain (built) | 1.70 | Engine, gearbox, turbos, intercoolers and exhaust lift 1.2 m as one unit (their mounts with them, off the cradle rails); the frame stays. |
 | 4 engine teardown | 2.50 | Outside in, see below. |
 | 5 transmission (built) | 3.75 | Starts before the crank drops (the crank's rear flange sits in the bellhousing's mouth). Gearbox slides back 0.5 off the engine (its oil cooler comes off on the way); then the flywheel and the clutch's discs and plates fan out behind the block; LSD shown in the casing. |
 

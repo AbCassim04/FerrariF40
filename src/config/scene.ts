@@ -112,17 +112,20 @@ export const SCENE = {
   /**
    * Phase 5, what the body covers:
    * - `hiddenGroups`: the Chassis view hides every part of these groups (panels, glass, cockpit);
-   * - `covered`: frame sections wholly inside the body. They skip every pass while the car is
+   * - `covered`: frame sections (and the rack and front anti-roll bar) wholly inside the body. They skip every pass while the car is
    *   assembled and closed (X-ray off, nothing inspected or soloed, not the Chassis view); the
    *   rear section stays, since it shows through the Lexan cover and the tail grille;
    * - `noShadowAssembled`: parts that cast no shadows while the car is assembled (they sit
-   *   inside the body's own shadow): they cost one draw, not three. Exploded or in the Chassis
-   *   view they cast as usual.
+   *   inside the body's own shadow): they cost one draw, not three. Exploded they cast as
+   *   usual; in the Chassis view the frame does too (`noShadowGroups` still do not: small parts
+   *   behind the wheels).
    */
   chassis: {
     hiddenGroups: ['body'] as readonly string[],
-    covered: ['frame-front', 'frame-cabin'] as readonly string[],
+    covered: ['frame-front', 'frame-cabin', 'steering-rack', 'anti-roll-bar-front'] as readonly string[],
     noShadowAssembled: ['frame-rear', 'frame-brace', 'gearbox-mount-l', 'gearbox-mount-r'] as readonly string[],
+    /** And every procedural part of these groups (5B: arms, uprights, coilovers, links, bars). */
+    noShadowGroups: ['suspension'] as readonly string[],
   },
   /**
    * Phase 9 fix-up: the cabin (car coordinates, est), for "is the eye inside the car": then the
@@ -160,6 +163,11 @@ export const SCENE = {
     isolate: { base: 0.004, rim: 0.11, tintMix: 0.5 },
     /** 9B: the pipes the gas flows through, with Flow on: fainter, so stacked fins and cans don't glare over the flow. */
     flow: { base: 0.002, rim: 0.1, tintMix: 0.45 },
+    /**
+     * Phase 5B: the tube frame in X-ray, a bright skeleton drawn without a depth test, so it
+     * reads through the engine, wheels and cockpit in front of it (est).
+     */
+    frame: { base: 0.07, rim: 0.5, tintMix: 0.7, noDepth: true },
   },
   /**
    * Quality tiers (8D, est). Phones start at `phoneStart`; any device drops a tier when its

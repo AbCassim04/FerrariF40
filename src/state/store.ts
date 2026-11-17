@@ -98,7 +98,7 @@ export const useAppStore = create<AppState>()((set) => ({
   doors: false,
   hazards: flag('hazards'),
   inCabin: false,
-  chassis: flag('chassis'),
+  chassis: flag('chassis') || params.get('view') === 'chassis',
   view: params.get('view') ? { name: params.get('view') as ViewName, seq: 0 } : null,
   cameraFit: null,
 

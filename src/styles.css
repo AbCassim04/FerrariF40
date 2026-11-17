@@ -1233,6 +1233,23 @@ body,
 
 /* Portrait phone: the gauges sit top right, clear of the camera buttons on the left (two 40 px buttons from 12 px). */
 @media (max-width: 719.98px) and (orientation: portrait) {
+  /*
+   * The viewing bar (⋯, Explode, X-ray, Start; Flow is in the sheet) fits a 360 px screen with
+   * a little less padding and spacing. Explode never shrinks below its label (it used to be
+   * squeezed into a circle, the only button flexbox could shrink).
+   */
+  .bar:not(.bar--drive) .explode-btn {
+    flex: none;
+    padding: 0 16px;
+    letter-spacing: 0.08em;
+  }
+
+  .bar:not(.bar--drive) .xray-btn,
+  .bar:not(.bar--drive) .engine-btn {
+    padding: 0 12px;
+    letter-spacing: 0.08em;
+  }
+
   .readout--hud {
     left: auto;
     right: max(12px, env(safe-area-inset-right));

@@ -23,6 +23,8 @@ function ghostFor(def: PartDef, mesh: Mesh, xray: boolean, selectedId: string | 
   if (selectedId) return def.id === selectedId ? null : 'isolate';
   if (!xray) return null;
   if (flow && FLOW_PARTS.has(def.id)) return 'flow';
+  // Phase 5B: the frame shows as a skeleton through whatever is in front of it.
+  if (def.group === 'frame') return 'frame';
   return isXrayPart(def) || (running && mesh.userData.xrayShell) ? 'xray' : null;
 }
 
@@ -87,6 +89,8 @@ function ghostMaterial(colour: Color, kind: GhostKind, vertexColors: boolean) {
     // Additive needs no back-to-front order; three would otherwise draw double-sided
     // transparent meshes twice (back faces, then front), doubling the ghosts' draw calls.
     forceSinglePass: true,
+    // The frame's skeleton is seen through solid parts too.
+    depthTest: !('noDepth' in style && style.noDepth),
   });
 }
 
@@ -111,7 +115,9 @@ export function applyGhosts(xray: boolean, selectedId: string | null, running = 
       if (!kind) {
         if (original) {
           mesh.material = original.material;
-          mesh.castShadow = original.castShadow;
+          // Phase 5: scene/Enclosed.tsx may have taken the mesh out of the shadow passes (or put it back) meanwhile.
+          mesh.userData.ghosted = false;
+          mesh.castShadow = mesh.userData.noShadow ? false : (mesh.userData.castWanted ?? original.castShadow);
           originals.delete(mesh);
         }
         return;
@@ -119,6 +125,7 @@ export function applyGhosts(xray: boolean, selectedId: string | null, running = 
       if (!original) {
         original = { material: mesh.material, castShadow: mesh.castShadow };
         originals.set(mesh, original);
+        mesh.userData.ghosted = true;
       }
       const m = original.material;
       mesh.material = Array.isArray(m) ? m.map((x) => ghostOf(x, kind)) : ghostOf(m, kind);

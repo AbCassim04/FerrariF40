@@ -45,6 +45,8 @@ export type MaterialKey =
   | 'silicone'
   | 'heatShield'
   | 'frameSteel'
+  | 'coilSpring'
+  | 'painted'
   | 'reference';
 
 export const PALETTE = {
@@ -84,6 +86,10 @@ export const PALETTE = {
   heatShield: '#cbc7bf',
   /** Phase 5: the tube frame's paint, a semi-gloss mid grey (est; light enough to read against the dark studio). */
   frameSteel: '#7d838c',
+  /** Phase 5B: coil springs (painted, est) and the Koni dampers' red bodies (ref: Koni's usual finish). */
+  coilSpring: '#d9a514',
+  damperBody: '#b3221c',
+  damperRod: '#b9bcc2',
   reference: '#5fd0ff',
 } as const;
 
@@ -231,6 +237,16 @@ const factories: Record<MaterialKey, () => Material> = {
   heatShield: () => new MeshStandardMaterial({ color: PALETTE.heatShield, metalness: 1, roughness: 0.34, bumpMap: castNoiseTexture(60, 100, 160), bumpScale: 0.5 }),
   /** Painted steel tube: semi-gloss, the metal only showing in the highlights. */
   frameSteel: () => new MeshStandardMaterial({ color: PALETTE.frameSteel, metalness: 0.35, roughness: 0.4 }),
+  coilSpring: () => new MeshStandardMaterial({ color: PALETTE.coilSpring, metalness: 0.2, roughness: 0.42 }),
+  /**
+   * Painted and plated small parts whose colours are per vertex (`tinted()` in geometry/build),
+   * so a part in two finishes (a damper's red body and bright rod) is still one draw.
+   */
+  painted: () => {
+    const m = new MeshStandardMaterial({ color: '#ffffff', vertexColors: true, metalness: 0.4, roughness: 0.4 });
+    m.userData.ghostVertexColors = true;
+    return m;
+  },
   /** Braided loom sleeve: matte black. */
   loom: () => new MeshStandardMaterial({ color: PALETTE.loom, metalness: 0, roughness: 0.85 }),
   /** Thin lines for wireframe reference geometry. */

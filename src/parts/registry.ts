@@ -5,13 +5,14 @@ import { coilParts, intakeParts } from './engine/intake';
 import { transaxleParts } from './transaxle';
 import { turboParts } from './turbo';
 import { powertrainAssembly, powertrainCarrier } from './powertrain';
+import { suspensionParts } from './suspension';
 import type { PartDef } from './types';
 
 /**
  * Every part in the car: the single source of truth for geometry, placement,
  * explode choreography and the info panel. Parents must be listed before their children.
  */
-export const PARTS: readonly PartDef[] = [...bodyParts, ...frameParts, powertrainCarrier, powertrainAssembly, ...engineParts, ...intakeParts, ...turboParts, ...transaxleParts, ...coilParts];
+export const PARTS: readonly PartDef[] = [...bodyParts, ...frameParts, ...suspensionParts, powertrainCarrier, powertrainAssembly, ...engineParts, ...intakeParts, ...turboParts, ...transaxleParts, ...coilParts];
 
 export const PARTS_BY_ID: ReadonlyMap<string, PartDef> = new Map(PARTS.map((p) => [p.id, p]));
 
