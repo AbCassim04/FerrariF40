@@ -33,6 +33,12 @@ docs/BRIEF.md; read that first. The build plan: docs/F40-PLAN.md.
   that sit inside the body should go in `SCENE.chassis.noShadowAssembled` / `noShadowGroups`.
 - **Portrait phone bar:** Flow is in the ⋯ sheet there (`ui/ControlBar.tsx`); the bar needs
   338 px (fits 360). Adding a labelled button to it means taking one out (BRIEF "Phase 5B").
+- **Fix-ups after the merge (2026-11-17):** badges snap onto our paint in `npm run prep:donor`
+  (`DONOR.snap`; it reads `public/models/body.opt.glb`, so run `prep:body` first). They had
+  floated up to 12 mm off it (the tail lettering) or sunk 1 mm in (the right shield). The dyno
+  graph sits under the camera corner and moves down while the view chips are open
+  (`--cam-bottom`, set by `ui/CameraButtons`); on landscape phones it steps aside then. On a
+  portrait phone the chips open below the driving gauges (`--hud-bottom`).
 - **Shots after a long session of hot reloads:** a stale shadow once darkened the doors in a
   hero shot (not reproducible on a fresh load, after `perf-states.js` or `frame-clash.js`).
   Reload the page before final review shots.

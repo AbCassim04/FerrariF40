@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import type { ViewName } from '../config/scene';
 import { useAppStore } from '../state/store';
 
@@ -20,8 +20,26 @@ export function CameraButtons() {
   const requestView = useAppStore((s) => s.requestView);
   const chassis = useAppStore((s) => s.chassis);
   const setChassis = useAppStore((s) => s.setChassis);
+  const nav = useRef<HTMLElement>(null);
+  // The dyno graph sits under this corner: `--cam-bottom` tells it where the corner ends now
+  // (the chips open below the buttons and wrap differently per layout).
+  useLayoutEffect(() => {
+    const el = nav.current;
+    const app = el?.parentElement;
+    if (!el || !app) return;
+    const publish = () => app.style.setProperty('--cam-bottom', `${el.offsetTop + el.offsetHeight}px`);
+    publish();
+    const ro = new ResizeObserver(publish);
+    ro.observe(el);
+    addEventListener('resize', publish);
+    return () => {
+      ro.disconnect();
+      removeEventListener('resize', publish);
+      app.style.removeProperty('--cam-bottom');
+    };
+  }, []);
   return (
-    <nav className="cam" aria-label="Camera">
+    <nav className="cam" aria-label="Camera" ref={nav}>
       <div className="cam__buttons">
         <button type="button" className="icon-btn" aria-label="Reset the view" title="Reset the view" onClick={() => requestView('front34')}>
           <svg viewBox="0 0 20 20" aria-hidden="true">

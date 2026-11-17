@@ -19,7 +19,8 @@
  *      wheel centre (the model's half track and axle, the tyre standing on the ground)
  *   4. badges, gauge faces and lamps (with only their own artwork): split into connected
  *      pieces, each placed on the panel it sits on (`badges__<panel>`, `lamps__<panel>`,
- *      `gauges__interior`), at the normalised position (+ a small offset onto our surface).
+ *      `gauges__interior`), at the normalised position (+ a small offset onto our surface;
+ *      badges are snapped onto the prepped body's paint, so run `npm run prep:body` first).
  *      The lamps (phase 9 fix-up): the rear tail / brake, indicator / reversing and fog lamps
  *      and the front indicators and side repeaters, with the donor's lens artwork
  *   5. textures → WebP, at most 1024 px (512 where it is never seen close)
@@ -34,9 +35,9 @@ import { statSync } from 'node:fs';
 import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
 import { dedup, join, meshopt, prune, transformMesh } from '@gltf-transform/functions';
-import { MeshoptEncoder } from 'meshoptimizer';
+import { MeshoptDecoder, MeshoptEncoder } from 'meshoptimizer';
 import sharp from 'sharp';
-import { Box3, Matrix4, Vector3 } from 'three';
+import { Box3, Matrix3, Matrix4, Ray, Vector3 } from 'three';
 import { panelAt } from './body-rules.mjs';
 import { DONOR } from './donor-rules.mjs';
 
@@ -188,6 +189,82 @@ function flipV(prim) {
   for (let i = 1; i < a.length; i += 2) a[i] = 1 - a[i];
 }
 
+/** Our paint near the badges: the prepped body's panel triangles (car coordinates), with boxes. */
+async function surface({ body, panels, materials }) {
+  await MeshoptDecoder.ready;
+  const bdoc = await new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ 'meshopt.decoder': MeshoptDecoder }).read(body);
+  const tris = [];
+  for (const top of bdoc.getRoot().listScenes()[0].listChildren()) {
+    if (!panels.includes(top.getName())) continue;
+    top.traverse((node) => {
+      const mesh = node.getMesh();
+      if (!mesh) return;
+      const m = new Matrix4().fromArray(node.getWorldMatrix());
+      for (const prim of mesh.listPrimitives()) {
+        if (!materials.test(prim.getMaterial()?.getName() ?? '')) continue;
+        const pos = prim.getAttribute('POSITION');
+        const idx = prim.getIndices();
+        const P = Array.from({ length: pos.getCount() }, (_, i) => new Vector3().fromArray(pos.getElement(i, [])).applyMatrix4(m));
+        const n = idx ? idx.getCount() : P.length;
+        for (let t = 0; t < n; t += 3) {
+          const tri = [0, 1, 2].map((k) => P[idx ? idx.getScalar(t + k) : t + k]);
+          tris.push({ tri, box: new Box3().setFromPoints(tri) });
+        }
+      }
+    });
+  }
+  return tris;
+}
+
+/**
+ * The move that puts a flat piece onto our paint (DONOR.snap), or why it stays put. Gap per
+ * sampled vertex along its normal: + floating (paint behind it), − sunk (paint in front).
+ */
+function snapMove(piece, MW, tris, S) {
+  const pos = piece.prim.getAttribute('POSITION');
+  const nor = piece.prim.getAttribute('NORMAL');
+  if (!nor) return { why: 'no normals' };
+  const NM = new Matrix3().getNormalMatrix(MW);
+  const pts = [...new Set(piece.tris)].map((i) => ({
+    p: new Vector3().fromArray(pos.getElement(i, [])).applyMatrix4(MW),
+    n: new Vector3().fromArray(nor.getElement(i, [])).applyMatrix3(NM).normalize(),
+  }));
+  const mean = pts.reduce((a, s) => a.add(s.n), new Vector3()).divideScalar(pts.length);
+  if (mean.length() < S.flat) return { why: 'not flat' };
+  mean.normalize();
+  const box = new Box3().setFromPoints(pts.map((s) => s.p)).expandByScalar(S.reach);
+  const near = tris.filter((t) => t.box.intersectsBox(box));
+  const eps = 0.0005;
+  const ray = new Ray();
+  const hit = new Vector3();
+  const gaps = [];
+  const step = Math.max(1, Math.floor(pts.length / 48));
+  for (let k = 0; k < pts.length; k += step) {
+    const { p, n } = pts[k];
+    let best = null;
+    for (const dir of [-1, 1]) {
+      ray.set(p.clone().addScaledVector(n, -dir * eps), n.clone().multiplyScalar(dir));
+      for (const { tri } of near) {
+        if (!ray.intersectTriangle(tri[0], tri[1], tri[2], false, hit)) continue;
+        const d = hit.distanceTo(ray.origin) - eps;
+        if (d > S.reach) continue;
+        const gap = dir < 0 ? d : -d;
+        if (best === null || Math.abs(gap) < Math.abs(best)) best = gap;
+      }
+    }
+    if (best !== null) gaps.push(best);
+  }
+  if (gaps.length < 3) return { why: 'no paint within reach' };
+  gaps.sort((a, b) => a - b);
+  const spread = gaps.at(-1) - gaps[0];
+  if (spread > S.maxSpread) return { why: 'uneven against our surface' };
+  // The nearest samples (10th percentile, past a stray ray at an edge) end up `standoff` off the paint.
+  const g = gaps[Math.floor(gaps.length * 0.1)];
+  return { move: mean.multiplyScalar(S.standoff - g), gap: g };
+}
+
+const snapTris = Object.values(DONOR.accessories).some((r) => r.snap) ? await surface(DONOR.snap) : [];
+const snapped = { moved: 0, before: [], why: {} };
 const placed = {};
 const skipped = {};
 for (const [kind, rule] of Object.entries(DONOR.accessories)) {
@@ -207,7 +284,15 @@ for (const [kind, rule] of Object.entries(DONOR.accessories)) {
       const group = `${kind}__${panel}`;
       if (!out.has(group)) out.set(group, doc.createNode(group));
       const offset = rule.offset?.[panel];
-      const M = offset ? new Matrix4().makeTranslation(...offset).multiply(MW) : MW;
+      let M = offset ? new Matrix4().makeTranslation(...offset).multiply(MW) : MW;
+      if (rule.snap) {
+        const s = snapMove(piece, M, snapTris, DONOR.snap);
+        if (s.move) {
+          M = new Matrix4().makeTranslation(s.move.x, s.move.y, s.move.z).multiply(M);
+          snapped.moved++;
+          snapped.before.push(s.gap);
+        } else snapped.why[s.why] = (snapped.why[s.why] ?? 0) + 1;
+      }
       out.get(group).addChild(nodeFromTris(`${name}_${i}`, piece.prim, piece.tris, M));
       placed[group] = (placed[group] ?? 0) + piece.tris.length / 3;
     });
@@ -215,6 +300,11 @@ for (const [kind, rule] of Object.entries(DONOR.accessories)) {
 }
 for (const [g, n] of Object.entries(placed).sort()) log(`${g}: ${n} triangles`);
 for (const [k, n] of Object.entries(skipped)) log(`${k}: ${n} pieces left out`);
+if (snapTris.length) {
+  const b = snapped.before.sort((x, y) => x - y).map((v) => (v * 1000).toFixed(1));
+  log(`badges snapped onto our paint (${snapTris.length} triangles): ${snapped.moved} pieces, ${(DONOR.snap.standoff * 1000).toFixed(1)} mm off; their gaps were ${b[0]} … ${b.at(-1)} mm (median ${b[b.length >> 1]})`);
+  for (const [why, n] of Object.entries(snapped.why)) log(`  left as they were: ${n} (${why})`);
+}
 
 // ─── keep only what we took ───────────────────────────────────────────────────
 for (const child of scene.listChildren()) scene.removeChild(child);

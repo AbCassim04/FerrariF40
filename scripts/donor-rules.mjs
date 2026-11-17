@@ -29,7 +29,8 @@ export const DONOR = {
    */
   accessories: {
     // Badges: the "ferrari" lettering, shields, the Pininfarina plates, the F40 script.
-    badges: { materials: ['material_1', 'material_17'] },
+    // `snap`: each piece is moved onto our paint (see `snap` below).
+    badges: { materials: ['material_1', 'material_17'], snap: true },
     // Instrument faces (the needles are ours, driven by the sim). The donor's gauge faces
     // sample their atlas upside down (no texture transform, unlike its badges' material, which
     // turns its atlas by 180°): their v is flipped back.
@@ -49,6 +50,25 @@ export const DONOR = {
       flipV: true,
       offset: { 'rear-clam': [-0.002, 0.0035, 0.006], 'front-clam': [-0.0025, 0.002, -0.0055] },
     },
+  },
+  /**
+   * Badges onto our surface (fix-up, 2026-11-17). The donor's tail and left flank sit a few mm
+   * further out than the body model's, so its badges floated up to 12 mm off our paint (the
+   * tail lettering) or sank into it (the right shield, 1 mm). Each flat piece (its normals
+   * agree to `flat`) is moved along its own normal until the nearest of its samples sits
+   * `standoff` off our paint: the prepped body's panels (`npm run prep:body` first), only the
+   * `materials` that are painted or plated (not the grille mesh, glass, lamps or the model's
+   * own logos, which the donor's replace). Pieces that are not flat (domed rivets), uneven
+   * against our surface (more than `maxSpread`), or with no paint within `reach` stay put.
+   */
+  snap: {
+    body: 'public/models/body.opt.glb',
+    panels: ['body-shell', 'front-clam', 'rear-clam', 'rear-wing', 'door-l', 'door-r'],
+    materials: /^(material|F40_Chrome(\.\d+)?|F40_Carbon)$/,
+    standoff: 0.0006,
+    reach: 0.025,
+    maxSpread: 0.005,
+    flat: 0.9,
   },
   /** Tyres: the derived tread normal map's slope gain, and the rubber's roughness (est). */
   tread: { strength: 2.5, roughness: 0.9 },

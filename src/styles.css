@@ -682,9 +682,10 @@ body,
   color: #ffb39f;
 }
 
+/* Under the camera corner, and further down while its view chips are open (`--cam-bottom`, set by ui/CameraButtons). */
 .dyno {
   position: absolute;
-  top: calc(max(12px, env(safe-area-inset-top)) + 52px);
+  top: calc(var(--cam-bottom, calc(max(12px, env(safe-area-inset-top)) + 40px)) + 12px);
   left: max(12px, env(safe-area-inset-left));
   z-index: 2;
   margin: 0;
@@ -694,6 +695,7 @@ body,
   background: var(--ui-bg);
   backdrop-filter: blur(10px);
   animation: panel-in 0.25s ease-out;
+  transition: top 0.2s ease;
   touch-action: none;
 }
 
@@ -771,9 +773,14 @@ body,
 /* Landscape phone: smaller, ending above the − / brake thumbs; the gauges no wider than needed. */
 @media (orientation: landscape) and (max-height: 500px) {
   .dyno {
-    top: calc(max(8px, env(safe-area-inset-top)) + 46px);
+    top: calc(var(--cam-bottom, calc(max(8px, env(safe-area-inset-top)) + 40px)) + 6px);
     transform: scale(0.72);
     transform-origin: top left;
+  }
+
+  /* No room below four rows of chips here (it would reach the left thumb's keys): it steps aside while they are open. */
+  .app:has(#view-chips) .dyno {
+    visibility: hidden;
   }
 
   .readout--hud {
@@ -1248,6 +1255,11 @@ body,
   .bar:not(.bar--drive) .engine-btn {
     padding: 0 12px;
     letter-spacing: 0.08em;
+  }
+
+  /* While driving, the gauges sit beside the camera buttons: the view chips open below them (`--hud-bottom`, set by the gauges). */
+  .cam__chips {
+    margin-top: max(0px, calc(var(--hud-bottom, 0px) - max(12px, env(safe-area-inset-top)) - 40px));
   }
 
   .readout--hud {

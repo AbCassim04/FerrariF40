@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { ENGINE_SIM, GATE, gearLabel, TIME_SCALES, type TimeScaleName } from '../config/engine-sim';
 import { engineAudio } from '../engine/audio/engineAudio';
 import { cylinderNumber, firingAngle, SIDES, CYLINDERS } from '../parts/engine/layout';
@@ -131,6 +131,20 @@ export function Readout({ variant }: { variant: 'bar' | 'hud' }) {
     draw(useEngineStore.getState());
     return useEngineStore.subscribe(draw);
   }, []);
+  // The phone gauges sit beside the camera buttons: `--hud-bottom` lets the view chips open below them (styles.css).
+  useLayoutEffect(() => {
+    const el = root.current;
+    const app = el?.parentElement;
+    if (variant !== 'hud' || !el || !app) return;
+    const publish = () => app.style.setProperty('--hud-bottom', `${el.offsetTop + el.offsetHeight}px`);
+    publish();
+    const ro = new ResizeObserver(publish);
+    ro.observe(el);
+    return () => {
+      ro.disconnect();
+      app.style.removeProperty('--hud-bottom');
+    };
+  }, [variant]);
   return (
     <div ref={root} className={`readout readout--${variant}`} role="group" aria-label="Engine speed and boost" data-occludes={variant === 'hud' ? '' : undefined}>
       <div className="readout__tach">
